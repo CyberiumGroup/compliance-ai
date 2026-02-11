@@ -375,12 +375,12 @@ class DocumentFrameworkLoader(BaseFrameworkLoader):
     @classmethod
     async def _ai_parse_requirements(cls, text: str, filename: str) -> list[dict]:
         """Use Claude to extract structured requirements from text."""
-        if not settings.anthropic_api_key:
-            raise ValueError("ANTHROPIC_API_KEY required for AI document parsing")
+        if not settings.openai_api_key:
+            raise ValueError("OPENAI_API_KEY required for AI document parsing")
 
-        from anthropic import Anthropic
+        from openai import OpenAI
 
-        client = Anthropic(api_key=settings.anthropic_api_key)
+        client = OpenAI(api_key=settings.openai_api_key)
 
         prompt = f"""Extract compliance requirements from this document into a structured format.
 
@@ -403,14 +403,14 @@ If the document doesn't have explicit codes, create logical ones based on sectio
 
 Respond ONLY with the JSON array, no other text."""
 
-        response = client.messages.create(
+        response = client.chat.completions.create(
             model=settings.ai_model,
             max_tokens=settings.ai_max_tokens,
             temperature=0.1,
             messages=[{"role": "user", "content": prompt}],
         )
 
-        content = response.content[0].text.strip()
+        content = response.choices[0].message.content.strip()
         # Handle markdown code blocks
         if content.startswith("```"):
             content = content.split("```")[1]

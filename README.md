@@ -26,7 +26,7 @@ An AI-driven multi-framework compliance assessment platform. Upload your control
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2.0, Alembic |
 | Frontend | Next.js 15, React 19, TypeScript, Tailwind CSS 4 |
 | Database | PostgreSQL 16 |
-| AI | Anthropic Claude (analysis & mapping), OpenAI text-embedding-3-small (embeddings) |
+| AI | OpenAI GPT-4o (analysis & mapping), OpenAI text-embedding-3-small (embeddings) |
 | PDF | WeasyPrint + Jinja2 |
 | Auth | JWT (python-jose), bcrypt |
 
@@ -74,9 +74,8 @@ cd backend
 
 # Create and configure environment variables
 cp .env.example .env
-# Edit .env and set your API keys:
-#   ANTHROPIC_API_KEY  — required for AI mapping, scoring, and analysis
-#   OPENAI_API_KEY     — required for embedding generation
+# Edit .env and set your API key:
+#   OPENAI_API_KEY  — required for AI features (chat completions and embeddings)
 
 # Create a virtual environment and install
 python -m venv venv

@@ -1,4 +1,4 @@
-"""AI client for interacting with Anthropic Claude API."""
+"""AI client for interacting with OpenAI API."""
 
 import json
 from typing import Any
@@ -9,19 +9,19 @@ from app.core.config import settings
 
 
 class AIClient:
-    """Client for Anthropic Claude API."""
+    """Client for OpenAI API."""
 
     def __init__(self):
         self._client = None
 
     @property
     def client(self):
-        """Lazy initialization of Anthropic client."""
+        """Lazy initialization of OpenAI client."""
         if self._client is None:
-            if not settings.anthropic_api_key:
-                raise ValueError("ANTHROPIC_API_KEY not configured")
-            from anthropic import Anthropic
-            self._client = Anthropic(api_key=settings.anthropic_api_key)
+            if not settings.openai_api_key:
+                raise ValueError("OPENAI_API_KEY not configured")
+            from openai import OpenAI
+            self._client = OpenAI(api_key=settings.openai_api_key)
         return self._client
 
     @retry(
@@ -67,7 +67,7 @@ Only include mappings with confidence >= 0.3. Return an empty array if no mappin
 
 Respond ONLY with the JSON array, no other text."""
 
-        response = self.client.messages.create(
+        response = self.client.chat.completions.create(
             model=settings.ai_model,
             max_tokens=settings.ai_max_tokens,
             temperature=settings.ai_temperature,
@@ -75,7 +75,7 @@ Respond ONLY with the JSON array, no other text."""
         )
 
         try:
-            content = response.content[0].text.strip()
+            content = response.choices[0].message.content.strip()
             # Handle potential markdown code blocks
             if content.startswith("```"):
                 content = content.split("```")[1]
@@ -126,7 +126,7 @@ Analyze and respond with JSON containing:
 
 Respond ONLY with the JSON object, no other text."""
 
-        response = self.client.messages.create(
+        ai_response = self.client.chat.completions.create(
             model=settings.ai_model,
             max_tokens=settings.ai_max_tokens,
             temperature=settings.ai_temperature,
@@ -134,7 +134,7 @@ Respond ONLY with the JSON object, no other text."""
         )
 
         try:
-            content = response.content[0].text.strip()
+            content = ai_response.choices[0].message.content.strip()
             if content.startswith("```"):
                 content = content.split("```")[1]
                 if content.startswith("json"):

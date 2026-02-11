@@ -33,12 +33,12 @@ class CrosswalkService:
 
     @property
     def ai_client(self):
-        """Lazy initialization of Anthropic client for LLM validation."""
+        """Lazy initialization of OpenAI client for LLM validation."""
         if self._ai_client is None:
-            if not settings.anthropic_api_key:
-                raise ValueError("ANTHROPIC_API_KEY not configured")
-            from anthropic import Anthropic
-            self._ai_client = Anthropic(api_key=settings.anthropic_api_key)
+            if not settings.openai_api_key:
+                raise ValueError("OPENAI_API_KEY not configured")
+            from openai import OpenAI
+            self._ai_client = OpenAI(api_key=settings.openai_api_key)
         return self._ai_client
 
     def generate_crosswalks(
@@ -190,14 +190,14 @@ Respond ONLY with the JSON object."""
             prompt += f"\n\nAdditional context from the assessor:\n{prompt_suffix}"
 
         try:
-            response = self.ai_client.messages.create(
+            response = self.ai_client.chat.completions.create(
                 model=settings.ai_model,
                 max_tokens=500,
                 temperature=0.2,
                 messages=[{"role": "user", "content": prompt}],
             )
 
-            content = response.content[0].text.strip()
+            content = response.choices[0].message.content.strip()
             # Handle markdown code blocks
             if content.startswith("```"):
                 content = content.split("```")[1]

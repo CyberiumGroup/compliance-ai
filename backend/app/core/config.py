@@ -12,14 +12,11 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql://compliance:compliance@localhost:5432/compliance_ai"
 
-    # AI/Anthropic
-    anthropic_api_key: str | None = None
-    ai_model: str = "claude-sonnet-4-20250514"
+    # OpenAI (for chat completions and embeddings)
+    openai_api_key: str | None = None
+    ai_model: str = "gpt-4o"
     ai_max_tokens: int = 4096
     ai_temperature: float = 0.3
-
-    # OpenAI (for embeddings)
-    openai_api_key: str | None = None
     embedding_model: str = "text-embedding-3-small"
     embedding_dimensions: int = 1536
 
