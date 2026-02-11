@@ -442,16 +442,16 @@ class ClusteringService:
 
         total_requirements = query.count()
 
-        # Count clusters and their sizes
+        # Get all cluster memberships for assessable requirements
         cluster_query = self.db.query(RequirementCluster).filter(
             RequirementCluster.is_active == True
         )
-
         clusters = cluster_query.all()
-        total_clusters = len(clusters)
 
-        # Calculate requirements covered by clusters
-        clustered_requirement_ids = set()
+        # Build a map of requirement -> best cluster (highest similarity)
+        # This ensures each requirement is only counted once, even if
+        # it appears in multiple clusters from repeated generation.
+        requirement_best_cluster: dict[uuid.UUID, tuple[uuid.UUID, float]] = {}
         for cluster in clusters:
             members = (
                 self.db.query(RequirementClusterMember)
@@ -459,12 +459,27 @@ class ClusteringService:
                 .all()
             )
             for member in members:
-                clustered_requirement_ids.add(member.requirement_id)
+                existing = requirement_best_cluster.get(member.requirement_id)
+                if existing is None or member.similarity_score > existing[1]:
+                    requirement_best_cluster[member.requirement_id] = (
+                        cluster.id,
+                        member.similarity_score,
+                    )
+
+        # Only count requirements that are in the filtered set
+        assessable_ids = {r.id for r in query.all()}
+        effective_clusters: set[uuid.UUID] = set()
+        clustered_requirement_ids: set[uuid.UUID] = set()
+        for req_id, (cluster_id, _) in requirement_best_cluster.items():
+            if req_id in assessable_ids:
+                clustered_requirement_ids.add(req_id)
+                effective_clusters.add(cluster_id)
 
         clustered_count = len(clustered_requirement_ids)
         unclustered_count = total_requirements - clustered_count
+        total_clusters = len(effective_clusters)
 
-        # Estimate: 1 question per cluster + 1 per unclustered requirement
+        # Estimate: 1 question per effective cluster + 1 per unclustered requirement
         questions_with_clustering = total_clusters + unclustered_count
         questions_without_clustering = total_requirements
 

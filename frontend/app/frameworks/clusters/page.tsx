@@ -296,24 +296,47 @@ export default function ClustersPage() {
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Frameworks (optional)
+                Frameworks (select multiple for cross-framework clustering, or none for all)
               </label>
-              <select
-                multiple
-                value={selectedFrameworks}
-                onChange={(e) =>
-                  setSelectedFrameworks(
-                    Array.from(e.target.selectedOptions, (option) => option.value)
-                  )
-                }
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg h-[42px]"
-              >
+              <div className="flex flex-wrap gap-2 mt-1">
                 {frameworks.map((f) => (
-                  <option key={f.id} value={f.id}>
+                  <label
+                    key={f.id}
+                    className={cn(
+                      'inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border cursor-pointer transition-colors text-sm',
+                      selectedFrameworks.includes(f.id)
+                        ? 'bg-primary-50 border-primary-300 text-primary-800'
+                        : 'bg-white border-neutral-300 text-neutral-700 hover:border-neutral-400'
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedFrameworks.includes(f.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedFrameworks((prev) => [...prev, f.id]);
+                        } else {
+                          setSelectedFrameworks((prev) => prev.filter((id) => id !== f.id));
+                        }
+                      }}
+                      className="sr-only"
+                    />
+                    <span className={cn(
+                      'w-4 h-4 rounded border flex items-center justify-center flex-shrink-0',
+                      selectedFrameworks.includes(f.id)
+                        ? 'bg-primary-500 border-primary-500'
+                        : 'border-neutral-400'
+                    )}>
+                      {selectedFrameworks.includes(f.id) && (
+                        <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      )}
+                    </span>
                     {f.name}
-                  </option>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
           </div>
           <div className="flex gap-3">
