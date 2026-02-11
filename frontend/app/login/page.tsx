@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Shield } from 'lucide-react';
 import { LoginForm } from '@/components/auth';
 import { useAuth } from '@/lib/auth';
@@ -9,6 +9,8 @@ import { useAuth } from '@/lib/auth';
 export default function LoginPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionExpired = searchParams.get('expired') === 'true';
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -34,6 +36,12 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-neutral-900">Welcome back</h1>
           <p className="mt-2 text-neutral-600">Sign in to your Compliance AI account</p>
         </div>
+
+        {sessionExpired && (
+          <div className="mb-4 px-4 py-3 rounded-lg bg-warning-50 border border-warning-500 text-warning-700 text-sm">
+            Your session has expired. Please sign in again to continue.
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-neutral-200">
           <LoginForm />
