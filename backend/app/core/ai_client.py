@@ -114,9 +114,9 @@ Respond ONLY with the JSON array, no other text."""
         Returns:
             Analysis including maturity indicators and evidence
         """
-        prompt = f"""Analyze this interview response for a NIST CSF 2.0 compliance assessment.
+        prompt = f"""Analyze this interview response for a compliance assessment.
 
-SUBCATEGORY: {subcategory_code}
+REQUIREMENT: {subcategory_code}
 DESCRIPTION: {subcategory_description}
 
 QUESTION: {question}
@@ -127,7 +127,7 @@ Analyze and respond with JSON containing:
 - "maturity_indicators": List of positive maturity indicators found
 - "gaps_identified": List of gaps or concerns identified
 - "evidence_quotes": Key quotes that serve as evidence
-- "suggested_score_contribution": A number 0-4 based on NIST maturity tiers
+- "suggested_score_contribution": A number 0-4 based on maturity tiers (0=no evidence, 4=adaptive/optimized)
 - "confidence": How confident you are in this analysis (0.0-1.0)
 
 Respond ONLY with the JSON object, no other text."""

@@ -59,7 +59,7 @@ export default function AssessmentsPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <PageHeader
         title="Assessments"
-        description="Manage your NIST CSF 2.0 compliance assessments"
+        description="Manage your compliance assessments"
         icon={ClipboardList}
         actions={
           <Link href="/assessments/new">

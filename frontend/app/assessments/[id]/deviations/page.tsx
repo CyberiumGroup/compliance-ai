@@ -103,7 +103,7 @@ export default function DeviationsPage({ params }: DeviationsPageProps) {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-neutral-600">
-            Deviations identify gaps between your current security posture and NIST CSF 2.0
+            Deviations identify gaps between your current security posture and framework
             requirements. Each deviation is risk-ranked based on impact and likelihood.
           </p>
           {error && <ErrorMessage message={error} className="mt-4" />}

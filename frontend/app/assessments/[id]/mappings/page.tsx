@@ -141,8 +141,8 @@ export default function MappingsPage({ params }: MappingsPageProps) {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-neutral-600">
-            Generate AI-powered mappings between your controls/policies and NIST CSF 2.0
-            subcategories. Review and approve each suggestion to confirm the mappings.
+            Generate AI-powered mappings between your controls/policies and framework
+            requirements. Review and approve each suggestion to confirm the mappings.
           </p>
           {error && <ErrorMessage message={error} className="mt-4" />}
         </CardContent>

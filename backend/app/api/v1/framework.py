@@ -1,4 +1,4 @@
-"""Framework endpoints for NIST CSF 2.0 data."""
+"""Legacy framework endpoints for NIST CSF 2.0 data (see frameworks.py for unified API)."""
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload

@@ -1,4 +1,4 @@
-"""Schemas for NIST CSF 2.0 framework entities."""
+"""Legacy schemas for NIST CSF 2.0 framework entities (see unified_framework.py for unified schemas)."""
 
 from uuid import UUID
 

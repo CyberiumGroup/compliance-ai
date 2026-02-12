@@ -24,7 +24,7 @@ class AssessmentDepth(str, Enum):
 
 
 class Assessment(Base):
-    """A NIST CSF 2.0 assessment for an organization"""
+    """A compliance assessment for an organization"""
 
     __tablename__ = "assessments"
 

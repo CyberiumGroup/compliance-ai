@@ -40,7 +40,7 @@ export default function FrameworkPage() {
   }, [userId]);
 
   if (!userId || loading) {
-    return <LoadingPage message="Loading NIST CSF 2.0 framework..." />;
+    return <LoadingPage message="Loading framework data..." />;
   }
 
   if (error) {
@@ -54,8 +54,8 @@ export default function FrameworkPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <PageHeader
-        title="NIST CSF 2.0 Framework"
-        description="Comprehensive reference for cybersecurity functions, categories, and subcategories"
+        title="NIST CSF 2.0 Reference"
+        description="Reference view for NIST CSF 2.0 functions, categories, and subcategories"
         icon={BookOpen}
       />
 

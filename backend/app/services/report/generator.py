@@ -56,7 +56,7 @@ class ReportGenerator:
             id=uuid.uuid4(),
             assessment_id=assessment_id,
             report_type=ReportType.FULL_ASSESSMENT.value,
-            title=f"NIST CSF 2.0 Assessment Report - {assessment.organization_name}",
+            title=f"Compliance Assessment Report - {assessment.organization_name}",
             content=content,
             generated_at=datetime.utcnow(),
             generated_by_id=user_id,
@@ -162,7 +162,7 @@ class ReportGenerator:
                 "organization_name": assessment.organization_name,
                 "assessment_name": assessment.name,
                 "generated_at": datetime.utcnow().isoformat(),
-                "framework": "NIST CSF 2.0",
+                "framework": "multi-framework",
             },
         }
 
@@ -191,7 +191,7 @@ class ReportGenerator:
     ) -> str:
         """Generate a brief recommendations summary."""
         if overall_maturity < 2:
-            return "Significant improvements needed across all CSF functions. Priority should be given to establishing foundational policies and controls."
+            return "Significant improvements needed across all compliance areas. Priority should be given to establishing foundational policies and controls."
         elif overall_maturity < 3:
             return "Organization shows partial maturity. Focus on formalizing existing practices and addressing critical gaps."
         else:

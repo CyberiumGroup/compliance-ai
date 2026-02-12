@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    description="AI-driven NIST CSF 2.0 compliance assessment engine",
+    description="AI-driven multi-framework compliance assessment engine",
     version="0.1.0",
     lifespan=lifespan,
 )
