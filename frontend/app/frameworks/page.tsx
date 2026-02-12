@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Layers, Plus, RefreshCw, Settings, ChevronRight } from 'lucide-react';
+import { Layers, Plus, RefreshCw, Settings, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, PageHeader } from '@/components/ui';
 import { LoadingPage, ErrorMessage } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
@@ -48,6 +48,26 @@ export default function FrameworksPage() {
   }, []);
 
   const handleLoadBuiltin = async () => {
+    const confirmed = window.confirm(
+      'This will reload all built-in frameworks from their source definitions. '
+      + 'Existing requirements will be deleted and recreated, which will clear any '
+      + 'crosswalks, clusters, and requirement mappings linked to them.\n\n'
+      + 'Continue?'
+    );
+    if (!confirmed) return;
+
+    try {
+      setLoadingBuiltin(true);
+      await loadBuiltinFrameworks(undefined, true);
+      await fetchFrameworks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load built-in frameworks');
+    } finally {
+      setLoadingBuiltin(false);
+    }
+  };
+
+  const handleInitialLoad = async () => {
     try {
       setLoadingBuiltin(true);
       await loadBuiltinFrameworks();
@@ -81,22 +101,12 @@ export default function FrameworksPage() {
         description="Manage and explore compliance frameworks for your assessments"
         icon={Layers}
         actions={
-          <div className="flex gap-3">
-            <Button
-              variant="ghost"
-              onClick={handleLoadBuiltin}
-              disabled={loadingBuiltin}
-            >
-              <RefreshCw className={cn('w-4 h-4 mr-2', loadingBuiltin && 'animate-spin')} />
-              {loadingBuiltin ? 'Loading...' : 'Load Built-in'}
+          <Link href="/frameworks/new">
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Custom Framework
             </Button>
-            <Link href="/frameworks/new">
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Custom Framework
-              </Button>
-            </Link>
-          </div>
+          </Link>
         }
       />
 
@@ -138,7 +148,7 @@ export default function FrameworksPage() {
             <CardContent className="text-center py-12">
               <Layers className="w-12 h-12 text-neutral-300 mx-auto mb-4" />
               <p className="text-neutral-500 mb-4">No frameworks loaded yet</p>
-              <Button onClick={handleLoadBuiltin} disabled={loadingBuiltin}>
+              <Button onClick={handleInitialLoad} disabled={loadingBuiltin}>
                 <RefreshCw className={cn('w-4 h-4 mr-2', loadingBuiltin && 'animate-spin')} />
                 Load Built-in Frameworks
               </Button>
@@ -256,6 +266,33 @@ export default function FrameworksPage() {
                 </p>
               </div>
             </Link>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Danger Zone */}
+      <Card className="mt-8 border-red-200">
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-medium text-neutral-900">Reload Built-in Frameworks</h3>
+                <p className="text-sm text-neutral-500 mt-1">
+                  Deletes and reloads all built-in framework requirements from source files.
+                  This will clear any crosswalks, clusters, and requirement mappings linked to them.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              className="border border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 flex-shrink-0"
+              onClick={handleLoadBuiltin}
+              disabled={loadingBuiltin}
+            >
+              <RefreshCw className={cn('w-4 h-4 mr-2', loadingBuiltin && 'animate-spin')} />
+              {loadingBuiltin ? 'Reloading...' : 'Reload'}
+            </Button>
           </div>
         </CardContent>
       </Card>

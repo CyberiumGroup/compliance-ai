@@ -10,7 +10,14 @@ from app.models.unified_framework import (
     Framework,
     FrameworkRequirement,
     FrameworkType,
+    RequirementCrosswalk,
+    RequirementClusterMember,
 )
+from app.models.control import ControlMapping
+from app.models.policy import PolicyMapping
+from app.models.interview import InterviewQuestion
+from app.models.score import SubcategoryScore
+from app.models.deviation import Deviation
 
 
 class RequirementData:
@@ -88,7 +95,8 @@ class BaseFrameworkLoader(ABC):
 
         Args:
             db: Database session
-            force_reload: If True, delete existing framework and reload
+            force_reload: If True, delete existing requirements and reload from file.
+                          The framework record itself is preserved to maintain FK references.
 
         Returns:
             The loaded Framework object
@@ -106,29 +114,36 @@ class BaseFrameworkLoader(ABC):
             return existing
 
         if existing and force_reload:
-            # Delete existing framework and its requirements
-            db.query(FrameworkRequirement).filter(
-                FrameworkRequirement.framework_id == existing.id
-            ).delete()
-            db.delete(existing)
+            self._delete_framework_requirements(db, existing.id)
+
+            # Update framework metadata from file
+            existing.name = framework_data.name
+            existing.version = framework_data.version
+            existing.description = framework_data.description
+            existing.framework_type = framework_data.framework_type.value
+            existing.hierarchy_levels = framework_data.hierarchy_levels
+            existing.hierarchy_labels = framework_data.hierarchy_labels
+            existing.extra_metadata = framework_data.metadata
             db.flush()
 
-        # Create the framework
-        framework = Framework(
-            id=uuid.uuid4(),
-            code=framework_data.code,
-            name=framework_data.name,
-            version=framework_data.version,
-            description=framework_data.description,
-            framework_type=framework_data.framework_type.value,
-            hierarchy_levels=framework_data.hierarchy_levels,
-            hierarchy_labels=framework_data.hierarchy_labels,
-            extra_metadata=framework_data.metadata,
-            is_active=True,
-            is_builtin=True,
-        )
-        db.add(framework)
-        db.flush()
+            framework = existing
+        else:
+            # Create new framework
+            framework = Framework(
+                id=uuid.uuid4(),
+                code=framework_data.code,
+                name=framework_data.name,
+                version=framework_data.version,
+                description=framework_data.description,
+                framework_type=framework_data.framework_type.value,
+                hierarchy_levels=framework_data.hierarchy_levels,
+                hierarchy_labels=framework_data.hierarchy_labels,
+                extra_metadata=framework_data.metadata,
+                is_active=True,
+                is_builtin=True,
+            )
+            db.add(framework)
+            db.flush()
 
         # Load requirements recursively
         self._load_requirements(
@@ -141,6 +156,68 @@ class BaseFrameworkLoader(ABC):
 
         db.commit()
         return framework
+
+    def _delete_framework_requirements(
+        self, db: Session, framework_id: uuid.UUID
+    ) -> None:
+        """Delete all requirements for a framework and clean up FK references.
+
+        Handles cascading by:
+        - Deleting rows from tables with non-nullable FKs (crosswalks, cluster members)
+        - Nulling out nullable FK columns (mappings, scores, interviews, deviations)
+        - Clearing self-referencing parent_id before deleting requirements
+        """
+        req_ids = [
+            r.id for r in
+            db.query(FrameworkRequirement.id)
+            .filter(FrameworkRequirement.framework_id == framework_id)
+            .all()
+        ]
+
+        if not req_ids:
+            return
+
+        # Delete from tables with non-nullable FK to framework_requirements
+        db.query(RequirementCrosswalk).filter(
+            (RequirementCrosswalk.source_requirement_id.in_(req_ids))
+            | (RequirementCrosswalk.target_requirement_id.in_(req_ids))
+        ).delete(synchronize_session=False)
+
+        db.query(RequirementClusterMember).filter(
+            RequirementClusterMember.requirement_id.in_(req_ids)
+        ).delete(synchronize_session=False)
+
+        # Null out nullable FK columns in dependent tables
+        db.query(ControlMapping).filter(
+            ControlMapping.requirement_id.in_(req_ids)
+        ).update({ControlMapping.requirement_id: None}, synchronize_session=False)
+
+        db.query(PolicyMapping).filter(
+            PolicyMapping.requirement_id.in_(req_ids)
+        ).update({PolicyMapping.requirement_id: None}, synchronize_session=False)
+
+        db.query(InterviewQuestion).filter(
+            InterviewQuestion.requirement_id.in_(req_ids)
+        ).update({InterviewQuestion.requirement_id: None}, synchronize_session=False)
+
+        db.query(SubcategoryScore).filter(
+            SubcategoryScore.requirement_id.in_(req_ids)
+        ).update({SubcategoryScore.requirement_id: None}, synchronize_session=False)
+
+        db.query(Deviation).filter(
+            Deviation.requirement_id.in_(req_ids)
+        ).update({Deviation.requirement_id: None}, synchronize_session=False)
+
+        # Clear self-referencing parent_id, then delete all requirements
+        db.query(FrameworkRequirement).filter(
+            FrameworkRequirement.framework_id == framework_id
+        ).update({FrameworkRequirement.parent_id: None}, synchronize_session=False)
+
+        db.query(FrameworkRequirement).filter(
+            FrameworkRequirement.framework_id == framework_id
+        ).delete(synchronize_session=False)
+
+        db.flush()
 
     def _load_requirements(
         self,
