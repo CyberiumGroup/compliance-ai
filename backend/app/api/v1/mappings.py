@@ -1,7 +1,6 @@
 """Mapping endpoints."""
 
 import uuid
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -13,7 +12,6 @@ from app.models.user import User
 from app.schemas.mapping import (
     MappingGenerateRequest,
     MappingGenerateResponse,
-    MappingApproveRequest,
     GapListResponse,
     BulkMappingRequest,
     BulkMappingResponse,
@@ -102,18 +100,17 @@ async def get_control_mappings(
 @router.post("/{mapping_id}/approve")
 async def approve_mapping(
     mapping_id: uuid.UUID,
-    mapping_type: Literal["policy", "control"],
-    request: MappingApproveRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_user),
 ):
-    """Approve or reject a mapping suggestion."""
+    """Approve a mapping suggestion."""
+    mapping_type = _detect_mapping_type(db, mapping_id)
     mapper = AIMappingService(db)
 
     result = mapper.approve_mapping(
         mapping_id=mapping_id,
         mapping_type=mapping_type,
-        approved=request.is_approved,
+        approved=True,
         user_id=current_user.id,
     )
 
@@ -129,27 +126,49 @@ async def approve_mapping(
 @router.post("/{mapping_id}/reject")
 async def reject_mapping(
     mapping_id: uuid.UUID,
-    mapping_type: Literal["policy", "control"],
     db: Session = Depends(get_db),
     current_user: User = Depends(require_user),
 ):
-    """Reject a mapping suggestion."""
-    mapper = AIMappingService(db)
+    """Reject and delete a mapping suggestion."""
+    from app.services.audit.audit_service import AuditService
 
-    result = mapper.approve_mapping(
-        mapping_id=mapping_id,
-        mapping_type=mapping_type,
-        approved=False,
+    mapping_type = _detect_mapping_type(db, mapping_id)
+
+    if mapping_type == "control":
+        mapping = db.query(ControlMapping).filter(ControlMapping.id == mapping_id).first()
+    else:
+        mapping = db.query(PolicyMapping).filter(PolicyMapping.id == mapping_id).first()
+
+    if not mapping:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Mapping not found",
+        )
+
+    audit_service = AuditService(db)
+    audit_service.log_delete(
+        entity_type=f"{mapping_type}_mapping",
+        entity_id=mapping_id,
+        old_values={"is_approved": mapping.is_approved},
         user_id=current_user.id,
     )
 
-    if "error" in result:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=result["error"],
-        )
+    db.delete(mapping)
+    db.commit()
 
-    return result
+    return {"mapping_id": mapping_id, "deleted": True}
+
+
+def _detect_mapping_type(db: Session, mapping_id: uuid.UUID) -> str:
+    """Auto-detect whether a mapping ID belongs to a control or policy mapping."""
+    if db.query(ControlMapping).filter(ControlMapping.id == mapping_id).first():
+        return "control"
+    if db.query(PolicyMapping).filter(PolicyMapping.id == mapping_id).first():
+        return "policy"
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Mapping not found",
+    )
 
 
 @router.get("/assessments/{assessment_id}/gaps", response_model=GapListResponse)

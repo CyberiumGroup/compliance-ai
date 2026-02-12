@@ -78,14 +78,15 @@ export default function MappingsPage({ params }: MappingsPageProps) {
 
     if (approved) {
       await approveMapping(mappingId, userId);
+      setControlMappings(
+        controlMappings.map((m) =>
+          m.id === mappingId ? { ...m, is_approved: true } : m
+        )
+      );
     } else {
       await rejectMapping(mappingId, userId);
+      setControlMappings(controlMappings.filter((m) => m.id !== mappingId));
     }
-    setControlMappings(
-      controlMappings.map((m) =>
-        m.id === mappingId ? { ...m, is_approved: approved } : m
-      )
-    );
   };
 
   const handleApprovePolicy = async (mappingId: string, approved: boolean) => {
@@ -93,14 +94,15 @@ export default function MappingsPage({ params }: MappingsPageProps) {
 
     if (approved) {
       await approveMapping(mappingId, userId);
+      setPolicyMappings(
+        policyMappings.map((m) =>
+          m.id === mappingId ? { ...m, is_approved: true } : m
+        )
+      );
     } else {
       await rejectMapping(mappingId, userId);
+      setPolicyMappings(policyMappings.filter((m) => m.id !== mappingId));
     }
-    setPolicyMappings(
-      policyMappings.map((m) =>
-        m.id === mappingId ? { ...m, is_approved: approved } : m
-      )
-    );
   };
 
   if (loading) {
