@@ -50,20 +50,26 @@ class AIClient:
             for sc in subcategories
         )
 
-        prompt = f"""Analyze the following {entity_type} and determine which NIST CSF 2.0 subcategories it maps to.
+        excerpt_instruction = ""
+        excerpt_field = ""
+        if entity_type == "policy":
+            excerpt_field = '\n- "source_excerpt": A short quote (1-2 sentences) from the policy text that supports this mapping'
+            excerpt_instruction = " For policies, include a direct quote from the text as the source_excerpt."
+
+        prompt = f"""Analyze the following {entity_type} and determine which framework requirements it maps to.
 
 {entity_type.upper()} TEXT:
 {entity_text[:4000]}
 
-AVAILABLE SUBCATEGORIES:
+AVAILABLE REQUIREMENTS:
 {subcategories_text}
 
 Respond with a JSON array of mappings. Each mapping should have:
-- "subcategory_code": The CSF subcategory code (e.g., "GV.OC-01")
+- "subcategory_code": The requirement code (e.g., "GV.OC-01")
 - "confidence_score": A number between 0.0 and 1.0 indicating confidence
-- "reasoning": A brief explanation of why this mapping applies
+- "reasoning": A brief explanation of why this mapping applies{excerpt_field}
 
-Only include mappings with confidence >= 0.3. Return an empty array if no mappings apply.
+Only include mappings with confidence >= 0.3. Return an empty array if no mappings apply.{excerpt_instruction}
 
 Respond ONLY with the JSON array, no other text."""
 

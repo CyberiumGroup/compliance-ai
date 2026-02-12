@@ -30,12 +30,20 @@ export interface ControlUploadResponse {
 export interface ControlMapping {
   id: UUID;
   control_id: UUID;
-  subcategory_id: UUID;
+  subcategory_id: UUID | null;
+  requirement_id: UUID | null;
   confidence_score: number | null;
   is_approved: boolean;
   approved_by_id: UUID | null;
   approved_at: string | null;
   created_at: string;
   subcategory_code: string | null;
+  requirement_code: string | null;
+  requirement_name: string | null;
+  requirement_description: string | null;
+  requirement_framework_name: string | null;
+  requirement_parent_code: string | null;
+  reasoning: string | null;
   control_name: string | null;
+  control_description: string | null;
 }

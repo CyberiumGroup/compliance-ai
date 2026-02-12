@@ -73,6 +73,29 @@ class AIMappingService:
                 for sc in subcategories
             ]
 
+        # Delete existing mappings for this assessment before regenerating
+        if include_controls:
+            existing_control_mappings = (
+                self.db.query(ControlMapping)
+                .join(Control)
+                .filter(Control.assessment_id == assessment_id)
+                .all()
+            )
+            for m in existing_control_mappings:
+                self.db.delete(m)
+
+        if include_policies:
+            existing_policy_mappings = (
+                self.db.query(PolicyMapping)
+                .join(Policy)
+                .filter(Policy.assessment_id == assessment_id)
+                .all()
+            )
+            for m in existing_policy_mappings:
+                self.db.delete(m)
+
+        self.db.flush()
+
         suggestions = []
         policy_mappings_count = 0
         control_mappings_count = 0
@@ -99,9 +122,11 @@ class AIMappingService:
                     mapping = PolicyMapping(
                         id=uuid.uuid4(),
                         policy_id=policy.id,
-                        subcategory_id=suggestion["requirement_id"],  # For backward compat
+                        subcategory_id=suggestion["requirement_id"] if not use_unified_framework else None,
                         requirement_id=suggestion["requirement_id"] if use_unified_framework else None,
                         confidence_score=suggestion["confidence_score"],
+                        reasoning=suggestion.get("reasoning"),
+                        source_excerpt=suggestion.get("source_excerpt"),
                         is_approved=False,
                         created_at=datetime.utcnow(),
                     )
@@ -141,9 +166,10 @@ class AIMappingService:
                     mapping = ControlMapping(
                         id=uuid.uuid4(),
                         control_id=control.id,
-                        subcategory_id=suggestion["requirement_id"],  # For backward compat
+                        subcategory_id=suggestion["requirement_id"] if not use_unified_framework else None,
                         requirement_id=suggestion["requirement_id"] if use_unified_framework else None,
                         confidence_score=suggestion["confidence_score"],
+                        reasoning=suggestion.get("reasoning"),
                         is_approved=False,
                         created_at=datetime.utcnow(),
                     )
@@ -252,6 +278,7 @@ class AIMappingService:
                 "requirement_code": code,
                 "confidence_score": confidence,
                 "reasoning": suggestion.get("reasoning"),
+                "source_excerpt": suggestion.get("source_excerpt"),
             })
 
         return suggestions

@@ -18,8 +18,8 @@ class MappingSuggestion(BaseModel):
     entity_type: Literal["policy", "control"]
     entity_id: UUID
     entity_name: str
-    subcategory_id: UUID
-    subcategory_code: str
+    requirement_id: UUID
+    requirement_code: str
     confidence_score: float
     reasoning: str | None = None
 

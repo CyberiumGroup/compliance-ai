@@ -44,7 +44,8 @@ class ControlResponse(ControlBase):
 class ControlMappingBase(BaseModel):
     """Base schema for Control Mapping."""
     control_id: UUID
-    subcategory_id: UUID
+    subcategory_id: UUID | None = None
+    requirement_id: UUID | None = None
     confidence_score: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
@@ -61,7 +62,14 @@ class ControlMappingResponse(ControlMappingBase):
     approved_at: datetime | None = None
     created_at: datetime
     subcategory_code: str | None = None
+    requirement_code: str | None = None
+    requirement_name: str | None = None
+    requirement_description: str | None = None
+    requirement_framework_name: str | None = None
+    requirement_parent_code: str | None = None
+    reasoning: str | None = None
     control_name: str | None = None
+    control_description: str | None = None
 
     model_config = {"from_attributes": True}
 

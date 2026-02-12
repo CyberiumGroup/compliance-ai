@@ -51,14 +51,16 @@ class PolicyMapping(Base):
         UUID(as_uuid=True), ForeignKey("policies.id"), nullable=False
     )
     # Legacy: CSF subcategory reference (will be deprecated)
-    subcategory_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("csf_subcategories.id"), nullable=False
+    subcategory_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("csf_subcategories.id"), nullable=True
     )
     # New: Unified requirement reference (use this for new code)
     requirement_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("framework_requirements.id"), nullable=True
     )
     confidence_score: Mapped[float | None] = mapped_column()
+    reasoning: Mapped[str | None] = mapped_column(Text)
+    source_excerpt: Mapped[str | None] = mapped_column(Text)
     is_approved: Mapped[bool] = mapped_column(default=False, nullable=False)
     approved_by_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id")
@@ -72,6 +74,42 @@ class PolicyMapping(Base):
     subcategory: Mapped["CSFSubcategory"] = relationship()
     requirement: Mapped["FrameworkRequirement | None"] = relationship()
     approved_by: Mapped["User | None"] = relationship()
+
+    @property
+    def subcategory_code(self) -> str | None:
+        return self.subcategory.code if self.subcategory else None
+
+    @property
+    def requirement_code(self) -> str | None:
+        return self.requirement.code if self.requirement else None
+
+    @property
+    def requirement_name(self) -> str | None:
+        return self.requirement.name if self.requirement else None
+
+    @property
+    def requirement_description(self) -> str | None:
+        return self.requirement.description if self.requirement else None
+
+    @property
+    def requirement_framework_name(self) -> str | None:
+        if self.requirement and self.requirement.framework:
+            return self.requirement.framework.name
+        return None
+
+    @property
+    def requirement_parent_code(self) -> str | None:
+        if self.requirement and self.requirement.parent:
+            return self.requirement.parent.code
+        return None
+
+    @property
+    def policy_name(self) -> str | None:
+        return self.policy.name if self.policy else None
+
+    @property
+    def policy_description(self) -> str | None:
+        return self.policy.description if self.policy else None
 
 
 from app.models.assessment import Assessment

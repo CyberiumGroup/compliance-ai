@@ -44,7 +44,8 @@ class PolicyResponse(PolicyBase):
 class PolicyMappingBase(BaseModel):
     """Base schema for Policy Mapping."""
     policy_id: UUID
-    subcategory_id: UUID
+    subcategory_id: UUID | None = None
+    requirement_id: UUID | None = None
     confidence_score: float | None = Field(default=None, ge=0.0, le=1.0)
 
 
@@ -61,7 +62,15 @@ class PolicyMappingResponse(PolicyMappingBase):
     approved_at: datetime | None = None
     created_at: datetime
     subcategory_code: str | None = None
+    requirement_code: str | None = None
+    requirement_name: str | None = None
+    requirement_description: str | None = None
+    requirement_framework_name: str | None = None
+    requirement_parent_code: str | None = None
+    reasoning: str | None = None
+    source_excerpt: str | None = None
     policy_name: str | None = None
+    policy_description: str | None = None
 
     model_config = {"from_attributes": True}
 

@@ -13,8 +13,8 @@ export interface MappingSuggestion {
   entity_type: EntityType;
   entity_id: UUID;
   entity_name: string;
-  subcategory_id: UUID;
-  subcategory_code: string;
+  requirement_id: UUID;
+  requirement_code: string;
   confidence_score: number;
   reasoning: string | null;
 }
