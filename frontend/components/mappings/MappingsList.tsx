@@ -37,7 +37,7 @@ export function MappingsList({
   if (allMappings.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        No mappings generated yet. Click &quot;Generate Mappings&quot; to analyze your controls and policies.
+        No mappings generated yet. Click &quot;Suggest Mappings&quot; to analyze your controls and policies.
       </div>
     );
   }

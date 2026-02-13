@@ -30,6 +30,7 @@ export interface FrameworkRequirement {
   is_assessable: boolean;
   parent_id: UUID | null;
   display_order: number;
+  metadata: Record<string, unknown> | null;
 }
 
 export interface FrameworkHierarchyNode extends FrameworkRequirement {

@@ -73,28 +73,27 @@ class AIMappingService:
                 for sc in subcategories
             ]
 
-        # Delete existing mappings for this assessment before regenerating
-        if include_controls:
-            existing_control_mappings = (
-                self.db.query(ControlMapping)
-                .join(Control)
-                .filter(Control.assessment_id == assessment_id)
-                .all()
-            )
-            for m in existing_control_mappings:
-                self.db.delete(m)
+        # Build sets of existing mappings to skip duplicates
+        existing_policy_pairs: set[tuple] = set()
+        existing_control_pairs: set[tuple] = set()
 
         if include_policies:
-            existing_policy_mappings = (
-                self.db.query(PolicyMapping)
+            existing_pm = (
+                self.db.query(PolicyMapping.policy_id, PolicyMapping.requirement_id)
                 .join(Policy)
                 .filter(Policy.assessment_id == assessment_id)
                 .all()
             )
-            for m in existing_policy_mappings:
-                self.db.delete(m)
+            existing_policy_pairs = {(pm.policy_id, pm.requirement_id) for pm in existing_pm}
 
-        self.db.flush()
+        if include_controls:
+            existing_cm = (
+                self.db.query(ControlMapping.control_id, ControlMapping.requirement_id)
+                .join(Control)
+                .filter(Control.assessment_id == assessment_id)
+                .all()
+            )
+            existing_control_pairs = {(cm.control_id, cm.requirement_id) for cm in existing_cm}
 
         suggestions = []
         policy_mappings_count = 0
@@ -118,12 +117,15 @@ class AIMappingService:
                 )
 
                 for suggestion in policy_suggestions:
-                    # Create policy mapping
+                    req_id = suggestion["requirement_id"]
+                    if (policy.id, req_id) in existing_policy_pairs:
+                        continue
+
                     mapping = PolicyMapping(
                         id=uuid.uuid4(),
                         policy_id=policy.id,
-                        subcategory_id=suggestion["requirement_id"] if not use_unified_framework else None,
-                        requirement_id=suggestion["requirement_id"] if use_unified_framework else None,
+                        subcategory_id=req_id if not use_unified_framework else None,
+                        requirement_id=req_id if use_unified_framework else None,
                         confidence_score=suggestion["confidence_score"],
                         reasoning=suggestion.get("reasoning"),
                         source_excerpt=suggestion.get("source_excerpt"),
@@ -131,13 +133,14 @@ class AIMappingService:
                         created_at=datetime.utcnow(),
                     )
                     self.db.add(mapping)
+                    existing_policy_pairs.add((policy.id, req_id))
                     policy_mappings_count += 1
 
                     suggestions.append({
                         "entity_type": "policy",
                         "entity_id": policy.id,
                         "entity_name": policy.name,
-                        "requirement_id": suggestion["requirement_id"],
+                        "requirement_id": req_id,
                         "requirement_code": suggestion["requirement_code"],
                         "confidence_score": suggestion["confidence_score"],
                         "reasoning": suggestion.get("reasoning"),
@@ -162,25 +165,29 @@ class AIMappingService:
                 )
 
                 for suggestion in control_suggestions:
-                    # Create control mapping
+                    req_id = suggestion["requirement_id"]
+                    if (control.id, req_id) in existing_control_pairs:
+                        continue
+
                     mapping = ControlMapping(
                         id=uuid.uuid4(),
                         control_id=control.id,
-                        subcategory_id=suggestion["requirement_id"] if not use_unified_framework else None,
-                        requirement_id=suggestion["requirement_id"] if use_unified_framework else None,
+                        subcategory_id=req_id if not use_unified_framework else None,
+                        requirement_id=req_id if use_unified_framework else None,
                         confidence_score=suggestion["confidence_score"],
                         reasoning=suggestion.get("reasoning"),
                         is_approved=False,
                         created_at=datetime.utcnow(),
                     )
                     self.db.add(mapping)
+                    existing_control_pairs.add((control.id, req_id))
                     control_mappings_count += 1
 
                     suggestions.append({
                         "entity_type": "control",
                         "entity_id": control.id,
                         "entity_name": control.name,
-                        "requirement_id": suggestion["requirement_id"],
+                        "requirement_id": req_id,
                         "requirement_code": suggestion["requirement_code"],
                         "confidence_score": suggestion["confidence_score"],
                         "reasoning": suggestion.get("reasoning"),
@@ -205,6 +212,48 @@ class AIMappingService:
             "policy_mappings": policy_mappings_count,
             "control_mappings": control_mappings_count,
             "suggestions": suggestions,
+        }
+
+    def clear_all_mappings(
+        self,
+        assessment_id: uuid.UUID,
+        user_id: uuid.UUID | None = None,
+    ) -> dict[str, int]:
+        """Delete all control and policy mappings for an assessment.
+
+        Returns:
+            Counts of deleted mappings.
+        """
+        control_ids = self.db.query(Control.id).filter(Control.assessment_id == assessment_id).subquery()
+        control_count = (
+            self.db.query(ControlMapping)
+            .filter(ControlMapping.control_id.in_(self.db.query(control_ids)))
+            .delete(synchronize_session=False)
+        )
+
+        policy_ids = self.db.query(Policy.id).filter(Policy.assessment_id == assessment_id).subquery()
+        policy_count = (
+            self.db.query(PolicyMapping)
+            .filter(PolicyMapping.policy_id.in_(self.db.query(policy_ids)))
+            .delete(synchronize_session=False)
+        )
+
+        self.audit_service.log_delete(
+            entity_type="all_mappings",
+            entity_id=assessment_id,
+            old_values={
+                "control_mappings_deleted": control_count,
+                "policy_mappings_deleted": policy_count,
+            },
+            user_id=user_id,
+        )
+
+        self.db.commit()
+
+        return {
+            "control_mappings_deleted": control_count,
+            "policy_mappings_deleted": policy_count,
+            "total_deleted": control_count + policy_count,
         }
 
     def _get_assessment_requirements(

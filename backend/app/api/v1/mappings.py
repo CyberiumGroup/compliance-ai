@@ -171,6 +171,21 @@ def _detect_mapping_type(db: Session, mapping_id: uuid.UUID) -> str:
     )
 
 
+@router.delete("/assessments/{assessment_id}/all")
+async def clear_all_mappings(
+    assessment_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user),
+):
+    """Delete all mappings (both approved and pending) for an assessment."""
+    mapper = AIMappingService(db)
+    result = mapper.clear_all_mappings(
+        assessment_id=assessment_id,
+        user_id=current_user.id,
+    )
+    return result
+
+
 @router.get("/assessments/{assessment_id}/gaps", response_model=GapListResponse)
 async def get_gaps(
     assessment_id: uuid.UUID,

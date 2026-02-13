@@ -33,7 +33,7 @@ class Control(Base):
     )
 
     assessment: Mapped["Assessment"] = relationship(back_populates="controls")
-    mappings: Mapped[list["ControlMapping"]] = relationship(back_populates="control")
+    mappings: Mapped[list["ControlMapping"]] = relationship(back_populates="control", cascade="all, delete-orphan")
 
 
 class ControlMapping(Base):

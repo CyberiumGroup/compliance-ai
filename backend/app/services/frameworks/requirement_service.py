@@ -208,6 +208,7 @@ class RequirementService:
                 "description": req.description,
                 "level": req.level,
                 "is_assessable": req.is_assessable,
+                "metadata": req.extra_metadata,
             }
 
             if max_depth is None or depth < max_depth:

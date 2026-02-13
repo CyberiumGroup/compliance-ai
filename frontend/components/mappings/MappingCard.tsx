@@ -119,9 +119,21 @@ export function MappingCard({ mapping, type, onApprove }: MappingCardProps) {
               </Button>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-100 text-green-700">
-              <Check className="h-4 w-4" />
-              <span className="text-sm font-medium">Approved</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-100 text-green-700">
+                <Check className="h-4 w-4" />
+                <span className="text-sm font-medium">Approved</span>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleAction(false)}
+                disabled={loading}
+                leftIcon={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                className="text-neutral-400 hover:text-red-600"
+              >
+                Remove
+              </Button>
             </div>
           )}
         </div>

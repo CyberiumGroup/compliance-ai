@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import Link from 'next/link';
-import { Layers, ChevronLeft, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, PageHeader } from '@/components/ui';
+import { Layers, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui';
 import { LoadingPage, ErrorMessage } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import {
@@ -13,7 +12,7 @@ import {
   removeAssessmentScope,
 } from '@/lib/api';
 import { Framework, AssessmentScope } from '@/lib/types';
-import { TrustServiceSelector } from '@/components/assessment/TrustServiceSelector';
+import { RequirementScopeSelector } from '@/components/assessment/RequirementScopeSelector';
 import { cn } from '@/lib/utils';
 
 const frameworkTypeColors: Record<string, string> = {
@@ -42,7 +41,7 @@ export default function AssessmentScopePage({ params }: ScopePageProps) {
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [selectedFrameworkId, setSelectedFrameworkId] = useState<string>('');
-  const [expandedSoc2, setExpandedSoc2] = useState<string | null>(null);
+  const [expandedFramework, setExpandedFramework] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -58,6 +57,15 @@ export default function AssessmentScopePage({ params }: ScopePageProps) {
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const refreshScopes = async () => {
+    try {
+      const scopeData = await getAssessmentScope(assessmentId);
+      setScopes(scopeData);
+    } catch {
+      // Silent refresh — don't show error for background updates
     }
   };
 
@@ -178,8 +186,10 @@ export default function AssessmentScopePage({ params }: ScopePageProps) {
           ) : (
             <div className="space-y-3">
               {scopedFrameworksWithDetails.map((scope, index) => {
-                const isSoc2 = scope.framework?.framework_type === 'soc2_tsc';
-                const isExpanded = expandedSoc2 === scope.framework_id;
+                const isExpanded = expandedFramework === scope.framework_id;
+                const hierarchyLabel = scope.framework?.hierarchy_labels?.[0]
+                  ? `${scope.framework.hierarchy_labels[0]}s`
+                  : 'Categories';
 
                 return (
                   <div
@@ -225,19 +235,17 @@ export default function AssessmentScopePage({ params }: ScopePageProps) {
                         >
                           {scope.include_all ? 'Full Scope' : 'Partial'}
                         </span>
-                        {isSoc2 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setExpandedSoc2(isExpanded ? null : scope.framework_id)}
-                          >
-                            {isExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-neutral-400" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-neutral-400" />
-                            )}
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setExpandedFramework(isExpanded ? null : scope.framework_id)}
+                        >
+                          {isExpanded ? (
+                            <ChevronUp className="w-4 h-4 text-neutral-400" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-neutral-400" />
+                          )}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -247,13 +255,15 @@ export default function AssessmentScopePage({ params }: ScopePageProps) {
                         </Button>
                       </div>
                     </div>
-                    {isSoc2 && isExpanded && (
+                    {isExpanded && scope.framework && (
                       <div className="border-t border-neutral-100 pb-4">
-                        <TrustServiceSelector
+                        <RequirementScopeSelector
                           frameworkId={scope.framework_id}
                           assessmentId={assessmentId}
+                          frameworkType={scope.framework.framework_type}
+                          hierarchyLabel={hierarchyLabel}
                           currentScope={scope}
-                          onScopeChange={fetchData}
+                          onScopeChange={refreshScopes}
                         />
                       </div>
                     )}

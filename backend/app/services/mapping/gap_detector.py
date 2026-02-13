@@ -3,41 +3,46 @@
 import uuid
 from typing import Any
 
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.models.control import Control, ControlMapping
 from app.models.policy import Policy, PolicyMapping
-from app.models.framework import CSFFunction, CSFCategory, CSFSubcategory
+from app.models.unified_framework import FrameworkRequirement, AssessmentFrameworkScope
+from app.services.frameworks.requirement_service import RequirementService
 
 
 class GapDetectionService:
-    """Service for detecting gaps in framework coverage."""
+    """Service for detecting gaps in framework requirement coverage."""
 
     def __init__(self, db: Session):
         self.db = db
+        self.requirement_service = RequirementService(db)
 
     def detect_gaps(self, assessment_id: uuid.UUID) -> dict[str, Any]:
         """
         Detect coverage gaps for an assessment.
 
-        Identifies:
-        - Subcategories with no approved mappings (policy or control)
-        - Subcategories with only policy mappings
-        - Subcategories with only control mappings
+        Identifies assessable requirements that are missing approved mappings:
+        - Requirements with no approved mappings (policy or control)
+        - Requirements with only policy mappings
+        - Requirements with only control mappings
 
         Returns:
             Gap analysis results
         """
-        # Get all subcategories with their hierarchy
-        subcategories = (
-            self.db.query(CSFSubcategory)
-            .join(CSFCategory)
-            .join(CSFFunction)
-            .options(
-                joinedload(CSFSubcategory.category).joinedload(CSFCategory.function)
-            )
-            .all()
-        )
+        # Get assessable requirements in scope for this assessment
+        requirements = self._get_assessment_requirements(assessment_id)
+
+        if not requirements:
+            return {
+                "assessment_id": assessment_id,
+                "total_gaps": 0,
+                "unmapped_requirements": 0,
+                "policy_only_count": 0,
+                "control_only_count": 0,
+                "coverage_percentage": 0.0,
+                "gaps": [],
+            }
 
         # Get approved policy mappings for this assessment
         policy_mappings = (
@@ -46,10 +51,11 @@ class GapDetectionService:
             .filter(
                 Policy.assessment_id == assessment_id,
                 PolicyMapping.is_approved == True,
+                PolicyMapping.requirement_id.isnot(None),
             )
             .all()
         )
-        policy_subcat_ids = {pm.subcategory_id for pm in policy_mappings}
+        policy_req_ids = {pm.requirement_id for pm in policy_mappings}
 
         # Get approved control mappings for this assessment
         control_mappings = (
@@ -58,35 +64,36 @@ class GapDetectionService:
             .filter(
                 Control.assessment_id == assessment_id,
                 ControlMapping.is_approved == True,
+                ControlMapping.requirement_id.isnot(None),
             )
             .all()
         )
-        control_subcat_ids = {cm.subcategory_id for cm in control_mappings}
+        control_req_ids = {cm.requirement_id for cm in control_mappings}
 
-        # Build policy and control name lookups
-        policy_names_by_subcat = {}
+        # Build name lookups
+        policy_names_by_req: dict[uuid.UUID, list[str]] = {}
         for pm in policy_mappings:
             policy = self.db.query(Policy).filter(Policy.id == pm.policy_id).first()
             if policy:
-                policy_names_by_subcat.setdefault(pm.subcategory_id, []).append(policy.name)
+                policy_names_by_req.setdefault(pm.requirement_id, []).append(policy.name)
 
-        control_names_by_subcat = {}
+        control_names_by_req: dict[uuid.UUID, list[str]] = {}
         for cm in control_mappings:
             control = self.db.query(Control).filter(Control.id == cm.control_id).first()
             if control:
-                control_names_by_subcat.setdefault(cm.subcategory_id, []).append(control.name)
+                control_names_by_req.setdefault(cm.requirement_id, []).append(control.name)
 
         gaps = []
         unmapped_count = 0
         policy_only_count = 0
         control_only_count = 0
 
-        for subcat in subcategories:
-            has_policy = subcat.id in policy_subcat_ids
-            has_control = subcat.id in control_subcat_ids
+        for req in requirements:
+            has_policy = req.id in policy_req_ids
+            has_control = req.id in control_req_ids
 
             if not has_policy and not has_control:
-                gap_type = "unmapped_subcategory"
+                gap_type = "unmapped_requirement"
                 unmapped_count += 1
             elif has_policy and not has_control:
                 gap_type = "policy_only"
@@ -98,65 +105,56 @@ class GapDetectionService:
                 # Fully covered
                 continue
 
+            # Get parent and framework info
+            parent_code = req.parent.code if req.parent else None
+            framework_name = req.framework.name if req.framework else None
+
             gaps.append({
                 "gap_type": gap_type,
-                "subcategory_id": subcat.id,
-                "subcategory_code": subcat.code,
-                "subcategory_description": subcat.description,
-                "function_code": subcat.category.function.code,
-                "category_code": subcat.category.code,
+                "requirement_id": req.id,
+                "requirement_code": req.code,
+                "requirement_name": req.name,
+                "requirement_description": req.description,
+                "framework_name": framework_name,
+                "parent_code": parent_code,
                 "has_policy": has_policy,
                 "has_control": has_control,
-                "policy_names": policy_names_by_subcat.get(subcat.id),
-                "control_names": control_names_by_subcat.get(subcat.id),
+                "policy_names": policy_names_by_req.get(req.id),
+                "control_names": control_names_by_req.get(req.id),
             })
 
-        total_subcategories = len(subcategories)
-        covered_count = total_subcategories - unmapped_count
-        coverage_percentage = (covered_count / total_subcategories * 100) if total_subcategories > 0 else 0
+        total_requirements = len(requirements)
+        covered_count = total_requirements - unmapped_count
+        coverage_percentage = (covered_count / total_requirements * 100) if total_requirements > 0 else 0
 
         return {
             "assessment_id": assessment_id,
+            "total_requirements": total_requirements,
             "total_gaps": len(gaps),
-            "unmapped_subcategories": unmapped_count,
+            "unmapped_requirements": unmapped_count,
             "policy_only_count": policy_only_count,
             "control_only_count": control_only_count,
             "coverage_percentage": round(coverage_percentage, 2),
             "gaps": gaps,
         }
 
-    def get_coverage_by_function(self, assessment_id: uuid.UUID) -> dict[str, Any]:
-        """Get coverage breakdown by CSF function."""
-        gap_data = self.detect_gaps(assessment_id)
+    def _get_assessment_requirements(
+        self,
+        assessment_id: uuid.UUID,
+    ) -> list[FrameworkRequirement]:
+        """Get all assessable requirements in scope for an assessment."""
+        scopes = (
+            self.db.query(AssessmentFrameworkScope)
+            .filter(AssessmentFrameworkScope.assessment_id == assessment_id)
+            .all()
+        )
 
-        # Group gaps by function
-        by_function = {}
-        functions = self.db.query(CSFFunction).all()
-
-        for func in functions:
-            func_subcats = (
-                self.db.query(CSFSubcategory)
-                .join(CSFCategory)
-                .filter(CSFCategory.function_id == func.id)
+        if scopes:
+            return self.requirement_service.get_requirements_in_scope(assessment_id)
+        else:
+            # Fall back to all assessable requirements from all active frameworks
+            return (
+                self.db.query(FrameworkRequirement)
+                .filter(FrameworkRequirement.is_assessable == True)
                 .all()
             )
-            func_subcat_ids = {sc.id for sc in func_subcats}
-
-            func_gaps = [g for g in gap_data["gaps"] if g["subcategory_id"] in func_subcat_ids]
-            total = len(func_subcats)
-            covered = total - len([g for g in func_gaps if g["gap_type"] == "unmapped_subcategory"])
-
-            by_function[func.code] = {
-                "function_name": func.name,
-                "total_subcategories": total,
-                "covered": covered,
-                "coverage_percentage": round((covered / total * 100) if total > 0 else 0, 2),
-                "unmapped": len([g for g in func_gaps if g["gap_type"] == "unmapped_subcategory"]),
-                "policy_only": len([g for g in func_gaps if g["gap_type"] == "policy_only"]),
-                "control_only": len([g for g in func_gaps if g["gap_type"] == "control_only"]),
-            }
-
-        return {
-            "assessment_id": assessment_id,
-            "by_function": by_function,
-        }

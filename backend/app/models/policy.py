@@ -33,7 +33,7 @@ class Policy(Base):
     )
 
     assessment: Mapped["Assessment"] = relationship(back_populates="policies")
-    mappings: Mapped[list["PolicyMapping"]] = relationship(back_populates="policy")
+    mappings: Mapped[list["PolicyMapping"]] = relationship(back_populates="policy", cascade="all, delete-orphan")
 
 
 class PolicyMapping(Base):

@@ -49,12 +49,13 @@ class MappingApproveResponse(BaseModel):
 
 class GapResponse(BaseModel):
     """A gap identified in coverage."""
-    gap_type: Literal["unmapped_subcategory", "policy_only", "control_only"]
-    subcategory_id: UUID
-    subcategory_code: str
-    subcategory_description: str
-    function_code: str
-    category_code: str
+    gap_type: Literal["unmapped_requirement", "policy_only", "control_only"]
+    requirement_id: UUID
+    requirement_code: str
+    requirement_name: str | None = None
+    requirement_description: str | None = None
+    framework_name: str | None = None
+    parent_code: str | None = None
     has_policy: bool
     has_control: bool
     policy_names: list[str] | None = None
@@ -64,8 +65,9 @@ class GapResponse(BaseModel):
 class GapListResponse(BaseModel):
     """List of gaps with summary."""
     assessment_id: UUID
+    total_requirements: int = 0
     total_gaps: int
-    unmapped_subcategories: int
+    unmapped_requirements: int
     policy_only_count: int
     control_only_count: int
     coverage_percentage: float
