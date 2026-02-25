@@ -1,3 +1,3 @@
-export * from './MappingCard';
 export * from './MappingsList';
-export * from './GapsList';
+export * from './RequirementMappingGroup';
+export * from './PolicyRelevanceRow';

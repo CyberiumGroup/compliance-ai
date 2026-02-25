@@ -1,113 +1,121 @@
 'use client';
 
-import { useState } from 'react';
-import { Clock, Check, List } from 'lucide-react';
-import { MappingCard } from './MappingCard';
 import { PolicyMapping } from '@/lib/types';
-import { cn } from '@/lib/utils';
-
-type StatusFilter = 'all' | 'pending' | 'approved';
+import { RequirementMappingGroup } from './RequirementMappingGroup';
 
 interface MappingsListProps {
   policyMappings: PolicyMapping[];
-  onApprovePolicy: (mappingId: string, approved: boolean) => Promise<void>;
+  onRejectPolicy: (mappingId: string) => Promise<void>;
+  onUnrejectPolicy: (mappingId: string) => Promise<void>;
 }
 
-export function MappingsList({
-  policyMappings,
-  onApprovePolicy,
-}: MappingsListProps) {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
+interface RequirementGroup {
+  requirementCode: string;
+  requirementName: string | null;
+  requirementDescription: string | null;
+  requirementGuidance: string | null;
+  requirementParentCode: string | null;
+  mappings: PolicyMapping[];
+}
 
+interface FrameworkSection {
+  frameworkName: string;
+  requirements: RequirementGroup[];
+}
+
+function groupMappings(mappings: PolicyMapping[]): FrameworkSection[] {
+  const frameworkMap = new Map<string, Map<string, RequirementGroup>>();
+
+  for (const mapping of mappings) {
+    const fw = mapping.requirement_framework_name ?? 'Unknown Framework';
+    const code = mapping.requirement_code ?? 'Unknown Requirement';
+
+    if (!frameworkMap.has(fw)) {
+      frameworkMap.set(fw, new Map());
+    }
+    const reqMap = frameworkMap.get(fw)!;
+
+    if (!reqMap.has(code)) {
+      reqMap.set(code, {
+        requirementCode: code,
+        requirementName: mapping.requirement_name ?? null,
+        requirementDescription: mapping.requirement_description ?? null,
+        requirementGuidance: mapping.requirement_guidance ?? null,
+        requirementParentCode: mapping.requirement_parent_code ?? null,
+        mappings: [],
+      });
+    }
+    reqMap.get(code)!.mappings.push(mapping);
+  }
+
+  const sections: FrameworkSection[] = [];
+  const sortedFrameworks = [...frameworkMap.keys()].sort((a, b) => a.localeCompare(b));
+
+  for (const fw of sortedFrameworks) {
+    const reqMap = frameworkMap.get(fw)!;
+    const requirements = [...reqMap.values()].sort((a, b) =>
+      a.requirementCode.localeCompare(b.requirementCode)
+    );
+    sections.push({ frameworkName: fw, requirements });
+  }
+
+  return sections;
+}
+
+export function MappingsList({ policyMappings, onRejectPolicy, onUnrejectPolicy }: MappingsListProps) {
   if (policyMappings.length === 0) {
     return (
       <div className="text-center py-8 text-gray-500">
-        No mappings generated yet. Click &quot;Suggest Mappings&quot; to analyze your policies.
+        No mappings generated yet. Click &quot;Suggest Mappings&quot; to score your policies against requirements.
       </div>
     );
   }
 
-  const sortedMappings = [...policyMappings].sort((a, b) => {
-    if (a.is_approved !== b.is_approved) {
-      return a.is_approved ? 1 : -1;
-    }
-    return (b.confidence_score || 0) - (a.confidence_score || 0);
-  });
-
-  const pendingCount = sortedMappings.filter((m) => !m.is_approved).length;
-  const approvedCount = sortedMappings.filter((m) => m.is_approved).length;
-
-  const filteredMappings = sortedMappings.filter((m) => {
-    if (statusFilter === 'pending') return !m.is_approved;
-    if (statusFilter === 'approved') return m.is_approved;
-    return true;
-  });
-
-  const filters: { id: StatusFilter; label: string; count: number; icon: typeof List }[] = [
-    { id: 'pending', label: 'Pending Review', count: pendingCount, icon: Clock },
-    { id: 'approved', label: 'Approved', count: approvedCount, icon: Check },
-    { id: 'all', label: 'All', count: sortedMappings.length, icon: List },
-  ];
+  const sections = groupMappings(policyMappings);
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2">
-        {filters.map((filter) => {
-          const Icon = filter.icon;
-          const isActive = statusFilter === filter.id;
-          return (
-            <button
-              key={filter.id}
-              onClick={() => setStatusFilter(filter.id)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
-                isActive
-                  ? filter.id === 'pending'
-                    ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200'
-                    : filter.id === 'approved'
-                      ? 'bg-green-100 text-green-700 ring-1 ring-green-200'
-                      : 'bg-neutral-200 text-neutral-700 ring-1 ring-neutral-300'
-                  : 'text-neutral-500 hover:bg-neutral-100'
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-              {filter.label}
-              <span className={cn(
-                'px-1.5 py-0.5 text-xs font-semibold rounded-full',
-                isActive
-                  ? filter.id === 'pending'
-                    ? 'bg-amber-200 text-amber-800'
-                    : filter.id === 'approved'
-                      ? 'bg-green-200 text-green-800'
-                      : 'bg-neutral-300 text-neutral-700'
-                  : 'bg-neutral-100 text-neutral-500'
-              )}>
-                {filter.count}
-              </span>
-            </button>
-          );
-        })}
+    <div className="space-y-6">
+      {/* Relevance score legend */}
+      <div className="flex items-center gap-3 text-xs text-neutral-500 px-1">
+        <span className="font-medium text-neutral-600">Relevance score:</span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-green-500" /> ≥80% high
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500" /> 60–79% moderate
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500" /> &lt;60% low
+        </span>
+        <span className="text-neutral-400 ml-1">
+          — max cosine similarity between policy sections and requirement, normalized 0–100%
+        </span>
       </div>
 
-      {filteredMappings.length === 0 ? (
-        <div className="text-center py-8 text-neutral-500">
-          {statusFilter === 'pending'
-            ? 'No pending mappings. All mappings have been reviewed.'
-            : statusFilter === 'approved'
-              ? 'No approved mappings yet.'
-              : 'No mappings found.'}
-        </div>
-      ) : (
-        <div className="grid gap-3">
-          {filteredMappings.map((mapping) => (
-            <MappingCard
-              key={mapping.id}
-              mapping={mapping}
-              onApprove={(approved) => onApprovePolicy(mapping.id, approved)}
-            />
-          ))}
-        </div>
-      )}
+      <div className="space-y-8">
+        {sections.map((section) => (
+          <div key={section.frameworkName}>
+            <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3 px-1">
+              {section.frameworkName}
+            </h3>
+            <div className="space-y-3">
+              {section.requirements.map((req) => (
+                <RequirementMappingGroup
+                  key={req.requirementCode}
+                  requirementCode={req.requirementCode}
+                  requirementName={req.requirementName}
+                  requirementDescription={req.requirementDescription}
+                  requirementGuidance={req.requirementGuidance}
+                  requirementParentCode={req.requirementParentCode}
+                  mappings={req.mappings}
+                  onReject={onRejectPolicy}
+                  onUnreject={onUnrejectPolicy}
+                />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

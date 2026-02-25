@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.models.policy import Policy
 from app.services.audit.audit_service import AuditService
 from app.services.ingestion.text_extraction import TextExtractionService
+from app.core.ai_client import ai_client
 
 
 class PolicyIngestionService:
@@ -56,6 +57,14 @@ class PolicyIngestionService:
         if not name:
             name = Path(filename).stem.replace("_", " ").replace("-", " ").title()
 
+        # Generate AI summary from extracted text (best-effort — failures don't block upload)
+        summary = None
+        if extracted_text:
+            try:
+                summary = ai_client.generate_policy_summary(extracted_text, name)
+            except Exception:
+                pass
+
         # Create policy
         policy = Policy(
             id=uuid.uuid4(),
@@ -66,6 +75,7 @@ class PolicyIngestionService:
             owner=owner,
             file_path=filename,
             content_text=extracted_text if extracted_text else None,
+            summary=summary,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
         )

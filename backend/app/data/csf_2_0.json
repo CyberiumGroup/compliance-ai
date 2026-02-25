@@ -15,11 +15,31 @@
           "name": "Organizational Context",
           "description": "The circumstances surrounding the organization's cybersecurity risk management decisions are understood.",
           "subcategories": [
-            {"code": "GV.OC-01", "description": "The organizational mission is understood and informs cybersecurity risk management"},
-            {"code": "GV.OC-02", "description": "Internal and external stakeholders are understood, and their needs and expectations regarding cybersecurity risk management are understood and considered"},
-            {"code": "GV.OC-03", "description": "Legal, regulatory, and contractual requirements regarding cybersecurity — including privacy and civil liberties obligations — are understood and managed"},
-            {"code": "GV.OC-04", "description": "Critical objectives, capabilities, and services that external stakeholders depend on or expect from the organization are understood and communicated"},
-            {"code": "GV.OC-05", "description": "Outcomes, capabilities, and services that the organization depends on are understood and communicated"}
+            {
+              "code": "GV.OC-01",
+              "description": "The organizational mission is understood and informs cybersecurity risk management",
+              "guidance": "Articulate the organizational mission and communicate it to cybersecurity personnel. Incorporate the mission into cybersecurity policies, risk tolerance statements, and investment priorities. Use the mission to guide decisions about which assets and processes require the strongest protections."
+            },
+            {
+              "code": "GV.OC-02",
+              "description": "Internal and external stakeholders are understood, and their needs and expectations regarding cybersecurity risk management are understood and considered",
+              "guidance": "Identify and document internal stakeholders (executives, board, operations, legal, IT) and external stakeholders (customers, suppliers, regulators, law enforcement, insurers). Understand their cybersecurity expectations and contractual or regulatory obligations. Incorporate stakeholder needs into risk management strategy and communication plans."
+            },
+            {
+              "code": "GV.OC-03",
+              "description": "Legal, regulatory, and contractual requirements regarding cybersecurity — including privacy and civil liberties obligations — are understood and managed",
+              "guidance": "Maintain an inventory of applicable laws, regulations, and contractual requirements (e.g., GDPR, HIPAA, PCI DSS, state breach notification laws). Assess current compliance status. Map legal requirements to cybersecurity controls and policies. Track regulatory changes and update controls accordingly. Manage privacy and civil liberties obligations in alignment with applicable law."
+            },
+            {
+              "code": "GV.OC-04",
+              "description": "Critical objectives, capabilities, and services that external stakeholders depend on or expect from the organization are understood and communicated",
+              "guidance": "Identify and document critical services and capabilities that customers, partners, and regulators depend on. Assess the impact of cybersecurity incidents on those dependencies. Communicate with external stakeholders about service availability expectations and incident notification requirements. Align cybersecurity investments to protect the highest-dependency services."
+            },
+            {
+              "code": "GV.OC-05",
+              "description": "Outcomes, capabilities, and services that the organization depends on are understood and communicated",
+              "guidance": "Identify and document third-party services, systems, and components the organization depends on to achieve its mission. Assess the cybersecurity risks arising from those dependencies, including cloud providers, utilities, and critical software vendors. Establish contingency plans for disruptions to critical dependencies."
+            }
           ]
         },
         {
@@ -27,13 +47,41 @@
           "name": "Risk Management Strategy",
           "description": "The organization's priorities, constraints, risk tolerance and appetite statements, and assumptions are established, communicated, and used to support operational risk decisions.",
           "subcategories": [
-            {"code": "GV.RM-01", "description": "Risk management objectives are established and agreed to by organizational stakeholders"},
-            {"code": "GV.RM-02", "description": "Risk appetite and risk tolerance statements are established, communicated, and maintained"},
-            {"code": "GV.RM-03", "description": "Cybersecurity risk management activities and outcomes are included in enterprise risk management processes"},
-            {"code": "GV.RM-04", "description": "Strategic direction that describes appropriate risk response options is established and communicated"},
-            {"code": "GV.RM-05", "description": "Lines of communication across the organization are established for cybersecurity risks, including risks from suppliers and other third parties"},
-            {"code": "GV.RM-06", "description": "A standardized method for calculating, documenting, categorizing, and prioritizing cybersecurity risks is established and communicated"},
-            {"code": "GV.RM-07", "description": "Strategic opportunities (i.e., positive risks) are characterized and are included in organizational cybersecurity risk discussions"}
+            {
+              "code": "GV.RM-01",
+              "description": "Risk management objectives are established and agreed to by organizational stakeholders",
+              "guidance": "Define measurable objectives for cybersecurity risk management aligned to organizational priorities. Obtain documented agreement from organizational leadership and relevant stakeholders. Use agreed objectives to drive risk management activities and evaluate performance."
+            },
+            {
+              "code": "GV.RM-02",
+              "description": "Risk appetite and risk tolerance statements are established, communicated, and maintained",
+              "guidance": "Define risk appetite (how much risk the organization is willing to accept in pursuit of objectives) and risk tolerance (acceptable variation in outcomes). Document these statements in formal policy. Communicate to personnel who make risk decisions. Review and update at least annually or after significant organizational changes."
+            },
+            {
+              "code": "GV.RM-03",
+              "description": "Cybersecurity risk management activities and outcomes are included in enterprise risk management processes",
+              "guidance": "Align cybersecurity risk management with enterprise risk management (ERM) frameworks. Include cybersecurity risks in enterprise risk registers alongside financial, operational, and strategic risks. Report cybersecurity risk outcomes to ERM governance bodies. Ensure consistent risk terminology and scoring across both programs."
+            },
+            {
+              "code": "GV.RM-04",
+              "description": "Strategic direction that describes appropriate risk response options is established and communicated",
+              "guidance": "Establish organizational guidance on preferred risk response strategies (accept, avoid, mitigate, transfer/share). Communicate strategic direction to personnel who select and implement risk responses. Ensure responses align with risk appetite, budget constraints, and mission priorities."
+            },
+            {
+              "code": "GV.RM-05",
+              "description": "Lines of communication across the organization are established for cybersecurity risks, including risks from suppliers and other third parties",
+              "guidance": "Establish formal communication channels for reporting and escalating cybersecurity risks. Include mechanisms for communicating supply chain and third-party risks. Define escalation paths, reporting frequencies, and responsible parties. Ensure leadership receives timely risk information."
+            },
+            {
+              "code": "GV.RM-06",
+              "description": "A standardized method for calculating, documenting, categorizing, and prioritizing cybersecurity risks is established and communicated",
+              "guidance": "Define a consistent risk calculation methodology covering likelihood, impact, and inherent/residual risk. Document the methodology and require its application consistently across the organization. Train personnel on risk scoring. Maintain a risk register using the standardized approach."
+            },
+            {
+              "code": "GV.RM-07",
+              "description": "Strategic opportunities (i.e., positive risks) are characterized and are included in organizational cybersecurity risk discussions",
+              "guidance": "Identify cybersecurity investments and capabilities that could create strategic advantages or enable new business opportunities. Include positive risk considerations alongside threats in risk discussions. Evaluate when accepting security risk enables innovation or competitive positioning consistent with risk appetite."
+            }
           ]
         },
         {
@@ -41,10 +89,26 @@
           "name": "Roles, Responsibilities, and Authorities",
           "description": "Cybersecurity roles, responsibilities, and authorities to foster accountability, performance assessment, and continuous improvement are established and communicated.",
           "subcategories": [
-            {"code": "GV.RR-01", "description": "Organizational leadership is responsible and accountable for cybersecurity risk and fosters a culture that is risk-aware, ethical, and continuously improving"},
-            {"code": "GV.RR-02", "description": "Roles, responsibilities, and authorities related to cybersecurity risk management are established, communicated, understood, and enforced"},
-            {"code": "GV.RR-03", "description": "Adequate resources are allocated commensurate with the cybersecurity risk strategy, roles, responsibilities, and policies"},
-            {"code": "GV.RR-04", "description": "Cybersecurity is included in human resources practices"}
+            {
+              "code": "GV.RR-01",
+              "description": "Organizational leadership is responsible and accountable for cybersecurity risk and fosters a culture that is risk-aware, ethical, and continuously improving",
+              "guidance": "Senior leaders (CEO, board, C-suite) are briefed regularly on cybersecurity risks and outcomes. Leadership demonstrates visible support for cybersecurity initiatives. Executives are formally accountable for cybersecurity risk within their areas. Leaders model and reinforce a culture where security incidents are reported without fear of blame."
+            },
+            {
+              "code": "GV.RR-02",
+              "description": "Roles, responsibilities, and authorities related to cybersecurity risk management are established, communicated, understood, and enforced",
+              "guidance": "Define and document cybersecurity roles and responsibilities using a RACI or equivalent model. Assign specific accountability for key cybersecurity functions (CISO, security operations, risk management, compliance). Communicate roles internally and with relevant third parties. Enforce accountability through performance management."
+            },
+            {
+              "code": "GV.RR-03",
+              "description": "Adequate resources are allocated commensurate with the cybersecurity risk strategy, roles, responsibilities, and policies",
+              "guidance": "Budget cybersecurity resources based on organizational risk profile, regulatory requirements, and strategic priorities. Assign dedicated cybersecurity staff with appropriate skills. Fund required tools, technologies, and training. Review resource adequacy as part of annual budget cycles and after significant changes."
+            },
+            {
+              "code": "GV.RR-04",
+              "description": "Cybersecurity is included in human resources practices",
+              "guidance": "Incorporate cybersecurity requirements into job descriptions and hiring criteria. Conduct background checks for personnel in sensitive roles. Include cybersecurity responsibilities in employee onboarding, performance reviews, and termination procedures. Ensure access is promptly revoked upon departure. Address insider threat risks through HR processes."
+            }
           ]
         },
         {
@@ -52,8 +116,16 @@
           "name": "Policy",
           "description": "Organizational cybersecurity policy is established, communicated, and enforced.",
           "subcategories": [
-            {"code": "GV.PO-01", "description": "Policy for managing cybersecurity risks is established based on organizational context, cybersecurity strategy, and priorities and is communicated and enforced"},
-            {"code": "GV.PO-02", "description": "Policy for managing cybersecurity risks is reviewed, updated, communicated, and enforced to reflect changes in requirements, threats, technology, and organizational mission"}
+            {
+              "code": "GV.PO-01",
+              "description": "Policy for managing cybersecurity risks is established based on organizational context, cybersecurity strategy, and priorities and is communicated and enforced",
+              "guidance": "Develop a comprehensive cybersecurity policy framework aligned to the organization's mission, risk tolerance, and regulatory requirements. Ensure policies address key domains including access control, data protection, incident response, and acceptable use. Obtain executive approval. Communicate policies to all personnel and enforce compliance through training, monitoring, and consequences for violations."
+            },
+            {
+              "code": "GV.PO-02",
+              "description": "Policy for managing cybersecurity risks is reviewed, updated, communicated, and enforced to reflect changes in requirements, threats, technology, and organizational mission",
+              "guidance": "Establish a policy review cycle (at minimum annually) and trigger reviews after significant changes such as new regulations, major incidents, or organizational restructuring. Update policies to reflect changes in threat landscape, technology, and mission priorities. Communicate policy updates to personnel and document acknowledgment. Track policy exceptions and enforce consequences."
+            }
           ]
         },
         {
@@ -61,16 +133,56 @@
           "name": "Cybersecurity Supply Chain Risk Management",
           "description": "Cyber supply chain risk management processes are identified, established, managed, monitored, and improved by organizational stakeholders.",
           "subcategories": [
-            {"code": "GV.SC-01", "description": "A cybersecurity supply chain risk management program, strategy, objectives, policies, and processes are established and agreed to by organizational stakeholders"},
-            {"code": "GV.SC-02", "description": "Cybersecurity roles and responsibilities for suppliers, customers, and partners are established, communicated, and coordinated internally and externally"},
-            {"code": "GV.SC-03", "description": "Cybersecurity supply chain risk management is integrated into cybersecurity and enterprise risk management, risk assessment, and improvement processes"},
-            {"code": "GV.SC-04", "description": "Suppliers are known and prioritized by criticality"},
-            {"code": "GV.SC-05", "description": "Requirements to address cybersecurity risks in supply chains are established, prioritized, and integrated into contracts and other types of agreements with suppliers and other relevant third parties"},
-            {"code": "GV.SC-06", "description": "Planning and due diligence are performed to reduce risks before entering into formal supplier or other third-party relationships"},
-            {"code": "GV.SC-07", "description": "The risks posed by a supplier, their products and services, and other third parties are understood, recorded, prioritized, assessed, responded to, and monitored over the course of the relationship"},
-            {"code": "GV.SC-08", "description": "Relevant suppliers and other third parties are included in incident planning, response, and recovery activities"},
-            {"code": "GV.SC-09", "description": "Supply chain security practices are integrated into cybersecurity and enterprise risk management programs, and their performance is monitored throughout the technology product and service life cycle"},
-            {"code": "GV.SC-10", "description": "Cybersecurity supply chain risk management plans include provisions for activities that occur after the conclusion of a partnership or service agreement"}
+            {
+              "code": "GV.SC-01",
+              "description": "A cybersecurity supply chain risk management program, strategy, objectives, policies, and processes are established and agreed to by organizational stakeholders",
+              "guidance": "Establish a formal supply chain risk management (SCRM) program with documented strategy, objectives, policies, and processes. Define the scope of the program including hardware, software, and service suppliers. Obtain executive sponsorship and stakeholder agreement. Align the program with organizational risk appetite and enterprise risk management."
+            },
+            {
+              "code": "GV.SC-02",
+              "description": "Cybersecurity roles and responsibilities for suppliers, customers, and partners are established, communicated, and coordinated internally and externally",
+              "guidance": "Define cybersecurity responsibilities for each category of supplier (e.g., software vendors, managed service providers, hardware suppliers). Include cybersecurity responsibilities in contracts and agreements. Coordinate roles with internal procurement, legal, and IT teams. Communicate expectations to suppliers and verify understanding."
+            },
+            {
+              "code": "GV.SC-03",
+              "description": "Cybersecurity supply chain risk management is integrated into cybersecurity and enterprise risk management, risk assessment, and improvement processes",
+              "guidance": "Include supply chain risks in cybersecurity risk assessments and the enterprise risk register. Integrate SCRM into procurement processes and vendor selection criteria. Report supply chain risk outcomes to risk governance bodies. Use supply chain risk findings to drive continuous improvement."
+            },
+            {
+              "code": "GV.SC-04",
+              "description": "Suppliers are known and prioritized by criticality",
+              "guidance": "Maintain a comprehensive inventory of all suppliers including hardware, software, cloud, and service providers. Assess each supplier's criticality based on mission dependency, access to sensitive data and systems, and potential impact of disruption. Prioritize risk management activities based on supplier criticality tiers."
+            },
+            {
+              "code": "GV.SC-05",
+              "description": "Requirements to address cybersecurity risks in supply chains are established, prioritized, and integrated into contracts and other types of agreements with suppliers and other relevant third parties",
+              "guidance": "Define minimum cybersecurity requirements for suppliers based on their criticality and access level. Include requirements in contracts, service level agreements, and procurement standards. Address areas such as security certifications, audit rights, incident notification obligations, data protection, and access controls. Prioritize enforcement of requirements for high-criticality suppliers."
+            },
+            {
+              "code": "GV.SC-06",
+              "description": "Planning and due diligence are performed to reduce risks before entering into formal supplier or other third-party relationships",
+              "guidance": "Conduct cybersecurity due diligence before engaging new suppliers. Review security certifications (SOC 2, ISO 27001), audit reports, and questionnaire responses. Assess the supplier's security practices, incident history, and financial stability. Document due diligence results and incorporate findings into supplier risk ratings."
+            },
+            {
+              "code": "GV.SC-07",
+              "description": "The risks posed by a supplier, their products and services, and other third parties are understood, recorded, prioritized, assessed, responded to, and monitored over the course of the relationship",
+              "guidance": "Continuously monitor supplier cybersecurity posture throughout the relationship using periodic assessments, security ratings, and audit rights. Maintain supplier risk records in the risk register. Update risk ratings based on changes in supplier status, security incidents, and new vulnerabilities in supplier products. Escalate and respond to elevated risk situations."
+            },
+            {
+              "code": "GV.SC-08",
+              "description": "Relevant suppliers and other third parties are included in incident planning, response, and recovery activities",
+              "guidance": "Include critical suppliers in incident response plans and define their roles and responsibilities during incidents. Establish communication channels and escalation paths with key suppliers. Conduct joint exercises or tabletop scenarios that include supplier scenarios. Define obligations for suppliers to notify the organization of incidents affecting the organization's data or systems."
+            },
+            {
+              "code": "GV.SC-09",
+              "description": "Supply chain security practices are integrated into cybersecurity and enterprise risk management programs, and their performance is monitored throughout the technology product and service life cycle",
+              "guidance": "Integrate supply chain security requirements into the full technology lifecycle from acquisition and development through operation and decommission. Monitor supplier security performance using metrics, audit results, and security ratings services. Include supply chain security in continuous improvement processes. Apply software bill of materials (SBOM) practices to understand component provenance."
+            },
+            {
+              "code": "GV.SC-10",
+              "description": "Cybersecurity supply chain risk management plans include provisions for activities that occur after the conclusion of a partnership or service agreement",
+              "guidance": "Plan for supplier relationship termination by including provisions in contracts and internal procedures. Address data return, data deletion, credential revocation, access removal, and transition of services. Conduct security reviews at offboarding. Maintain records of former suppliers and any residual risks."
+            }
           ]
         }
       ]
@@ -85,13 +197,41 @@
           "name": "Asset Management",
           "description": "Assets that enable the organization to achieve business purposes are identified and managed consistent with their relative importance to organizational objectives and the organization's risk strategy.",
           "subcategories": [
-            {"code": "ID.AM-01", "description": "Inventories of hardware managed by the organization are maintained"},
-            {"code": "ID.AM-02", "description": "Inventories of software, services, and systems managed by the organization are maintained"},
-            {"code": "ID.AM-03", "description": "Representations of the organization's authorized network communication and internal and external network data flows are maintained"},
-            {"code": "ID.AM-04", "description": "Inventories of services provided by suppliers are maintained"},
-            {"code": "ID.AM-05", "description": "Assets are prioritized based on classification, criticality, resources, and impact on the mission"},
-            {"code": "ID.AM-07", "description": "Inventories of data and corresponding metadata for designated data types are maintained"},
-            {"code": "ID.AM-08", "description": "Systems, hardware, software, services, and data are managed throughout their life cycles"}
+            {
+              "code": "ID.AM-01",
+              "description": "Inventories of hardware managed by the organization are maintained",
+              "guidance": "Maintain a comprehensive and current inventory of all hardware assets including servers, workstations, laptops, mobile devices, network equipment, and IoT devices. Use automated discovery tools to supplement manual records. Record asset owner, location, classification, and status. Review and reconcile the inventory regularly."
+            },
+            {
+              "code": "ID.AM-02",
+              "description": "Inventories of software, services, and systems managed by the organization are maintained",
+              "guidance": "Maintain inventories of all software applications, operating systems, and services including version, license, and ownership information. Use software asset management tools and application discovery. Identify and manage unauthorized software. Include cloud-hosted and SaaS applications."
+            },
+            {
+              "code": "ID.AM-03",
+              "description": "Representations of the organization's authorized network communication and internal and external network data flows are maintained",
+              "guidance": "Document network topology including physical and logical diagrams. Map authorized internal and external data flows especially for sensitive data. Maintain records of external connections, network segmentation, and trust boundaries. Review network diagrams when significant changes occur."
+            },
+            {
+              "code": "ID.AM-04",
+              "description": "Inventories of services provided by suppliers are maintained",
+              "guidance": "Maintain an inventory of services received from external suppliers including cloud providers, managed service providers, and SaaS vendors. Record the nature of each service, data accessed, and criticality to operations. Link supplier service inventory to the vendor risk management program."
+            },
+            {
+              "code": "ID.AM-05",
+              "description": "Assets are prioritized based on classification, criticality, resources, and impact on the mission",
+              "guidance": "Classify assets based on data sensitivity, operational criticality, and impact if compromised or unavailable. Use classification to prioritize protection controls, monitoring intensity, and recovery priorities. Align asset prioritization with business impact analysis and risk appetite. Review classifications periodically and when assets change."
+            },
+            {
+              "code": "ID.AM-07",
+              "description": "Inventories of data and corresponding metadata for designated data types are maintained",
+              "guidance": "Identify and catalog sensitive and regulated data types (e.g., personally identifiable information, financial data, health records, intellectual property). Document data locations, owners, retention requirements, and classification. Use data discovery tools to identify where sensitive data resides. Maintain data flow maps for regulated data types."
+            },
+            {
+              "code": "ID.AM-08",
+              "description": "Systems, hardware, software, services, and data are managed throughout their life cycles",
+              "guidance": "Establish lifecycle management processes covering acquisition, deployment, operation, maintenance, and disposal for all asset types. Apply security requirements at each lifecycle stage. Ensure secure disposal and decommissioning including data destruction and credential removal. Track and manage end-of-life and end-of-support dates."
+            }
           ]
         },
         {
@@ -99,16 +239,56 @@
           "name": "Risk Assessment",
           "description": "The cybersecurity risk to the organization, assets, and individuals is understood by the organization.",
           "subcategories": [
-            {"code": "ID.RA-01", "description": "Vulnerabilities in assets are identified, validated, and recorded"},
-            {"code": "ID.RA-02", "description": "Cyber threat intelligence is received from information sharing forums and sources"},
-            {"code": "ID.RA-03", "description": "Internal and external threats to the organization are identified and recorded"},
-            {"code": "ID.RA-04", "description": "Potential impacts and likelihoods of threats exploiting vulnerabilities are identified and recorded"},
-            {"code": "ID.RA-05", "description": "Threats, vulnerabilities, likelihoods, and impacts are used to understand inherent risk and inform risk response prioritization"},
-            {"code": "ID.RA-06", "description": "Risk responses are chosen, prioritized, planned, tracked, and communicated"},
-            {"code": "ID.RA-07", "description": "Changes and exceptions are managed, assessed for risk impact, recorded, and tracked"},
-            {"code": "ID.RA-08", "description": "Processes for receiving, analyzing, and responding to vulnerability disclosures are established"},
-            {"code": "ID.RA-09", "description": "The authenticity and integrity of hardware and software are assessed prior to acquisition and use"},
-            {"code": "ID.RA-10", "description": "Critical suppliers are assessed prior to acquisition"}
+            {
+              "code": "ID.RA-01",
+              "description": "Vulnerabilities in assets are identified, validated, and recorded",
+              "guidance": "Conduct regular vulnerability scanning of systems and applications. Supplement with penetration testing and review of vendor security advisories, NVD, and threat intelligence. Validate vulnerabilities to eliminate false positives. Record confirmed vulnerabilities in a tracking system. Prioritize remediation based on exploitability, impact, and asset criticality."
+            },
+            {
+              "code": "ID.RA-02",
+              "description": "Cyber threat intelligence is received from information sharing forums and sources",
+              "guidance": "Subscribe to threat intelligence feeds from industry ISACs, government sources (CISA, FBI), and commercial threat intelligence providers. Share relevant threat intelligence with internal security teams and appropriate external partners. Use threat intelligence to inform risk assessments and security monitoring."
+            },
+            {
+              "code": "ID.RA-03",
+              "description": "Internal and external threats to the organization are identified and recorded",
+              "guidance": "Identify and document potential threat sources including external actors (cybercriminals, nation-states, competitors, hacktivists) and internal threats (malicious insiders, negligent employees, compromised accounts). Develop threat scenarios relevant to the organization's assets and mission. Update threat assessments based on current intelligence."
+            },
+            {
+              "code": "ID.RA-04",
+              "description": "Potential impacts and likelihoods of threats exploiting vulnerabilities are identified and recorded",
+              "guidance": "For each identified risk scenario, assess the likelihood of exploitation considering threat actor capability, motivation, and vulnerability exploitability. Assess potential impacts including data breach, operational disruption, financial loss, and reputational harm. Document likelihood and impact ratings using the organization's standardized risk methodology."
+            },
+            {
+              "code": "ID.RA-05",
+              "description": "Threats, vulnerabilities, likelihoods, and impacts are used to understand inherent risk and inform risk response prioritization",
+              "guidance": "Combine threat, vulnerability, likelihood, and impact assessments to calculate risk ratings for each identified risk scenario. Use risk ratings to prioritize risk responses and allocate resources. Present risk findings to decision-makers in terms of business impact. Review and update risk ratings when significant changes occur."
+            },
+            {
+              "code": "ID.RA-06",
+              "description": "Risk responses are chosen, prioritized, planned, tracked, and communicated",
+              "guidance": "For each identified risk, select an appropriate response strategy (accept, avoid, mitigate, or transfer/share). Document risk response plans with owners, timelines, and success criteria. Track implementation progress. Communicate risk response status to leadership and relevant stakeholders. Reassess residual risk after responses are implemented."
+            },
+            {
+              "code": "ID.RA-07",
+              "description": "Changes and exceptions are managed, assessed for risk impact, recorded, and tracked",
+              "guidance": "Implement a formal change management process that includes cybersecurity risk assessment for proposed changes to systems, processes, and configurations. Assess risk implications before approving changes. Manage and document exceptions to policy with compensating controls and review timelines. Track changes and exceptions in a change log."
+            },
+            {
+              "code": "ID.RA-08",
+              "description": "Processes for receiving, analyzing, and responding to vulnerability disclosures are established",
+              "guidance": "Establish a vulnerability disclosure process (e.g., security.txt, public disclosure policy) to receive reports from external researchers and the public. Define internal procedures for analyzing, validating, and prioritizing disclosed vulnerabilities. Set response timelines and communicate resolution to reporters. Coordinate with vendors on vulnerabilities in third-party products."
+            },
+            {
+              "code": "ID.RA-09",
+              "description": "The authenticity and integrity of hardware and software are assessed prior to acquisition and use",
+              "guidance": "Verify the authenticity and integrity of hardware and software before acquisition and deployment. Use vendor-provided checksums, code signing, and secure boot mechanisms. Assess supply chain provenance for critical components. Implement software bill of materials (SBOM) practices. Review hardware and software for known vulnerabilities and backdoors prior to deployment."
+            },
+            {
+              "code": "ID.RA-10",
+              "description": "Critical suppliers are assessed prior to acquisition",
+              "guidance": "Assess the cybersecurity posture of critical suppliers before procurement decisions. Review available certifications (SOC 2, ISO 27001), third-party audit reports, and security questionnaire responses. Evaluate suppliers' vulnerability management, incident response capability, and security practices. Document assessment results and use them to inform procurement decisions and contractual requirements."
+            }
           ]
         },
         {
@@ -116,10 +296,26 @@
           "name": "Improvement",
           "description": "Improvements to organizational cybersecurity risk management processes, procedures and activities are identified across all CSF Functions.",
           "subcategories": [
-            {"code": "ID.IM-01", "description": "Improvements are identified from evaluations"},
-            {"code": "ID.IM-02", "description": "Improvements are identified from security tests and exercises, including those done in coordination with suppliers and relevant third parties"},
-            {"code": "ID.IM-03", "description": "Improvements are identified from execution of operational processes, procedures, and activities"},
-            {"code": "ID.IM-04", "description": "Incident response plans and other cybersecurity plans that affect operations are established, communicated, maintained, and improved"}
+            {
+              "code": "ID.IM-01",
+              "description": "Improvements are identified from evaluations",
+              "guidance": "Conduct periodic evaluations including internal audits, risk assessments, maturity assessments, and management reviews. Use evaluation findings to identify gaps and improvement opportunities. Prioritize improvements based on risk impact. Track identified improvements to completion and verify effectiveness."
+            },
+            {
+              "code": "ID.IM-02",
+              "description": "Improvements are identified from security tests and exercises, including those done in coordination with suppliers and relevant third parties",
+              "guidance": "Conduct security testing activities such as penetration tests, vulnerability assessments, red team exercises, and tabletop incident response exercises. Include relevant suppliers and third parties in exercises where appropriate. Capture lessons learned and translate them into actionable improvement items. Track improvements to completion."
+            },
+            {
+              "code": "ID.IM-03",
+              "description": "Improvements are identified from execution of operational processes, procedures, and activities",
+              "guidance": "Monitor operational security processes for inefficiencies, failures, and recurring issues. Use security metrics and key performance indicators to identify underperforming controls or processes. Collect feedback from security operations staff. Translate operational findings into improvement initiatives and track them."
+            },
+            {
+              "code": "ID.IM-04",
+              "description": "Incident response plans and other cybersecurity plans that affect operations are established, communicated, maintained, and improved",
+              "guidance": "Develop and maintain documented incident response plans, business continuity plans, and disaster recovery plans. Ensure plans address the organization's specific threat scenarios and critical assets. Communicate plans to all relevant personnel and conduct training. Test plans through exercises at least annually. Update plans based on exercise findings, lessons learned from actual incidents, and organizational changes."
+            }
           ]
         }
       ]
@@ -134,12 +330,36 @@
           "name": "Identity Management, Authentication, and Access Control",
           "description": "Access to physical and logical assets is limited to authorized users, services, and hardware and managed commensurate with the assessed risk of unauthorized access.",
           "subcategories": [
-            {"code": "PR.AA-01", "description": "Identities and credentials for authorized users, services, and hardware are managed by the organization"},
-            {"code": "PR.AA-02", "description": "Identities are proofed and bound to credentials based on the context of interactions"},
-            {"code": "PR.AA-03", "description": "Users, services, and hardware are authenticated"},
-            {"code": "PR.AA-04", "description": "Identity assertions are protected, conveyed, and verified"},
-            {"code": "PR.AA-05", "description": "Access permissions, entitlements, and authorizations are defined in a policy, managed, enforced, and reviewed, and incorporate the principles of least privilege and separation of duties"},
-            {"code": "PR.AA-06", "description": "Physical access to assets is managed, monitored, and enforced commensurate with risk"}
+            {
+              "code": "PR.AA-01",
+              "description": "Identities and credentials for authorized users, services, and hardware are managed by the organization",
+              "guidance": "Manage user identities and credentials through identity management systems and directories. Enforce password complexity and rotation policies. Manage the full identity lifecycle including provisioning, modification, and deprovisioning. Manage service accounts and non-human identities. Conduct periodic access reviews to identify and remove stale accounts."
+            },
+            {
+              "code": "PR.AA-02",
+              "description": "Identities are proofed and bound to credentials based on the context of interactions",
+              "guidance": "Verify user identity before issuing credentials using identity proofing appropriate to the assurance level required. Apply risk-based authentication for high-value or sensitive transactions. Bind credentials to verified identities and document the binding. Use strong credential types (e.g., hardware tokens, PKI certificates) for privileged and high-risk access."
+            },
+            {
+              "code": "PR.AA-03",
+              "description": "Users, services, and hardware are authenticated",
+              "guidance": "Require authentication for all access to systems, applications, and data. Implement multi-factor authentication (MFA) for all privileged accounts, remote access, and sensitive systems. Apply MFA broadly across user accounts commensurate with risk. Manage authentication failures by locking accounts after repeated failures and alerting on anomalous authentication patterns."
+            },
+            {
+              "code": "PR.AA-04",
+              "description": "Identity assertions are protected, conveyed, and verified",
+              "guidance": "Protect authentication tokens, session credentials, and identity assertions using strong cryptography. Use secure protocols (e.g., SAML, OIDC, OAuth 2.0) for conveying identity assertions between systems. Validate assertions at relying parties. Protect against token theft, replay attacks, and session hijacking. Implement short token lifetimes and secure token storage."
+            },
+            {
+              "code": "PR.AA-05",
+              "description": "Access permissions, entitlements, and authorizations are defined in a policy, managed, enforced, and reviewed, and incorporate the principles of least privilege and separation of duties",
+              "guidance": "Define access control policies based on roles and the principle of least privilege. Grant users only the permissions required for their job function. Implement separation of duties for sensitive and high-risk functions. Conduct periodic access recertification campaigns to review and revoke unnecessary permissions. Manage privileged access using privileged access management (PAM) solutions and just-in-time access."
+            },
+            {
+              "code": "PR.AA-06",
+              "description": "Physical access to assets is managed, monitored, and enforced commensurate with risk",
+              "guidance": "Control physical access to facilities, data centers, and equipment using access control systems such as badges, PINs, and biometrics. Enforce visitor management procedures. Monitor physical access through logs, surveillance cameras, and security guards commensurate with the sensitivity of the area. Review physical access logs regularly and investigate anomalies."
+            }
           ]
         },
         {
@@ -147,8 +367,16 @@
           "name": "Awareness and Training",
           "description": "The organization's personnel are provided with cybersecurity awareness and training so that they can perform their cybersecurity-related tasks.",
           "subcategories": [
-            {"code": "PR.AT-01", "description": "Personnel are provided with awareness and training so that they possess the knowledge and skills to perform general tasks with cybersecurity risks in mind"},
-            {"code": "PR.AT-02", "description": "Individuals in specialized roles are provided with awareness and training so that they possess the knowledge and skills to perform relevant tasks with cybersecurity risks in mind"}
+            {
+              "code": "PR.AT-01",
+              "description": "Personnel are provided with awareness and training so that they possess the knowledge and skills to perform general tasks with cybersecurity risks in mind",
+              "guidance": "Provide security awareness training to all personnel covering topics such as phishing and social engineering, password security, safe browsing, data handling, physical security, and how to report security incidents. Conduct training at onboarding and at least annually thereafter. Use simulated phishing exercises to reinforce training. Track completion and address non-compliance."
+            },
+            {
+              "code": "PR.AT-02",
+              "description": "Individuals in specialized roles are provided with awareness and training so that they possess the knowledge and skills to perform relevant tasks with cybersecurity risks in mind",
+              "guidance": "Provide role-specific cybersecurity training to personnel in specialized roles such as system administrators, security analysts, developers, incident responders, and executives. Cover role-specific threats, tools, and secure practices. Include training on secure coding, privileged account management, or incident handling as appropriate to the role. Validate competency and maintain training records."
+            }
           ]
         },
         {
@@ -156,10 +384,26 @@
           "name": "Data Security",
           "description": "Data are managed consistent with the organization's risk strategy to protect the confidentiality, integrity, and availability of information.",
           "subcategories": [
-            {"code": "PR.DS-01", "description": "The confidentiality, integrity, and availability of data-at-rest are protected"},
-            {"code": "PR.DS-02", "description": "The confidentiality, integrity, and availability of data-in-transit are protected"},
-            {"code": "PR.DS-10", "description": "The confidentiality, integrity, and availability of data-in-use are protected"},
-            {"code": "PR.DS-11", "description": "Backups of data are created, protected, maintained, and tested"}
+            {
+              "code": "PR.DS-01",
+              "description": "The confidentiality, integrity, and availability of data-at-rest are protected",
+              "guidance": "Encrypt sensitive data at rest using strong, current algorithms (e.g., AES-256). Implement access controls to restrict who can read or modify stored data. Apply data classification to determine appropriate protection levels. Protect backup media with encryption and access controls. Implement data integrity controls such as hashing to detect unauthorized modification."
+            },
+            {
+              "code": "PR.DS-02",
+              "description": "The confidentiality, integrity, and availability of data-in-transit are protected",
+              "guidance": "Encrypt all sensitive data in transit using strong protocols such as TLS 1.2 or higher. Disable insecure protocols. Protect against interception and tampering during transmission. Apply integrity checks to transmitted data. Monitor and enforce encryption requirements across internal and external communications."
+            },
+            {
+              "code": "PR.DS-10",
+              "description": "The confidentiality, integrity, and availability of data-in-use are protected",
+              "guidance": "Implement controls to protect data while it is being processed in memory and by applications. Apply memory protection techniques and secure coding practices. Use access controls within applications to restrict data access to authorized processes and users. Consider secure enclaves or confidential computing where highly sensitive processing is required."
+            },
+            {
+              "code": "PR.DS-11",
+              "description": "Backups of data are created, protected, maintained, and tested",
+              "guidance": "Create regular backups of critical data and systems according to defined recovery objectives. Encrypt backup data and restrict access to backup systems. Store backups in geographically separate locations or offline to protect against ransomware and disasters. Test backup restoration procedures regularly (at minimum annually) to verify recoverability. Maintain backup logs and monitor backup job completion."
+            }
           ]
         },
         {
@@ -167,12 +411,36 @@
           "name": "Platform Security",
           "description": "The hardware, software, and services of physical and virtual platforms are managed consistent with the organization's risk strategy to protect their confidentiality, integrity, and availability.",
           "subcategories": [
-            {"code": "PR.PS-01", "description": "Configuration management practices are established and applied"},
-            {"code": "PR.PS-02", "description": "Software is maintained, replaced, and removed commensurate with risk"},
-            {"code": "PR.PS-03", "description": "Hardware is maintained, replaced, and removed commensurate with risk"},
-            {"code": "PR.PS-04", "description": "Log records are generated and made available for continuous monitoring"},
-            {"code": "PR.PS-05", "description": "Installation and execution of unauthorized software are prevented"},
-            {"code": "PR.PS-06", "description": "Secure software development practices are integrated, and their performance is monitored throughout the software development life cycle"}
+            {
+              "code": "PR.PS-01",
+              "description": "Configuration management practices are established and applied",
+              "guidance": "Establish secure configuration baselines for all system types (servers, workstations, network devices, cloud services, mobile devices). Use configuration management tools to enforce and monitor compliance with baselines. Detect and remediate configuration drift. Use hardening guides such as CIS Benchmarks. Document and approve configuration changes through change management processes."
+            },
+            {
+              "code": "PR.PS-02",
+              "description": "Software is maintained, replaced, and removed commensurate with risk",
+              "guidance": "Establish a patch management program that prioritizes and applies security patches based on vulnerability severity and asset criticality. Define target remediation timelines (e.g., critical patches within 72 hours). Replace or remove software that is no longer supported or cannot be patched. Maintain software inventories to identify unsupported software."
+            },
+            {
+              "code": "PR.PS-03",
+              "description": "Hardware is maintained, replaced, and removed commensurate with risk",
+              "guidance": "Maintain hardware on supported firmware and software versions. Track end-of-life and end-of-support dates for all hardware. Replace hardware approaching end of support in a risk-based timeline. Implement secure disposal procedures for decommissioned hardware including data destruction and physical destruction of storage media. Remove unauthorized hardware promptly."
+            },
+            {
+              "code": "PR.PS-04",
+              "description": "Log records are generated and made available for continuous monitoring",
+              "guidance": "Configure systems, applications, and security tools to generate logs for security-relevant events including authentication, access control decisions, configuration changes, and system errors. Protect log integrity by sending logs to a centralized, tamper-resistant log management system. Define log retention periods based on regulatory requirements and operational needs. Make logs available to authorized security monitoring functions."
+            },
+            {
+              "code": "PR.PS-05",
+              "description": "Installation and execution of unauthorized software are prevented",
+              "guidance": "Implement application allowlisting or equivalent controls to prevent unauthorized software from executing on endpoints and servers. Use endpoint detection and response (EDR) tools to detect and block malicious software. Control software installation through privileged access controls and software distribution tools. Monitor for unauthorized software and investigate detections."
+            },
+            {
+              "code": "PR.PS-06",
+              "description": "Secure software development practices are integrated, and their performance is monitored throughout the software development life cycle",
+              "guidance": "Integrate security into the software development lifecycle (SDLC) using practices such as security requirements definition, threat modeling, secure code review, static and dynamic analysis, and security testing. Train developers on secure coding practices. Monitor security of developed software through automated scanning in CI/CD pipelines. Track and remediate identified security defects. Apply these practices to both internally developed and procured software."
+            }
           ]
         },
         {
@@ -180,10 +448,26 @@
           "name": "Technology Infrastructure Resilience",
           "description": "Security architectures are managed with the organization's risk strategy to protect asset confidentiality, integrity, and availability, and organizational resilience.",
           "subcategories": [
-            {"code": "PR.IR-01", "description": "Networks and environments are protected from unauthorized logical access and usage"},
-            {"code": "PR.IR-02", "description": "The organization's technology assets are protected from environmental threats"},
-            {"code": "PR.IR-03", "description": "Mechanisms are implemented to achieve resilience requirements in normal and adverse situations"},
-            {"code": "PR.IR-04", "description": "Adequate resource capacity to ensure availability is maintained"}
+            {
+              "code": "PR.IR-01",
+              "description": "Networks and environments are protected from unauthorized logical access and usage",
+              "guidance": "Segment networks using firewalls, VLANs, and zero trust architecture to limit unauthorized access and lateral movement. Enforce access control policies on network traffic. Protect network services from unauthorized use and abuse. Apply deny-by-default policies at network boundaries. Monitor network traffic for unauthorized access attempts."
+            },
+            {
+              "code": "PR.IR-02",
+              "description": "The organization's technology assets are protected from environmental threats",
+              "guidance": "Protect data centers and critical equipment from environmental threats including power outages, temperature extremes, flooding, and fire. Deploy uninterruptible power supplies (UPS) and backup generators. Implement environmental monitoring and alerting. Apply redundant cooling systems. Locate critical assets in facilities with appropriate physical protections."
+            },
+            {
+              "code": "PR.IR-03",
+              "description": "Mechanisms are implemented to achieve resilience requirements in normal and adverse situations",
+              "guidance": "Design and implement redundancy and failover mechanisms for critical systems and services based on availability requirements. Use load balancing, clustering, geographic distribution, and failover capabilities. Test resilience through controlled failover drills and disaster recovery exercises. Define and meet recovery time and recovery point objectives."
+            },
+            {
+              "code": "PR.IR-04",
+              "description": "Adequate resource capacity to ensure availability is maintained",
+              "guidance": "Monitor compute, storage, and network resource utilization against capacity thresholds. Plan and provision capacity to meet current and projected demand including peak load scenarios. Implement auto-scaling in cloud environments. Protect against resource exhaustion attacks through rate limiting and DDoS mitigation. Review capacity regularly and adjust based on operational trends."
+            }
           ]
         }
       ]
@@ -198,11 +482,31 @@
           "name": "Continuous Monitoring",
           "description": "Assets are monitored to find anomalies, indicators of compromise, and other potentially adverse events.",
           "subcategories": [
-            {"code": "DE.CM-01", "description": "Networks and network services are monitored to find potentially adverse events"},
-            {"code": "DE.CM-02", "description": "The physical environment is monitored to find potentially adverse events"},
-            {"code": "DE.CM-03", "description": "Personnel activity and technology usage are monitored to find potentially adverse events"},
-            {"code": "DE.CM-06", "description": "External service provider activities and services are monitored to find potentially adverse events"},
-            {"code": "DE.CM-09", "description": "Computing hardware and software, runtime environments, and their data are monitored to find potentially adverse events"}
+            {
+              "code": "DE.CM-01",
+              "description": "Networks and network services are monitored to find potentially adverse events",
+              "guidance": "Monitor network traffic for anomalies, known attack signatures, and indicators of compromise using intrusion detection/prevention systems (IDS/IPS), network detection and response (NDR) tools, and SIEM platforms. Monitor both perimeter and internal network segments. Alert on deviations from established baselines. Investigate and document network anomalies."
+            },
+            {
+              "code": "DE.CM-02",
+              "description": "The physical environment is monitored to find potentially adverse events",
+              "guidance": "Monitor physical environments for unauthorized access, theft, and tampering using surveillance cameras, access control logs, and physical security alarms. Review physical access logs regularly. Investigate unauthorized access events. Monitor environmental conditions (temperature, humidity, power) in critical facilities."
+            },
+            {
+              "code": "DE.CM-03",
+              "description": "Personnel activity and technology usage are monitored to find potentially adverse events",
+              "guidance": "Monitor user and system activity for anomalous behavior indicative of insider threats or compromised accounts. Use user and entity behavior analytics (UEBA) and endpoint monitoring tools. Apply enhanced monitoring to privileged users and sensitive systems. Handle monitoring in compliance with privacy regulations and employee notification requirements. Investigate anomalous activity alerts."
+            },
+            {
+              "code": "DE.CM-06",
+              "description": "External service provider activities and services are monitored to find potentially adverse events",
+              "guidance": "Monitor third-party and external service provider activities and access to the organization's systems and data. Include monitoring requirements in supplier agreements and service level agreements. Review activity logs for external parties. Monitor for unauthorized access or data exfiltration by third parties. Receive and review security event notifications from service providers."
+            },
+            {
+              "code": "DE.CM-09",
+              "description": "Computing hardware and software, runtime environments, and their data are monitored to find potentially adverse events",
+              "guidance": "Monitor endpoints, servers, and cloud workloads for indicators of compromise such as malware execution, unauthorized processes, configuration changes, and anomalous data access. Use endpoint detection and response (EDR) and file integrity monitoring tools. Monitor application runtime environments for unexpected behavior. Aggregate monitoring telemetry in a central platform for analysis."
+            }
           ]
         },
         {
@@ -210,12 +514,36 @@
           "name": "Adverse Event Analysis",
           "description": "Anomalies, indicators of compromise, and other potentially adverse events are analyzed to characterize the events and detect cybersecurity incidents.",
           "subcategories": [
-            {"code": "DE.AE-02", "description": "Potentially adverse events are analyzed to better understand associated activities"},
-            {"code": "DE.AE-03", "description": "Information is correlated from multiple sources"},
-            {"code": "DE.AE-04", "description": "The estimated impact and scope of adverse events are understood"},
-            {"code": "DE.AE-06", "description": "Information on adverse events is provided to authorized staff and tools"},
-            {"code": "DE.AE-07", "description": "Cyber threat intelligence and other contextual information are integrated into the analysis"},
-            {"code": "DE.AE-08", "description": "Incidents are declared when adverse events meet the defined incident criteria"}
+            {
+              "code": "DE.AE-02",
+              "description": "Potentially adverse events are analyzed to better understand associated activities",
+              "guidance": "Analyze detected alerts and anomalies to determine attack techniques, tactics, and procedures (TTPs). Classify events by type and severity. Enrich event data with asset information, user context, and threat intelligence. Distinguish false positives from true threats. Document analysis findings and use them to improve detection capabilities."
+            },
+            {
+              "code": "DE.AE-03",
+              "description": "Information is correlated from multiple sources",
+              "guidance": "Correlate events and alerts from multiple monitoring sources (network, endpoint, identity, application, cloud) to identify broader attack patterns that individual alerts may not reveal. Use SIEM or extended detection and response (XDR) platforms for correlation. Define correlation rules based on known attack patterns and tactics. Update correlation logic as new threats emerge."
+            },
+            {
+              "code": "DE.AE-04",
+              "description": "The estimated impact and scope of adverse events are understood",
+              "guidance": "When analyzing adverse events, assess the potential impact and scope including affected systems, data that may be exposed or compromised, operational disruption, and mission impact. Update scope estimates as the investigation progresses and more information becomes available. Use impact assessments to prioritize response actions and resource allocation."
+            },
+            {
+              "code": "DE.AE-06",
+              "description": "Information on adverse events is provided to authorized staff and tools",
+              "guidance": "Distribute relevant event information and alerts to authorized security personnel and automated response tools in a timely manner. Define escalation paths based on event severity. Provide context-enriched alerts to analysts. Integrate detection tools with incident response systems to enable rapid response. Ensure notification reaches the right people without alert fatigue."
+            },
+            {
+              "code": "DE.AE-07",
+              "description": "Cyber threat intelligence and other contextual information are integrated into the analysis",
+              "guidance": "Enrich security event analysis with cyber threat intelligence including indicators of compromise (IOCs), threat actor TTPs, and vulnerability information. Integrate threat intelligence feeds into detection platforms. Use intelligence to contextualize alerts and prioritize analysis. Contribute relevant threat intelligence back to sharing communities."
+            },
+            {
+              "code": "DE.AE-08",
+              "description": "Incidents are declared when adverse events meet the defined incident criteria",
+              "guidance": "Define clear criteria for declaring cybersecurity incidents based on event type, severity, and potential impact. Train analysts on applying incident criteria consistently. When criteria are met, trigger the formal incident response process without delay. Document the declaration decision including the basis for it. Avoid both under-reporting (missing true incidents) and over-reporting (alert fatigue)."
+            }
           ]
         }
       ]
@@ -230,11 +558,31 @@
           "name": "Incident Management",
           "description": "Responses to detected cybersecurity incidents are managed.",
           "subcategories": [
-            {"code": "RS.MA-01", "description": "The incident response plan is executed in coordination with relevant third parties once an incident is declared"},
-            {"code": "RS.MA-02", "description": "Incident reports are triaged and validated"},
-            {"code": "RS.MA-03", "description": "Incidents are categorized and prioritized"},
-            {"code": "RS.MA-04", "description": "Incidents are escalated or elevated as needed"},
-            {"code": "RS.MA-05", "description": "The criteria for initiating incident recovery are applied"}
+            {
+              "code": "RS.MA-01",
+              "description": "The incident response plan is executed in coordination with relevant third parties once an incident is declared",
+              "guidance": "Execute the documented incident response plan upon incident declaration. Activate the incident response team and assign roles. Coordinate with relevant third parties including managed security service providers, legal counsel, law enforcement, and affected suppliers. Document all actions taken during response. Maintain command and communication throughout the incident."
+            },
+            {
+              "code": "RS.MA-02",
+              "description": "Incident reports are triaged and validated",
+              "guidance": "Establish a triage process for incoming incident reports and alerts. Validate reported events to confirm they meet incident criteria. Assess severity and priority. Assign incidents to appropriate response teams based on type and severity. Document triage decisions and rationale."
+            },
+            {
+              "code": "RS.MA-03",
+              "description": "Incidents are categorized and prioritized",
+              "guidance": "Categorize confirmed incidents by type (e.g., ransomware, data breach, denial of service, insider threat, phishing). Prioritize incidents based on severity, mission impact, data sensitivity, and regulatory notification requirements. Use prioritization to guide resource allocation and escalation decisions."
+            },
+            {
+              "code": "RS.MA-04",
+              "description": "Incidents are escalated or elevated as needed",
+              "guidance": "Define escalation criteria and paths for incidents requiring senior leadership involvement, legal notification, law enforcement engagement, or external expert assistance. Escalate promptly when criteria are met. Provide escalation recipients with clear situational information. Adjust response resources based on escalation decisions."
+            },
+            {
+              "code": "RS.MA-05",
+              "description": "The criteria for initiating incident recovery are applied",
+              "guidance": "Define clear criteria for determining when it is safe and appropriate to begin recovery operations, such as eradication of the threat, removal of attacker persistence, and patching of exploited vulnerabilities. Apply these criteria before initiating recovery to avoid re-compromise. Document the criteria check and the decision to begin recovery."
+            }
           ]
         },
         {
@@ -242,10 +590,26 @@
           "name": "Incident Analysis",
           "description": "Investigations are conducted to ensure effective response and support forensics and recovery activities.",
           "subcategories": [
-            {"code": "RS.AN-03", "description": "Analysis is performed to establish what has taken place during an incident and the root cause of the incident"},
-            {"code": "RS.AN-06", "description": "Actions performed during an investigation are recorded, and the records' integrity and provenance are preserved"},
-            {"code": "RS.AN-07", "description": "Incident data and metadata are collected, and their integrity and provenance are preserved"},
-            {"code": "RS.AN-08", "description": "An incident's magnitude is estimated and validated"}
+            {
+              "code": "RS.AN-03",
+              "description": "Analysis is performed to establish what has taken place during an incident and the root cause of the incident",
+              "guidance": "Conduct thorough forensic analysis to determine the timeline of the incident, attack vectors used, systems and data affected, and root cause. Use forensic tools and techniques appropriate to the environment. Document analysis findings in a structured incident report. Identify contributing factors and control failures that enabled the incident."
+            },
+            {
+              "code": "RS.AN-06",
+              "description": "Actions performed during an investigation are recorded, and the records' integrity and provenance are preserved",
+              "guidance": "Maintain detailed and contemporaneous records of all actions taken during the investigation including commands run, files accessed, evidence collected, and decisions made. Protect the integrity of investigation records through access controls and tamper-evident logging. Preserve chain of custody for evidence that may be used in legal proceedings."
+            },
+            {
+              "code": "RS.AN-07",
+              "description": "Incident data and metadata are collected, and their integrity and provenance are preserved",
+              "guidance": "Collect and preserve incident artifacts including system logs, network captures, memory dumps, disk images, and malware samples. Verify integrity of collected data using cryptographic hashing. Document the provenance of evidence including collection time, collector identity, and chain of custody. Store evidence securely with access controls."
+            },
+            {
+              "code": "RS.AN-08",
+              "description": "An incident's magnitude is estimated and validated",
+              "guidance": "Estimate the full scope and magnitude of the incident including the number and types of systems affected, volume and sensitivity of data exposed, duration of unauthorized access, and business impact. Validate initial estimates as investigation progresses and refine as new evidence is discovered. Use magnitude assessments to guide notification decisions and recovery prioritization."
+            }
           ]
         },
         {
@@ -253,8 +617,16 @@
           "name": "Incident Response Reporting and Communication",
           "description": "Response activities are coordinated with internal and external stakeholders as required by laws, regulations, or policies.",
           "subcategories": [
-            {"code": "RS.CO-02", "description": "Internal and external stakeholders are notified of incidents"},
-            {"code": "RS.CO-03", "description": "Information is shared with designated internal and external stakeholders"}
+            {
+              "code": "RS.CO-02",
+              "description": "Internal and external stakeholders are notified of incidents",
+              "guidance": "Notify internal stakeholders (executive leadership, legal, communications, HR, affected business units) and external stakeholders (regulators, affected customers and individuals, law enforcement, cyber insurers) of incidents according to legal, regulatory, and contractual notification timelines. Prepare accurate and clear notifications tailored to each audience. Track notification obligations and document notifications sent."
+            },
+            {
+              "code": "RS.CO-03",
+              "description": "Information is shared with designated internal and external stakeholders",
+              "guidance": "Share relevant incident information with internal teams and external partners such as ISACs, peer organizations, and government agencies to enable coordinated response and broader threat awareness. Follow information sharing agreements, legal restrictions, and data classification policies when sharing. Use appropriate sharing formats and marking conventions (e.g., TLP)."
+            }
           ]
         },
         {
@@ -262,8 +634,16 @@
           "name": "Incident Mitigation",
           "description": "Activities are performed to prevent expansion of an event and mitigate its effects.",
           "subcategories": [
-            {"code": "RS.MI-01", "description": "Incidents are contained"},
-            {"code": "RS.MI-02", "description": "Incidents are eradicated"}
+            {
+              "code": "RS.MI-01",
+              "description": "Incidents are contained",
+              "guidance": "Take containment actions to limit the spread of the incident and prevent further damage. Containment actions may include isolating affected systems from the network, revoking compromised credentials, blocking malicious network traffic, disabling affected accounts, and taking systems offline. Balance containment urgency against business impact. Document all containment actions taken."
+            },
+            {
+              "code": "RS.MI-02",
+              "description": "Incidents are eradicated",
+              "guidance": "Remove the root cause and all traces of the incident from affected systems. Eradication actions may include removing malware, closing exploited vulnerabilities, removing attacker persistence mechanisms (backdoors, rogue accounts), and rebuilding compromised systems from known-good images. Verify eradication is complete before initiating recovery."
+            }
           ]
         }
       ]
@@ -278,12 +658,36 @@
           "name": "Incident Recovery Plan Execution",
           "description": "Restoration activities are performed to ensure operational availability of systems and services affected by cybersecurity incidents.",
           "subcategories": [
-            {"code": "RC.RP-01", "description": "The recovery portion of the incident response plan is executed once initiated from the incident response process"},
-            {"code": "RC.RP-02", "description": "Recovery actions are selected, scoped, prioritized, and performed"},
-            {"code": "RC.RP-03", "description": "The integrity of backups and other restoration assets is verified before using them for restoration"},
-            {"code": "RC.RP-04", "description": "Critical mission functions and cybersecurity risk management are considered to establish post-incident operational norms"},
-            {"code": "RC.RP-05", "description": "The integrity of restored assets is verified, systems and services are restored, and normal operating status is confirmed"},
-            {"code": "RC.RP-06", "description": "The end of incident recovery is declared based on criteria, and incident-related documentation is completed"}
+            {
+              "code": "RC.RP-01",
+              "description": "The recovery portion of the incident response plan is executed once initiated from the incident response process",
+              "guidance": "Execute documented recovery procedures when triggered by the incident management process. Activate recovery teams and assign responsibilities. Follow the sequence of recovery actions defined in recovery plans. Coordinate recovery activities across teams and with relevant third parties. Document actions taken and track progress against recovery objectives."
+            },
+            {
+              "code": "RC.RP-02",
+              "description": "Recovery actions are selected, scoped, prioritized, and performed",
+              "guidance": "Select recovery actions appropriate to the incident type, affected systems, and recovery objectives. Scope recovery to affected systems and data. Prioritize recovery based on mission criticality and business impact — restore the most critical functions first. Execute prioritized recovery actions in a controlled and documented manner."
+            },
+            {
+              "code": "RC.RP-03",
+              "description": "The integrity of backups and other restoration assets is verified before using them for restoration",
+              "guidance": "Before using backups or recovery images for restoration, verify their integrity using cryptographic checksums or hashes. Confirm backups are unaffected by the incident (e.g., not encrypted by ransomware or corrupted). Test restoration in a non-production environment where possible before applying to production. Use only verified, trusted restoration assets."
+            },
+            {
+              "code": "RC.RP-04",
+              "description": "Critical mission functions and cybersecurity risk management are considered to establish post-incident operational norms",
+              "guidance": "Consider mission requirements and ongoing cybersecurity risks when defining post-incident operating conditions. Do not restore operations until the threat is fully eradicated. Assess residual risks before resuming normal operations. Define temporary operating procedures if full restoration is not immediately possible. Obtain appropriate approval before declaring normal operations."
+            },
+            {
+              "code": "RC.RP-05",
+              "description": "The integrity of restored assets is verified, systems and services are restored, and normal operating status is confirmed",
+              "guidance": "After restoration, verify that systems and data are complete, accurate, and secure. Conduct security checks on restored systems including scanning for malware and verifying configurations. Confirm that services are operating normally and securely before returning them to production. Obtain stakeholder confirmation that business functions have been restored."
+            },
+            {
+              "code": "RC.RP-06",
+              "description": "The end of incident recovery is declared based on criteria, and incident-related documentation is completed",
+              "guidance": "Define criteria for declaring the end of incident recovery such as full restoration of services, eradication verification, and completion of initial remediation. Formally declare recovery complete when criteria are met. Complete all incident documentation including timeline, impact summary, response actions taken, and lessons learned. Retain records per policy and legal requirements."
+            }
           ]
         },
         {
@@ -291,8 +695,16 @@
           "name": "Incident Recovery Communication",
           "description": "Restoration activities are coordinated with internal and external parties.",
           "subcategories": [
-            {"code": "RC.CO-03", "description": "Recovery activities and progress in restoring operational capabilities are communicated to designated internal and external stakeholders"},
-            {"code": "RC.CO-04", "description": "Public updates on incident recovery are shared using approved methods and messaging"}
+            {
+              "code": "RC.CO-03",
+              "description": "Recovery activities and progress in restoring operational capabilities are communicated to designated internal and external stakeholders",
+              "guidance": "Provide regular status updates on recovery progress to internal stakeholders (leadership, operations, affected business units) and relevant external stakeholders (regulators, major customers, insurers). Define communication frequency and format based on stakeholder needs and incident severity. Document all communications made during recovery."
+            },
+            {
+              "code": "RC.CO-04",
+              "description": "Public updates on incident recovery are shared using approved methods and messaging",
+              "guidance": "Release approved public statements about the incident and recovery progress through official communication channels (press releases, website, social media) in accordance with organizational communications policy and legal guidance. Ensure public messaging is accurate, timely, and reviewed by legal and communications teams before release. Coordinate with law enforcement and regulators before making public disclosures that may affect investigations."
+            }
           ]
         }
       ]

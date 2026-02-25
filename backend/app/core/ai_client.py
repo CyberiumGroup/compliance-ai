@@ -149,5 +149,41 @@ Respond ONLY with the JSON object, no other text."""
             }
 
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+    )
+    def generate_policy_summary(self, policy_text: str, policy_name: str) -> str:
+        """Generate a concise high-level summary of a policy document.
+
+        Args:
+            policy_text: Extracted text content of the policy document
+            policy_name: Name of the policy (used for context)
+
+        Returns:
+            2-3 sentence summary describing the document's purpose, scope, and key topics
+        """
+        # Use first 4000 chars — enough to capture title, purpose, and scope sections
+        excerpt = policy_text[:4000]
+
+        prompt = f"""Write a 2-3 sentence summary of the following policy document called "{policy_name}".
+Describe its purpose, the topics it covers, and who or what it applies to.
+Be concise and factual. Do not use phrases like "This document" or "This policy" — start directly with what the policy does.
+
+DOCUMENT:
+{excerpt}
+
+Summary:"""
+
+        response = self.client.chat.completions.create(
+            model=settings.ai_model,
+            max_tokens=200,
+            temperature=0.0,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        return response.choices[0].message.content.strip()
+
+
 # Global AI client instance
 ai_client = AIClient()

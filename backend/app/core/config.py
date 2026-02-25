@@ -31,6 +31,11 @@ class Settings(BaseSettings):
 
     # Scoring
     default_confidence_threshold: float = 0.5
+    mapping_relevance_threshold: float = 70.0  # minimum relevance_percentage to store a mapping
+
+    # Chunking (for semantic relevance scoring)
+    chunk_size_chars: int = 1200      # ~300 tokens (4 chars/token approx)
+    chunk_overlap_chars: int = 150    # ~12% overlap
 
     # JWT Authentication
     jwt_secret_key: str = "change-me-in-production-use-a-secure-random-key"

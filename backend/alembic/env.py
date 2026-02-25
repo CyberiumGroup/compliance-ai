@@ -19,6 +19,7 @@ from app.models import (
     CSFSubcategory,
     Assessment,
     Policy,
+    PolicyChunk,
     PolicyMapping,
     AuditLog,
 )

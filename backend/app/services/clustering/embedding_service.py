@@ -34,8 +34,12 @@ class EmbeddingService:
     def prepare_requirement_text(self, requirement: FrameworkRequirement) -> str:
         """Prepare text for embedding from a requirement.
 
-        Combines code, name, description, and guidance into a single text
-        optimized for semantic similarity matching.
+        Combines parent category context, code, name, description, and guidance
+        into a single text optimized for semantic similarity matching.
+
+        The immediate parent's code, name, and description are prepended to
+        anchor the requirement within its broader topic domain. Only the immediate
+        parent is included (not grandparent) to avoid over-generalisation.
 
         Args:
             requirement: The FrameworkRequirement to prepare text for
@@ -43,7 +47,17 @@ class EmbeddingService:
         Returns:
             Combined text string for embedding
         """
-        parts = [requirement.code]
+        parts = []
+
+        # Prepend immediate parent context (e.g. category level for NIST CSF subcategories)
+        if requirement.parent:
+            parent = requirement.parent
+            parent_label = f"{parent.code}: {parent.name}"
+            if parent.description:
+                parent_label += f" — {parent.description}"
+            parts.append(parent_label)
+
+        parts.append(requirement.code)
 
         if requirement.name and requirement.name != requirement.code:
             parts.append(requirement.name)

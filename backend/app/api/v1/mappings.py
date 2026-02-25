@@ -100,7 +100,8 @@ async def reject_mapping(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_user),
 ):
-    """Reject and delete a mapping suggestion."""
+    """Soft-reject a mapping suggestion (marks is_rejected=True, not deleted)."""
+    from datetime import datetime
     from app.services.audit.audit_service import AuditService
 
     mapping = db.query(PolicyMapping).filter(PolicyMapping.id == mapping_id).first()
@@ -111,18 +112,55 @@ async def reject_mapping(
             detail="Mapping not found",
         )
 
+    mapping.is_rejected = True
+    mapping.rejected_at = datetime.utcnow()
+
     audit_service = AuditService(db)
-    audit_service.log_delete(
+    audit_service.log_update(
         entity_type="policy_mapping",
         entity_id=mapping_id,
-        old_values={"is_approved": mapping.is_approved},
+        old_values={"is_rejected": False},
+        new_values={"is_rejected": True},
         user_id=current_user.id,
     )
 
-    db.delete(mapping)
     db.commit()
 
-    return {"mapping_id": mapping_id, "deleted": True}
+    return {"mapping_id": str(mapping_id), "is_rejected": True}
+
+
+@router.post("/{mapping_id}/unreject")
+async def unreject_mapping(
+    mapping_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user),
+):
+    """Unreject a mapping (moves it back to Pending: is_rejected=False)."""
+    from app.services.audit.audit_service import AuditService
+
+    mapping = db.query(PolicyMapping).filter(PolicyMapping.id == mapping_id).first()
+
+    if not mapping:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Mapping not found",
+        )
+
+    mapping.is_rejected = False
+    mapping.rejected_at = None
+
+    audit_service = AuditService(db)
+    audit_service.log_update(
+        entity_type="policy_mapping",
+        entity_id=mapping_id,
+        old_values={"is_rejected": True},
+        new_values={"is_rejected": False},
+        user_id=current_user.id,
+    )
+
+    db.commit()
+
+    return {"mapping_id": str(mapping_id), "is_rejected": False}
 
 
 @router.delete("/assessments/{assessment_id}/all")
@@ -232,10 +270,9 @@ async def bulk_reject_mappings(
     current_user: User = Depends(require_user),
 ):
     """
-    Bulk reject (delete) multiple mappings.
-
-    Deletes all valid mappings and reports any failures.
+    Bulk soft-reject multiple mappings (marks is_rejected=True, not deleted).
     """
+    from datetime import datetime
     from app.services.audit.audit_service import AuditService
 
     results = []
@@ -243,6 +280,7 @@ async def bulk_reject_mappings(
     failed = 0
 
     audit_service = AuditService(db)
+    now = datetime.utcnow()
 
     for mapping_id in request.mapping_ids:
         try:
@@ -259,12 +297,14 @@ async def bulk_reject_mappings(
                 failed += 1
                 continue
 
-            db.delete(mapping)
+            mapping.is_rejected = True
+            mapping.rejected_at = now
 
-            audit_service.log_delete(
+            audit_service.log_update(
                 entity_type="policy_mapping",
                 entity_id=mapping_id,
-                old_values={"is_approved": mapping.is_approved},
+                old_values={"is_rejected": False},
+                new_values={"is_rejected": True},
                 user_id=current_user.id,
             )
 

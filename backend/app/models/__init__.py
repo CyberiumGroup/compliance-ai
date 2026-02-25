@@ -1,7 +1,7 @@
 from app.models.user import User, Role, user_roles
 from app.models.framework import CSFFunction, CSFCategory, CSFSubcategory
 from app.models.assessment import Assessment, AssessmentStatus
-from app.models.policy import Policy, PolicyMapping
+from app.models.policy import Policy, PolicyChunk, PolicyMapping
 from app.models.audit import AuditLog
 from app.models.interview import (
     InterviewQuestion,
@@ -57,6 +57,7 @@ __all__ = [
     "Assessment",
     "AssessmentStatus",
     "Policy",
+    "PolicyChunk",
     "PolicyMapping",
     "AuditLog",
     # Interview

@@ -35,6 +35,7 @@ class PolicyResponse(PolicyBase):
     assessment_id: UUID
     file_path: str | None = None
     content_text: str | None = None
+    summary: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -60,6 +61,8 @@ class PolicyMappingResponse(PolicyMappingBase):
     is_approved: bool
     approved_by_id: UUID | None = None
     approved_at: datetime | None = None
+    is_rejected: bool = False
+    rejected_at: datetime | None = None
     created_at: datetime
     subcategory_code: str | None = None
     requirement_code: str | None = None
@@ -67,10 +70,13 @@ class PolicyMappingResponse(PolicyMappingBase):
     requirement_description: str | None = None
     requirement_framework_name: str | None = None
     requirement_parent_code: str | None = None
+    requirement_guidance: str | None = None
+    relevance_percentage: float | None = None
     reasoning: str | None = None
     source_excerpt: str | None = None
     policy_name: str | None = None
     policy_description: str | None = None
+    policy_summary: str | None = None
 
     model_config = {"from_attributes": True}
 
