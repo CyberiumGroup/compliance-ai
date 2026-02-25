@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home,
-  Settings,
   FileText,
   Link2,
   MessageSquare,
@@ -22,7 +21,6 @@ interface AssessmentTabsProps {
 const tabs = [
   { name: 'Overview', path: '', icon: Home },
   { name: 'Scope', path: '/scope', icon: Layers },
-  { name: 'Controls', path: '/controls', icon: Settings },
   { name: 'Policies', path: '/policies', icon: FileText },
   { name: 'Mappings', path: '/mappings', icon: Link2 },
   { name: 'Interviews', path: '/interviews', icon: MessageSquare },

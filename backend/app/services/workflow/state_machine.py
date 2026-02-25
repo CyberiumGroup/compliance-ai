@@ -38,7 +38,7 @@ VALID_TRANSITIONS = {
 # Transition requirements
 TRANSITION_REQUIREMENTS = {
     (AssessmentStatus.IN_PROGRESS.value, AssessmentStatus.REVIEW.value): [
-        "has_controls_or_policies",
+        "has_policies",
         "has_mappings",
     ],
     (AssessmentStatus.REVIEW.value, AssessmentStatus.COMPLETED.value): [
@@ -137,30 +137,20 @@ class AssessmentStateMachine:
         requirement: str,
     ) -> tuple[bool, str | None]:
         """Check a specific requirement for transition."""
-        from app.models.control import Control, ControlMapping
         from app.models.policy import Policy, PolicyMapping
         from app.models.score import FunctionScore
 
-        if requirement == "has_controls_or_policies":
-            controls = self.db.query(Control).filter(
-                Control.assessment_id == assessment.id
-            ).count()
+        if requirement == "has_policies":
             policies = self.db.query(Policy).filter(
                 Policy.assessment_id == assessment.id
             ).count()
 
-            if controls == 0 and policies == 0:
-                return False, "Assessment must have at least one control or policy"
+            if policies == 0:
+                return False, "Assessment must have at least one policy"
 
             return True, None
 
         elif requirement == "has_mappings":
-            control_mappings = (
-                self.db.query(ControlMapping)
-                .join(Control)
-                .filter(Control.assessment_id == assessment.id)
-                .count()
-            )
             policy_mappings = (
                 self.db.query(PolicyMapping)
                 .join(Policy)
@@ -168,7 +158,7 @@ class AssessmentStateMachine:
                 .count()
             )
 
-            if control_mappings == 0 and policy_mappings == 0:
+            if policy_mappings == 0:
                 return False, "Assessment must have at least one mapping"
 
             return True, None
@@ -184,15 +174,6 @@ class AssessmentStateMachine:
             return True, None
 
         elif requirement == "has_approved_mappings":
-            approved_control = (
-                self.db.query(ControlMapping)
-                .join(Control)
-                .filter(
-                    Control.assessment_id == assessment.id,
-                    ControlMapping.is_approved == True,
-                )
-                .count()
-            )
             approved_policy = (
                 self.db.query(PolicyMapping)
                 .join(Policy)
@@ -203,7 +184,7 @@ class AssessmentStateMachine:
                 .count()
             )
 
-            if approved_control == 0 and approved_policy == 0:
+            if approved_policy == 0:
                 return False, "Assessment must have at least one approved mapping"
 
             return True, None

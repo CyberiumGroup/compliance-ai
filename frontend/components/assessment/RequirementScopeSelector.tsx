@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Save, Undo2 } from 'lucide-react';
 import { getFrameworkHierarchy, setAssessmentScope } from '@/lib/api';
 import { FrameworkHierarchyNode, AssessmentScope, FrameworkType } from '@/lib/types';
+import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 
 interface RequirementScopeSelectorProps {
@@ -21,6 +23,14 @@ const frameworkColors: Record<string, { color: string; bg: string; border: strin
   custom: { color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200', checkbox: 'border-orange-500 bg-orange-500' },
 };
 
+function setsEqual(a: Set<string>, b: Set<string>): boolean {
+  if (a.size !== b.size) return false;
+  for (const item of a) {
+    if (!b.has(item)) return false;
+  }
+  return true;
+}
+
 export function RequirementScopeSelector({
   frameworkId,
   assessmentId,
@@ -31,25 +41,32 @@ export function RequirementScopeSelector({
 }: RequirementScopeSelectorProps) {
   const [categories, setCategories] = useState<FrameworkHierarchyNode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  const savedSelectionRef = useRef<Set<string>>(new Set());
 
   const colors = frameworkColors[frameworkType] || frameworkColors.custom;
+
+  const initSelection = useCallback((hierarchy: FrameworkHierarchyNode[], scope: AssessmentScope) => {
+    let selected: Set<string>;
+    if (scope.include_all) {
+      selected = new Set(hierarchy.map((c) => c.id));
+    } else if (scope.included_requirement_ids && scope.included_requirement_ids.length > 0) {
+      selected = new Set(scope.included_requirement_ids);
+    } else {
+      const excluded = new Set(scope.excluded_requirement_ids || []);
+      selected = new Set(hierarchy.filter((c) => !excluded.has(c.id)).map((c) => c.id));
+    }
+    setSelectedCategories(selected);
+    savedSelectionRef.current = new Set(selected);
+  }, []);
 
   useEffect(() => {
     const fetchHierarchy = async () => {
       try {
         const hierarchy = await getFrameworkHierarchy(frameworkId, 0);
         setCategories(hierarchy);
-
-        if (currentScope.include_all) {
-          setSelectedCategories(new Set(hierarchy.map((c) => c.id)));
-        } else if (currentScope.included_requirement_ids && currentScope.included_requirement_ids.length > 0) {
-          setSelectedCategories(new Set(currentScope.included_requirement_ids));
-        } else {
-          const excluded = new Set(currentScope.excluded_requirement_ids || []);
-          setSelectedCategories(new Set(hierarchy.filter((c) => !excluded.has(c.id)).map((c) => c.id)));
-        }
+        initSelection(hierarchy, currentScope);
       } catch {
         // Hierarchy unavailable
       } finally {
@@ -58,12 +75,12 @@ export function RequirementScopeSelector({
     };
 
     fetchHierarchy();
-  }, [frameworkId, currentScope]);
+  }, [frameworkId, currentScope, initSelection]);
 
-  const handleToggle = async (categoryId: string, isRequired: boolean) => {
+  const hasChanges = !setsEqual(selectedCategories, savedSelectionRef.current);
+
+  const handleToggle = (categoryId: string, isRequired: boolean) => {
     if (isRequired) return;
-
-    setUpdating(true);
 
     const newSelected = new Set(selectedCategories);
     if (newSelected.has(categoryId)) {
@@ -72,10 +89,22 @@ export function RequirementScopeSelector({
       newSelected.add(categoryId);
     }
     setSelectedCategories(newSelected);
+  };
+
+  const handleSelectAll = () => {
+    setSelectedCategories(new Set(categories.map((c) => c.id)));
+  };
+
+  const handleDiscard = () => {
+    setSelectedCategories(new Set(savedSelectionRef.current));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
 
     try {
       const allIds = categories.map((c) => c.id);
-      const isAll = newSelected.size === allIds.length;
+      const isAll = selectedCategories.size === allIds.length;
 
       if (isAll) {
         await setAssessmentScope(assessmentId, {
@@ -86,15 +115,17 @@ export function RequirementScopeSelector({
         await setAssessmentScope(assessmentId, {
           framework_id: frameworkId,
           include_all: false,
-          included_requirement_ids: Array.from(newSelected),
+          included_requirement_ids: Array.from(selectedCategories),
         });
       }
 
+      savedSelectionRef.current = new Set(selectedCategories);
       onScopeChange();
     } catch {
-      setSelectedCategories(selectedCategories);
+      // Revert on error
+      setSelectedCategories(new Set(savedSelectionRef.current));
     } finally {
-      setUpdating(false);
+      setSaving(false);
     }
   };
 
@@ -113,26 +144,6 @@ export function RequirementScopeSelector({
   const label = hierarchyLabel || 'Categories';
   const allSelected = categories.length > 0 && categories.every((c) => selectedCategories.has(c.id));
 
-  const handleSelectAll = async () => {
-    if (allSelected) return;
-
-    setUpdating(true);
-    const allIds = new Set(categories.map((c) => c.id));
-    setSelectedCategories(allIds);
-
-    try {
-      await setAssessmentScope(assessmentId, {
-        framework_id: frameworkId,
-        include_all: true,
-      });
-      onScopeChange();
-    } catch {
-      setSelectedCategories(selectedCategories);
-    } finally {
-      setUpdating(false);
-    }
-  };
-
   return (
     <div className="mt-3 px-8">
       <div className="flex items-center justify-between mb-3">
@@ -141,8 +152,7 @@ export function RequirementScopeSelector({
           <button
             type="button"
             onClick={handleSelectAll}
-            disabled={updating}
-            className="text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors disabled:opacity-50"
+            className="text-xs font-medium text-primary-600 hover:text-primary-700 transition-colors"
           >
             Select all
           </button>
@@ -158,14 +168,14 @@ export function RequirementScopeSelector({
               key={category.id}
               type="button"
               onClick={() => handleToggle(category.id, isRequired)}
-              disabled={isRequired || updating}
+              disabled={isRequired || saving}
               className={cn(
                 'w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition-all text-sm',
                 isSelected
                   ? `${colors.border} ${colors.bg}`
                   : 'border-neutral-200 bg-white hover:border-neutral-300',
                 isRequired && 'cursor-default opacity-90',
-                updating && 'opacity-60'
+                saving && 'opacity-60'
               )}
             >
               <div className={cn(
@@ -210,6 +220,32 @@ export function RequirementScopeSelector({
           );
         })}
       </div>
+
+      {hasChanges && (
+        <div className="mt-4 flex items-center justify-between p-3 rounded-lg bg-amber-50 border border-amber-200">
+          <p className="text-xs text-amber-800 font-medium">You have unsaved scope changes</p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDiscard}
+              disabled={saving}
+              leftIcon={<Undo2 className="h-3.5 w-3.5" />}
+            >
+              Discard
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSave}
+              loading={saving}
+              leftIcon={<Save className="h-3.5 w-3.5" />}
+            >
+              Save Changes
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -30,17 +30,15 @@ class AIClient:
     )
     def generate_mapping_suggestions(
         self,
-        entity_text: str,
-        entity_type: str,
+        policy_text: str,
         subcategories: list[dict[str, str]],
     ) -> list[dict[str, Any]]:
         """
-        Generate mapping suggestions for a policy or control.
+        Generate mapping suggestions for a policy document.
 
         Args:
-            entity_text: The text content of the policy/control
-            entity_type: Either "policy" or "control"
-            subcategories: List of subcategories with code and description
+            policy_text: The text content of the policy
+            subcategories: List of requirements with code and description
 
         Returns:
             List of suggested mappings with confidence scores
@@ -50,16 +48,10 @@ class AIClient:
             for sc in subcategories
         )
 
-        excerpt_instruction = ""
-        excerpt_field = ""
-        if entity_type == "policy":
-            excerpt_field = '\n- "source_excerpt": A short quote (1-2 sentences) from the policy text that supports this mapping'
-            excerpt_instruction = " For policies, include a direct quote from the text as the source_excerpt."
+        prompt = f"""Analyze the following policy document and determine which framework requirements it maps to.
 
-        prompt = f"""Analyze the following {entity_type} and determine which framework requirements it maps to.
-
-{entity_type.upper()} TEXT:
-{entity_text[:4000]}
+POLICY TEXT:
+{policy_text[:4000]}
 
 AVAILABLE REQUIREMENTS:
 {subcategories_text}
@@ -67,9 +59,10 @@ AVAILABLE REQUIREMENTS:
 Respond with a JSON array of mappings. Each mapping should have:
 - "subcategory_code": The requirement code (e.g., "GV.OC-01")
 - "confidence_score": A number between 0.0 and 1.0 indicating confidence
-- "reasoning": A brief explanation of why this mapping applies{excerpt_field}
+- "reasoning": A brief explanation of why this mapping applies
+- "source_excerpt": A short quote (1-2 sentences) from the policy text that supports this mapping
 
-Only include mappings with confidence >= 0.3. Return an empty array if no mappings apply.{excerpt_instruction}
+Only include mappings with confidence >= 0.3. Return an empty array if no mappings apply.
 
 Respond ONLY with the JSON array, no other text."""
 

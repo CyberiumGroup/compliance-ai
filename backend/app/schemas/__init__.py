@@ -16,16 +16,6 @@ from app.schemas.assessment import (
     AssessmentResponse,
     AssessmentListResponse,
 )
-from app.schemas.control import (
-    ControlBase,
-    ControlCreate,
-    ControlUpdate,
-    ControlResponse,
-    ControlMappingBase,
-    ControlMappingCreate,
-    ControlMappingResponse,
-    ControlUploadResponse,
-)
 from app.schemas.policy import (
     PolicyBase,
     PolicyCreate,
@@ -98,15 +88,6 @@ __all__ = [
     "AssessmentUpdate",
     "AssessmentResponse",
     "AssessmentListResponse",
-    # Control
-    "ControlBase",
-    "ControlCreate",
-    "ControlUpdate",
-    "ControlResponse",
-    "ControlMappingBase",
-    "ControlMappingCreate",
-    "ControlMappingResponse",
-    "ControlUploadResponse",
     # Policy
     "PolicyBase",
     "PolicyCreate",

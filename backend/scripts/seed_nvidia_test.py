@@ -21,7 +21,6 @@ from sqlalchemy.orm import Session
 
 from app.db.session import SessionLocal
 from app.models.assessment import Assessment
-from app.models.control import Control, ControlMapping
 from app.models.policy import Policy, PolicyMapping
 from app.models.interview import (
     InterviewSession, InterviewQuestion, InterviewResponse,
@@ -202,222 +201,6 @@ NVIDIA_FRAMEWORK = {
     ],
 }
 
-
-# ============================================================================
-# Control Definitions (125 controls)
-# ============================================================================
-
-CONTROL_CATEGORIES = {
-    "AC": {
-        "name": "Access Control",
-        "count": 15,
-        "controls": [
-            ("AC-001", "User Account Management", "Processes for creating, modifying, and removing user accounts"),
-            ("AC-002", "Role-Based Access Control", "Implementation of RBAC across enterprise systems"),
-            ("AC-003", "Privileged Access Management", "PAM solution for administrative access"),
-            ("AC-004", "Multi-Factor Authentication", "MFA implementation for all user accounts"),
-            ("AC-005", "Single Sign-On", "Enterprise SSO solution implementation"),
-            ("AC-006", "Access Request Workflow", "Automated access request and approval system"),
-            ("AC-007", "Access Certification", "Quarterly access review processes"),
-            ("AC-008", "Session Management", "Session timeout and concurrent session controls"),
-            ("AC-009", "Password Policy", "Enterprise password complexity and rotation policy"),
-            ("AC-010", "Emergency Access", "Break-glass procedures for emergency access"),
-            ("AC-011", "API Access Control", "OAuth/API key management for service access"),
-            ("AC-012", "Database Access Control", "Database-level access restrictions"),
-            ("AC-013", "Network Access Control", "802.1X and NAC implementation"),
-            ("AC-014", "Remote Access", "VPN and remote access security controls"),
-            ("AC-015", "Third-Party Access", "Vendor and contractor access management"),
-        ],
-    },
-    "AM": {
-        "name": "Asset Management",
-        "count": 10,
-        "controls": [
-            ("AM-001", "Hardware Asset Inventory", "Complete inventory of hardware assets"),
-            ("AM-002", "Software Asset Inventory", "Complete inventory of software assets"),
-            ("AM-003", "Cloud Asset Discovery", "Automated discovery of cloud resources"),
-            ("AM-004", "Asset Classification", "Data and asset classification scheme"),
-            ("AM-005", "Asset Ownership", "Defined ownership for all critical assets"),
-            ("AM-006", "Asset Lifecycle Management", "Procedures for asset procurement to disposal"),
-            ("AM-007", "Configuration Management Database", "CMDB implementation and maintenance"),
-            ("AM-008", "License Management", "Software license tracking and compliance"),
-            ("AM-009", "Media Handling", "Secure handling of storage media"),
-            ("AM-010", "Asset Disposal", "Secure asset disposal and sanitization"),
-        ],
-    },
-    "CM": {
-        "name": "Change Management",
-        "count": 8,
-        "controls": [
-            ("CM-001", "Change Control Board", "Established change advisory board process"),
-            ("CM-002", "Change Request Process", "Documented change request procedures"),
-            ("CM-003", "Change Impact Assessment", "Risk assessment for proposed changes"),
-            ("CM-004", "Change Testing", "Test environment and procedures for changes"),
-            ("CM-005", "Change Approval Workflow", "Multi-level approval for changes"),
-            ("CM-006", "Emergency Change Process", "Expedited process for emergency changes"),
-            ("CM-007", "Change Documentation", "Documentation requirements for changes"),
-            ("CM-008", "Rollback Procedures", "Documented rollback procedures for failed changes"),
-        ],
-    },
-    "CR": {
-        "name": "Cryptographic Controls",
-        "count": 10,
-        "controls": [
-            ("CR-001", "Encryption Standards", "Enterprise encryption standards definition"),
-            ("CR-002", "Key Management", "Cryptographic key lifecycle management"),
-            ("CR-003", "TLS Implementation", "TLS 1.3 enforcement for data in transit"),
-            ("CR-004", "Disk Encryption", "Full disk encryption for endpoints"),
-            ("CR-005", "Database Encryption", "Transparent data encryption for databases"),
-            ("CR-006", "Certificate Management", "PKI and certificate lifecycle management"),
-            ("CR-007", "HSM Implementation", "Hardware security modules for key storage"),
-            ("CR-008", "Code Signing", "Code signing for software releases"),
-            ("CR-009", "Encryption Key Rotation", "Automated key rotation procedures"),
-            ("CR-010", "Cryptographic Algorithm Review", "Periodic review of cryptographic standards"),
-        ],
-    },
-    "DP": {
-        "name": "Data Protection",
-        "count": 12,
-        "controls": [
-            ("DP-001", "Data Classification Policy", "Enterprise data classification framework"),
-            ("DP-002", "Data Loss Prevention", "DLP solution implementation"),
-            ("DP-003", "Data Masking", "Data masking for non-production environments"),
-            ("DP-004", "Data Retention", "Data retention and disposal schedules"),
-            ("DP-005", "Privacy Impact Assessment", "PIA process for new data processing"),
-            ("DP-006", "Data Subject Rights", "Procedures for DSAR handling"),
-            ("DP-007", "Cross-Border Data Transfer", "Controls for international data transfers"),
-            ("DP-008", "Backup Encryption", "Encryption of backup data"),
-            ("DP-009", "Data Integrity Controls", "Checksums and integrity verification"),
-            ("DP-010", "Sensitive Data Discovery", "Automated sensitive data discovery tools"),
-            ("DP-011", "Data Access Logging", "Logging of access to sensitive data"),
-            ("DP-012", "AI Training Data Governance", "Controls for AI/ML training data"),
-        ],
-    },
-    "EP": {
-        "name": "Endpoint Security",
-        "count": 8,
-        "controls": [
-            ("EP-001", "Endpoint Detection and Response", "EDR deployment on all endpoints"),
-            ("EP-002", "Antimalware Solution", "Enterprise antimalware deployment"),
-            ("EP-003", "Host-Based Firewall", "Endpoint firewall configuration"),
-            ("EP-004", "Application Whitelisting", "Application control on critical systems"),
-            ("EP-005", "Secure Configuration Baseline", "CIS benchmark implementation"),
-            ("EP-006", "Browser Security", "Secure browser configuration"),
-            ("EP-007", "USB Device Control", "Removable media restrictions"),
-            ("EP-008", "Endpoint Patching", "Automated endpoint patch management"),
-        ],
-    },
-    "IR": {
-        "name": "Incident Response",
-        "count": 10,
-        "controls": [
-            ("IR-001", "Incident Response Plan", "Documented IR plan and playbooks"),
-            ("IR-002", "Security Operations Center", "24/7 SOC monitoring capability"),
-            ("IR-003", "Incident Classification", "Incident severity classification matrix"),
-            ("IR-004", "Incident Communication", "Communication protocols for incidents"),
-            ("IR-005", "Forensic Capability", "Digital forensics tools and procedures"),
-            ("IR-006", "Threat Intelligence", "Threat intelligence integration"),
-            ("IR-007", "Incident Ticketing", "Incident tracking and management system"),
-            ("IR-008", "Escalation Procedures", "Documented escalation matrix"),
-            ("IR-009", "Tabletop Exercises", "Regular incident response exercises"),
-            ("IR-010", "Post-Incident Review", "Lessons learned process"),
-        ],
-    },
-    "NS": {
-        "name": "Network Security",
-        "count": 12,
-        "controls": [
-            ("NS-001", "Network Segmentation", "Network segmentation and VLANs"),
-            ("NS-002", "Firewall Management", "Enterprise firewall policy management"),
-            ("NS-003", "Intrusion Detection", "IDS/IPS deployment"),
-            ("NS-004", "Web Application Firewall", "WAF for public-facing applications"),
-            ("NS-005", "DNS Security", "DNSSEC and DNS filtering"),
-            ("NS-006", "DDoS Protection", "DDoS mitigation services"),
-            ("NS-007", "Network Monitoring", "Network traffic analysis and monitoring"),
-            ("NS-008", "Wireless Security", "WPA3 and wireless security controls"),
-            ("NS-009", "Zero Trust Architecture", "Zero trust network implementation"),
-            ("NS-010", "Network Access Control", "NAC implementation"),
-            ("NS-011", "Secure DNS", "Internal DNS security controls"),
-            ("NS-012", "East-West Traffic Monitoring", "Lateral movement detection"),
-        ],
-    },
-    "PE": {
-        "name": "Physical Security",
-        "count": 8,
-        "controls": [
-            ("PE-001", "Physical Access Control", "Badge access for facilities"),
-            ("PE-002", "Visitor Management", "Visitor registration and escort"),
-            ("PE-003", "CCTV Surveillance", "Video surveillance in critical areas"),
-            ("PE-004", "Data Center Security", "Enhanced controls for data centers"),
-            ("PE-005", "Environmental Controls", "HVAC, fire suppression, UPS"),
-            ("PE-006", "Clean Desk Policy", "Clean desk policy enforcement"),
-            ("PE-007", "Secure Areas", "Restricted area access controls"),
-            ("PE-008", "Equipment Protection", "Physical protection of critical equipment"),
-        ],
-    },
-    "RM": {
-        "name": "Risk Management",
-        "count": 6,
-        "controls": [
-            ("RM-001", "Risk Assessment Process", "Enterprise risk assessment methodology"),
-            ("RM-002", "Risk Register", "Maintained risk register"),
-            ("RM-003", "Risk Treatment Plans", "Documented risk treatment plans"),
-            ("RM-004", "Risk Appetite Statement", "Board-approved risk appetite"),
-            ("RM-005", "Risk Reporting", "Regular risk reporting to leadership"),
-            ("RM-006", "Third-Party Risk Management", "Vendor risk assessment program"),
-        ],
-    },
-    "SA": {
-        "name": "Security Awareness",
-        "count": 5,
-        "controls": [
-            ("SA-001", "Security Awareness Training", "Annual security awareness training"),
-            ("SA-002", "Phishing Simulation", "Regular phishing simulation campaigns"),
-            ("SA-003", "Role-Based Training", "Specialized training for developers/admins"),
-            ("SA-004", "Security Communications", "Regular security bulletins and updates"),
-            ("SA-005", "New Hire Training", "Security training for new employees"),
-        ],
-    },
-    "SC": {
-        "name": "Supply Chain",
-        "count": 8,
-        "controls": [
-            ("SC-001", "Supplier Security Assessment", "Security questionnaires for suppliers"),
-            ("SC-002", "SBOM Management", "Software bill of materials tracking"),
-            ("SC-003", "Component Verification", "Hardware authenticity verification"),
-            ("SC-004", "Secure Development Requirements", "Security requirements for suppliers"),
-            ("SC-005", "Supplier Monitoring", "Ongoing supplier risk monitoring"),
-            ("SC-006", "Supply Chain Incident Response", "Procedures for supply chain incidents"),
-            ("SC-007", "Open Source Security", "Open source component scanning"),
-            ("SC-008", "Secure Manufacturing", "Manufacturing facility security controls"),
-        ],
-    },
-    "VM": {
-        "name": "Vendor Management",
-        "count": 7,
-        "controls": [
-            ("VM-001", "Vendor Onboarding", "Security review in vendor onboarding"),
-            ("VM-002", "Contract Security Requirements", "Security clauses in vendor contracts"),
-            ("VM-003", "Vendor Access Management", "Vendor access provisioning/deprovisioning"),
-            ("VM-004", "Vendor Performance Monitoring", "SLA and security performance monitoring"),
-            ("VM-005", "Vendor Risk Rating", "Vendor risk tiering system"),
-            ("VM-006", "Annual Vendor Review", "Annual security review of critical vendors"),
-            ("VM-007", "Vendor Exit Procedures", "Secure vendor offboarding procedures"),
-        ],
-    },
-    "BC": {
-        "name": "Business Continuity",
-        "count": 6,
-        "controls": [
-            ("BC-001", "Business Continuity Plan", "Documented BCP for critical functions"),
-            ("BC-002", "Disaster Recovery Plan", "DR plan with defined RTOs/RPOs"),
-            ("BC-003", "Backup and Recovery", "Regular backup testing and validation"),
-            ("BC-004", "Crisis Management", "Crisis management team and procedures"),
-            ("BC-005", "BCP Testing", "Annual BCP/DR testing exercises"),
-            ("BC-006", "Alternate Processing Site", "Hot/warm site arrangements"),
-        ],
-    },
-}
 
 
 # ============================================================================
@@ -753,18 +536,6 @@ def clean_nvidia_data(db: Session) -> None:
         ).delete()
 
         # Delete mappings and related entities
-        controls = db.query(Control).filter(
-            Control.assessment_id == assessment.id
-        ).all()
-        for control in controls:
-            db.query(ControlMapping).filter(
-                ControlMapping.control_id == control.id
-            ).delete()
-
-        db.query(Control).filter(
-            Control.assessment_id == assessment.id
-        ).delete()
-
         policies = db.query(Policy).filter(
             Policy.assessment_id == assessment.id
         ).all()
@@ -970,41 +741,6 @@ def set_assessment_scope(
     db.flush()
 
 
-def create_controls(db: Session, assessment: Assessment) -> list[Control]:
-    """Create 125 controls for the assessment."""
-    print("\n5. Creating controls...")
-
-    controls = []
-    implementation_statuses = ["implemented"] * 70 + ["partial"] * 20 + ["planned"] * 8 + ["not_implemented"] * 2
-    random.shuffle(implementation_statuses)
-    status_idx = 0
-
-    owners = [p["name"] for p in NVIDIA_PERSONNEL]
-
-    for category_prefix, category_data in CONTROL_CATEGORIES.items():
-        for control_id, name, description in category_data["controls"]:
-            control = Control(
-                id=uuid.uuid4(),
-                assessment_id=assessment.id,
-                identifier=control_id,
-                name=name,
-                description=description,
-                owner=random.choice(owners),
-                control_type=category_data["name"],
-                implementation_status=implementation_statuses[status_idx % len(implementation_statuses)],
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
-            )
-            db.add(control)
-            controls.append(control)
-            status_idx += 1
-
-    db.flush()
-    print(f"   Created {len(controls)} controls")
-
-    return controls
-
-
 def create_policies(db: Session, assessment: Assessment) -> list[Policy]:
     """Create 12 policies for the assessment."""
     print("\n6. Creating policies...")
@@ -1059,59 +795,17 @@ Last Updated: {datetime.utcnow().strftime('%Y-%m-%d')}
 
 def create_mappings(
     db: Session,
-    controls: list[Control],
     policies: list[Policy],
-) -> tuple[int, int]:
-    """Create control and policy mappings to subcategories."""
-    print("\n7. Creating control and policy mappings...")
+) -> int:
+    """Create policy mappings to subcategories."""
+    print("\n6. Creating policy mappings...")
 
     # Get all subcategories
     subcategories = db.query(CSFSubcategory).all()
     subcat_map = {s.code: s for s in subcategories}
 
-    control_mapping_count = 0
     policy_mapping_count = 0
 
-    # Map controls to subcategories based on category
-    control_to_subcat = {
-        "AC": ["PR.AA", "PR.AC"],  # Access Control
-        "AM": ["ID.AM"],  # Asset Management
-        "CM": ["PR.IP", "PR.MA"],  # Change Management
-        "CR": ["PR.DS"],  # Cryptographic Controls
-        "DP": ["PR.DS", "PR.IP"],  # Data Protection
-        "EP": ["PR.PT", "DE.CM"],  # Endpoint Security
-        "IR": ["RS.RP", "RS.CO", "RS.AN", "RS.MI", "RS.IM"],  # Incident Response
-        "NS": ["PR.AC", "PR.DS", "DE.CM"],  # Network Security
-        "PE": ["PR.AC", "PR.PT"],  # Physical Security
-        "RM": ["ID.RA", "ID.RM"],  # Risk Management
-        "SA": ["PR.AT"],  # Security Awareness
-        "SC": ["ID.SC", "PR.IP"],  # Supply Chain
-        "VM": ["ID.SC"],  # Vendor Management
-        "BC": ["PR.IP", "RC.RP"],  # Business Continuity
-    }
-
-    for control in controls:
-        prefix = control.identifier.split("-")[0]
-        subcat_prefixes = control_to_subcat.get(prefix, ["PR.IP"])
-
-        # Find matching subcategories
-        for subcat_prefix in subcat_prefixes:
-            matching = [s for code, s in subcat_map.items() if code.startswith(subcat_prefix)]
-            if matching:
-                subcat = random.choice(matching)
-                mapping = ControlMapping(
-                    id=uuid.uuid4(),
-                    control_id=control.id,
-                    subcategory_id=subcat.id,
-                    confidence_score=random.uniform(0.75, 0.98),
-                    is_approved=random.random() > 0.15,  # 85% approved
-                    created_at=datetime.utcnow(),
-                )
-                db.add(mapping)
-                control_mapping_count += 1
-                break
-
-    # Map policies to subcategories
     policy_to_subcat = {
         "ISP": ["GV.PO", "GV.OV", "GV.RM"],
         "ACP": ["PR.AA", "PR.AC"],
@@ -1169,9 +863,9 @@ def create_mappings(
                 policy_mapping_count += 1
 
     db.flush()
-    print(f"   Created {control_mapping_count} control mappings, {policy_mapping_count} policy mappings")
+    print(f"   Created {policy_mapping_count} policy mappings")
 
-    return control_mapping_count, policy_mapping_count
+    return policy_mapping_count
 
 
 def create_interview_sessions(
@@ -1323,7 +1017,6 @@ def update_assessment_status(db: Session, assessment: Assessment) -> None:
 
 def print_summary(
     assessment: Assessment,
-    controls: list[Control],
     policies: list[Policy],
     sessions: list,
     response_count: int,
@@ -1334,7 +1027,7 @@ def print_summary(
     print("=== Nvidia Inc Test Data Seeding Complete ===")
     print("=" * 60)
     print(f"Assessment ID: {assessment.id}")
-    print(f"Controls: {len(controls)} | Policies: {len(policies)} | Sessions: {len(sessions)} | Responses: {response_count}")
+    print(f"Policies: {len(policies)} | Sessions: {len(sessions)} | Responses: {response_count}")
     print(f"Deviations: {len(deviations)} | Status: {assessment.status}")
     print(f"URL: http://localhost:3000/assessments/{assessment.id}")
     print("=" * 60)
@@ -1379,14 +1072,11 @@ def main(
         # 4. Set framework scope
         set_assessment_scope(db, assessment, frameworks, nvidia_framework)
 
-        # 5. Create controls
-        controls = create_controls(db, assessment)
-
-        # 6. Create policies
+        # 5. Create policies
         policies = create_policies(db, assessment)
 
-        # 7. Create mappings
-        create_mappings(db, controls, policies)
+        # 6. Create mappings
+        create_mappings(db, policies)
 
         # 8-9. Create interview sessions and responses
         sessions = []
@@ -1414,7 +1104,6 @@ def main(
         # Print summary
         print_summary(
             assessment,
-            controls,
             policies,
             sessions,
             response_count,

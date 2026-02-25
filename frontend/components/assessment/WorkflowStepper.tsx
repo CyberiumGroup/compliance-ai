@@ -17,9 +17,7 @@ import {
 } from 'lucide-react';
 import {
   getAssessmentScope,
-  listControls,
   listPolicies,
-  listControlMappings,
   listPolicyMappings,
   listSessions,
   getScoreSummary,
@@ -50,12 +48,10 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
   useEffect(() => {
     const checkProgress = async () => {
       try {
-        const [scope, controls, policies, controlMappings, policyMappings, sessions, reports] =
+        const [scope, policies, policyMappings, sessions, reports] =
           await Promise.all([
             getAssessmentScope(assessmentId).catch(() => []),
-            listControls(assessmentId, userId).catch(() => []),
             listPolicies(assessmentId, userId).catch(() => []),
-            listControlMappings(assessmentId, userId).catch(() => []),
             listPolicyMappings(assessmentId, userId).catch(() => []),
             listSessions(assessmentId, userId).catch(() => []),
             listReports(assessmentId, userId).catch(() => ({ items: [] })),
@@ -69,12 +65,9 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
         }
 
         const hasScope = scope.length > 0;
-        const hasEvidence = controls.length > 0 || policies.length > 0;
-        const hasMappings = controlMappings.length > 0 || policyMappings.length > 0;
-        const approvedMappings = [
-          ...controlMappings.filter((m) => m.is_approved),
-          ...policyMappings.filter((m) => m.is_approved),
-        ];
+        const hasEvidence = policies.length > 0;
+        const hasMappings = policyMappings.length > 0;
+        const approvedMappings = policyMappings.filter((m) => m.is_approved);
         const hasApprovedMappings = approvedMappings.length > 0;
         const hasInterviews = sessions.length > 0;
         const completedInterviews = sessions.filter(
@@ -102,13 +95,10 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
           {
             id: 'evidence',
             label: 'Evidence',
-            description: 'Upload controls & policies',
+            description: 'Upload policies',
             icon: Upload,
-            href: `/assessments/${assessmentId}/controls`,
-            status: getStatus(
-              controls.length > 0 && policies.length > 0,
-              hasEvidence
-            ),
+            href: `/assessments/${assessmentId}/policies`,
+            status: getStatus(policies.length > 0, hasEvidence),
           },
           {
             id: 'mappings',

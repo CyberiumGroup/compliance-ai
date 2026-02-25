@@ -4,7 +4,6 @@ from app.api.v1.auth import router as auth_router
 from app.api.v1.users import router as users_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.assessments import router as assessments_router
-from app.api.v1.controls import router as controls_router
 from app.api.v1.policies import router as policies_router
 from app.api.v1.mappings import router as mappings_router
 from app.api.v1.interviews import router as interviews_router
@@ -29,7 +28,6 @@ api_router.include_router(dashboard_router, prefix="/dashboard", tags=["dashboar
 
 # Existing endpoints
 api_router.include_router(assessments_router, prefix="/assessments", tags=["assessments"])
-api_router.include_router(controls_router, tags=["controls"])
 api_router.include_router(policies_router, tags=["policies"])
 api_router.include_router(mappings_router, prefix="/mappings", tags=["mappings"])
 api_router.include_router(interviews_router, prefix="/interviews", tags=["interviews"])

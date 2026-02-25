@@ -18,8 +18,6 @@ from app.models import (
     CSFCategory,
     CSFSubcategory,
     Assessment,
-    Control,
-    ControlMapping,
     Policy,
     PolicyMapping,
     AuditLog,

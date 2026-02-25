@@ -1,6 +1,5 @@
 export * from './common';
 export * from './assessment';
-export * from './control';
 export * from './policy';
 export * from './mapping';
 export * from './interview';

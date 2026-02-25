@@ -8,14 +8,13 @@ import { MappingsList, GapsList } from '@/components/mappings';
 import {
   generateMappings,
   clearAllMappings,
-  listControlMappings,
   listPolicyMappings,
   approveMapping,
   rejectMapping,
   getGaps,
 } from '@/lib/api';
 import { useUserId } from '@/lib/hooks/useUserId';
-import { ControlMapping, PolicyMapping, GapListResponse } from '@/lib/types';
+import { PolicyMapping, GapListResponse } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface MappingsPageProps {
@@ -25,7 +24,6 @@ interface MappingsPageProps {
 export default function MappingsPage({ params }: MappingsPageProps) {
   const { id } = use(params);
   const userId = useUserId();
-  const [controlMappings, setControlMappings] = useState<ControlMapping[]>([]);
   const [policyMappings, setPolicyMappings] = useState<PolicyMapping[]>([]);
   const [gapData, setGapData] = useState<GapListResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,12 +37,10 @@ export default function MappingsPage({ params }: MappingsPageProps) {
     if (!userId) return;
 
     try {
-      const [controls, policies, gaps] = await Promise.all([
-        listControlMappings(id, userId).catch(() => []),
+      const [policies, gaps] = await Promise.all([
         listPolicyMappings(id, userId).catch(() => []),
         getGaps(id, userId).catch(() => null),
       ]);
-      setControlMappings(controls);
       setPolicyMappings(policies);
       setGapData(gaps);
     } catch (err) {
@@ -90,7 +86,6 @@ export default function MappingsPage({ params }: MappingsPageProps) {
 
     try {
       await clearAllMappings(id, userId);
-      setControlMappings([]);
       setPolicyMappings([]);
       setGapData(null);
     } catch (err) {
@@ -113,22 +108,6 @@ export default function MappingsPage({ params }: MappingsPageProps) {
       setError(err instanceof Error ? err.message : 'Failed to analyze coverage');
     } finally {
       setAnalyzingGaps(false);
-    }
-  };
-
-  const handleApproveControl = async (mappingId: string, approved: boolean) => {
-    if (!userId) return;
-
-    if (approved) {
-      await approveMapping(mappingId, userId);
-      setControlMappings(
-        controlMappings.map((m) =>
-          m.id === mappingId ? { ...m, is_approved: true } : m
-        )
-      );
-    } else {
-      await rejectMapping(mappingId, userId);
-      setControlMappings(controlMappings.filter((m) => m.id !== mappingId));
     }
   };
 
@@ -161,7 +140,7 @@ export default function MappingsPage({ params }: MappingsPageProps) {
       id: 'mappings',
       label: 'Mappings',
       icon: Link2,
-      count: controlMappings.length + policyMappings.length,
+      count: policyMappings.length,
     },
     {
       id: 'gaps',
@@ -183,7 +162,7 @@ export default function MappingsPage({ params }: MappingsPageProps) {
               <div className="flex-1">
                 <h4 className="text-sm font-semibold text-neutral-900">Suggest Mappings</h4>
                 <p className="text-xs text-neutral-600 mt-1">
-                  Use AI to analyze your controls and policies and suggest mappings to framework
+                  Use AI to analyze your policies and suggest mappings to framework
                   requirements. Existing mappings (both pending and approved) will be preserved
                   — only new suggestions will be added.
                 </p>
@@ -199,7 +178,7 @@ export default function MappingsPage({ params }: MappingsPageProps) {
               </Button>
             </div>
 
-            {(controlMappings.length + policyMappings.length > 0) && (
+            {policyMappings.length > 0 && (
               <div className="flex items-start gap-4 p-4 rounded-lg bg-red-50/50 border border-red-100">
                 <div className="flex-1">
                   <h4 className="text-sm font-semibold text-red-900">Clear All Mappings</h4>
@@ -266,9 +245,7 @@ export default function MappingsPage({ params }: MappingsPageProps) {
         <Card animated>
           <CardContent>
             <MappingsList
-              controlMappings={controlMappings}
               policyMappings={policyMappings}
-              onApproveControl={handleApproveControl}
               onApprovePolicy={handleApprovePolicy}
             />
           </CardContent>

@@ -8,14 +8,12 @@ from pydantic import BaseModel, Field
 
 class MappingGenerateRequest(BaseModel):
     """Request to generate AI mappings."""
-    include_policies: bool = True
-    include_controls: bool = True
     confidence_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
 
 
 class MappingSuggestion(BaseModel):
     """A single mapping suggestion from AI."""
-    entity_type: Literal["policy", "control"]
+    entity_type: Literal["policy"]
     entity_id: UUID
     entity_name: str
     requirement_id: UUID
@@ -29,7 +27,6 @@ class MappingGenerateResponse(BaseModel):
     assessment_id: UUID
     suggestions_count: int
     policy_mappings: int
-    control_mappings: int
     suggestions: list[MappingSuggestion]
 
 
@@ -42,24 +39,21 @@ class MappingApproveRequest(BaseModel):
 class MappingApproveResponse(BaseModel):
     """Response from mapping approval."""
     mapping_id: UUID
-    mapping_type: Literal["policy", "control"]
+    mapping_type: Literal["policy"]
     is_approved: bool
     approved_at: str | None = None
 
 
 class GapResponse(BaseModel):
     """A gap identified in coverage."""
-    gap_type: Literal["unmapped_requirement", "policy_only", "control_only"]
+    gap_type: Literal["unmapped_requirement"]
     requirement_id: UUID
     requirement_code: str
     requirement_name: str | None = None
     requirement_description: str | None = None
     framework_name: str | None = None
     parent_code: str | None = None
-    has_policy: bool
-    has_control: bool
     policy_names: list[str] | None = None
-    control_names: list[str] | None = None
 
 
 class GapListResponse(BaseModel):
@@ -68,8 +62,6 @@ class GapListResponse(BaseModel):
     total_requirements: int = 0
     total_gaps: int
     unmapped_requirements: int
-    policy_only_count: int
-    control_only_count: int
     coverage_percentage: float
     gaps: list[GapResponse]
 
@@ -77,7 +69,7 @@ class GapListResponse(BaseModel):
 class BulkMappingRequest(BaseModel):
     """Request for bulk mapping operations."""
     mapping_ids: list[UUID]
-    mapping_type: Literal["policy", "control"]
+    mapping_type: Literal["policy"]
 
 
 class BulkMappingResult(BaseModel):

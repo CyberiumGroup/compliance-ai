@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.deviation import Deviation, DeviationType, DeviationSeverity, DeviationStatus
 from app.models.score import SubcategoryScore
-from app.models.control import Control, ControlMapping
 from app.models.policy import Policy, PolicyMapping
 from app.models.framework import CSFSubcategory, CSFCategory, CSFFunction
 from app.services.audit.audit_service import AuditService
@@ -87,18 +86,6 @@ class DeviationDetector:
         )
         has_policy = len(policy_mappings) > 0
 
-        control_mappings = (
-            self.db.query(ControlMapping)
-            .join(Control)
-            .filter(
-                Control.assessment_id == assessment_id,
-                ControlMapping.subcategory_id == subcategory.id,
-                ControlMapping.is_approved == True,
-            )
-            .all()
-        )
-        has_control = len(control_mappings) > 0
-
         # Get subcategory score
         score_record = (
             self.db.query(SubcategoryScore)
@@ -109,56 +96,6 @@ class DeviationDetector:
             .first()
         )
         score = score_record.score if score_record else 0
-
-        # Detect missing policy
-        if has_control and not has_policy:
-            impact = self.risk_calculator.calculate_impact_from_function(func_code, 3)
-            likelihood = 4  # High likelihood without policy
-            risk_score, severity = self.risk_calculator.calculate_risk_score(impact, likelihood)
-
-            deviations.append({
-                "subcategory_id": subcategory.id,
-                "subcategory_code": subcategory.code,
-                "function_code": func_code,
-                "deviation_type": DeviationType.MISSING_POLICY.value,
-                "severity": severity,
-                "title": f"Missing policy for {subcategory.code}",
-                "description": f"Control(s) exist for {subcategory.code} but no governing policy is mapped.",
-                "impact_score": impact,
-                "likelihood_score": likelihood,
-                "risk_score": risk_score,
-                "recommended_remediation": f"Create or map a policy that addresses {subcategory.description}",
-                "evidence": {
-                    "has_control": True,
-                    "has_policy": False,
-                    "control_count": len(control_mappings),
-                },
-            })
-
-        # Detect missing control
-        if has_policy and not has_control:
-            impact = self.risk_calculator.calculate_impact_from_function(func_code, 4)
-            likelihood = 4
-            risk_score, severity = self.risk_calculator.calculate_risk_score(impact, likelihood)
-
-            deviations.append({
-                "subcategory_id": subcategory.id,
-                "subcategory_code": subcategory.code,
-                "function_code": func_code,
-                "deviation_type": DeviationType.MISSING_CONTROL.value,
-                "severity": severity,
-                "title": f"Missing control for {subcategory.code}",
-                "description": f"Policy exists for {subcategory.code} but no implementing control is mapped.",
-                "impact_score": impact,
-                "likelihood_score": likelihood,
-                "risk_score": risk_score,
-                "recommended_remediation": f"Implement controls to enforce the policy for {subcategory.description}",
-                "evidence": {
-                    "has_control": False,
-                    "has_policy": True,
-                    "policy_count": len(policy_mappings),
-                },
-            })
 
         # Detect inadequate policy (has policy but low score)
         if has_policy and score <= 1:
@@ -184,32 +121,8 @@ class DeviationDetector:
                 },
             })
 
-        # Detect inadequate control (has control but low score)
-        if has_control and score <= 1:
-            impact = self.risk_calculator.calculate_impact_from_function(func_code, 4)
-            likelihood = 3
-            risk_score, severity = self.risk_calculator.calculate_risk_score(impact, likelihood)
-
-            deviations.append({
-                "subcategory_id": subcategory.id,
-                "subcategory_code": subcategory.code,
-                "function_code": func_code,
-                "deviation_type": DeviationType.INADEQUATE_CONTROL.value,
-                "severity": severity,
-                "title": f"Inadequate control implementation for {subcategory.code}",
-                "description": f"Control exists but maturity score is low ({score}/4) indicating inadequate implementation.",
-                "impact_score": impact,
-                "likelihood_score": likelihood,
-                "risk_score": risk_score,
-                "recommended_remediation": "Review control implementation and ensure consistent execution.",
-                "evidence": {
-                    "score": score,
-                    "has_control": True,
-                },
-            })
-
-        # Detect completely unmapped (neither policy nor control)
-        if not has_policy and not has_control:
+        # Detect completely unmapped (no policy)
+        if not has_policy:
             impact = self.risk_calculator.calculate_impact_from_function(func_code, 4)
             likelihood = 5
             risk_score, severity = self.risk_calculator.calculate_risk_score(impact, likelihood)
@@ -221,13 +134,12 @@ class DeviationDetector:
                 "deviation_type": DeviationType.DOCUMENTATION_GAP.value,
                 "severity": severity,
                 "title": f"No coverage for {subcategory.code}",
-                "description": f"No policies or controls are mapped to {subcategory.code}: {subcategory.description}",
+                "description": f"No policies are mapped to {subcategory.code}: {subcategory.description}",
                 "impact_score": impact,
                 "likelihood_score": likelihood,
                 "risk_score": risk_score,
-                "recommended_remediation": f"Develop policy and implement controls for {subcategory.description}",
+                "recommended_remediation": f"Develop and map a policy that addresses {subcategory.description}",
                 "evidence": {
-                    "has_control": False,
                     "has_policy": False,
                 },
             })

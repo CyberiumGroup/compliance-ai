@@ -8,7 +8,6 @@ from app.db.session import get_db
 from app.dependencies.auth import require_user
 from app.models.user import User
 from app.models.assessment import Assessment, AssessmentStatus
-from app.models.control import Control, ControlMapping
 from app.models.deviation import Deviation, DeviationStatus, DeviationSeverity
 from app.models.audit import AuditLog
 from app.models.score import FunctionScore
@@ -169,14 +168,7 @@ async def get_dashboard_summary(
             )
         )
 
-    # Pending approvals (control mappings + crosswalks)
-    pending_control_mappings = (
-        db.query(func.count(ControlMapping.id))
-        .filter(ControlMapping.is_approved == False)
-        .scalar()
-        or 0
-    )
-
+    # Pending approvals (crosswalks)
     pending_crosswalks = (
         db.query(func.count(RequirementCrosswalk.id))
         .filter(RequirementCrosswalk.is_approved == False)
@@ -184,36 +176,10 @@ async def get_dashboard_summary(
         or 0
     )
 
-    pending_approvals = pending_control_mappings + pending_crosswalks
+    pending_approvals = pending_crosswalks
 
     # Action items (up to 10)
     action_items = []
-
-    # Get pending control mappings with assessment info
-    pending_mappings = (
-        db.query(ControlMapping, Assessment.name)
-        .join(
-            Assessment,
-            ControlMapping.control_id.in_(
-                db.query(Control.id).filter(Control.assessment_id == Assessment.id)
-            ),
-        )
-        .filter(ControlMapping.is_approved == False)
-        .order_by(ControlMapping.created_at.desc())
-        .limit(5)
-        .all()
-    )
-
-    for mapping, assessment_name in pending_mappings:
-        action_items.append(
-            ActionItem(
-                id=mapping.id,
-                type="mapping_approval",
-                title="Control mapping needs approval",
-                assessment_name=assessment_name,
-                created_at=mapping.created_at,
-            )
-        )
 
     # Get pending crosswalks
     pending_xwalks = (

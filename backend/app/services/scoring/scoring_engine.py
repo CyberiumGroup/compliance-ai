@@ -7,7 +7,6 @@ from typing import Any
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.score import SubcategoryScore, CategoryScore, FunctionScore
-from app.models.control import Control, ControlMapping
 from app.models.policy import Policy, PolicyMapping
 from app.models.interview import InterviewSession, InterviewResponse, InterviewQuestion
 from app.models.framework import CSFFunction, CSFCategory, CSFSubcategory
@@ -93,7 +92,6 @@ class ScoringEngine:
                 score=score,
                 score_breakdown=breakdown,
                 policy_evidence=evidence.get("policy_evidence"),
-                control_evidence=evidence.get("control_evidence"),
                 interview_evidence=evidence.get("interview_evidence"),
             )
 
@@ -314,28 +312,6 @@ class ScoringEngine:
                     "confidence_score": pm.confidence_score,
                 })
 
-        # Get control mappings
-        control_mappings = (
-            self.db.query(ControlMapping)
-            .join(Control)
-            .filter(
-                Control.assessment_id == assessment_id,
-                ControlMapping.subcategory_id == subcategory_id,
-                ControlMapping.is_approved == True,
-            )
-            .all()
-        )
-
-        control_evidence = []
-        for cm in control_mappings:
-            control = self.db.query(Control).filter(Control.id == cm.control_id).first()
-            if control:
-                control_evidence.append({
-                    "id": control.id,
-                    "name": control.name,
-                    "confidence_score": cm.confidence_score,
-                })
-
         # Get interview responses for this subcategory
         interview_evidence = []
         questions = (
@@ -379,12 +355,9 @@ class ScoringEngine:
         # Override with mapping evidence
         if policy_evidence:
             evidence["has_policy"] = True
-        if control_evidence:
-            evidence["has_control"] = True
 
         # Add raw evidence for explanation building
         evidence["policy_evidence"] = policy_evidence
-        evidence["control_evidence"] = control_evidence
         evidence["interview_evidence"] = interview_evidence
 
         return evidence

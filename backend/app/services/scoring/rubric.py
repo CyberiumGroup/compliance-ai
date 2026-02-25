@@ -6,10 +6,10 @@ from typing import Any
 
 class MaturityTier(IntEnum):
     """NIST-aligned maturity tiers (0-4)."""
-    NON_EXISTENT = 0  # No policy, no control, no evidence
+    NON_EXISTENT = 0  # No policy, no evidence
     PARTIAL = 1  # Ad hoc, informal, no documentation
-    RISK_INFORMED = 2  # Policy OR control exists, inconsistent execution
-    REPEATABLE = 3  # Policy AND control, documented, consistent
+    RISK_INFORMED = 2  # Policy exists, inconsistent execution
+    REPEATABLE = 3  # Policy documented, consistent execution
     ADAPTIVE = 4  # All of 3 + metrics, continuous improvement
 
 
@@ -21,10 +21,9 @@ class ScoringRubric:
         0: {
             "name": "Non-existent",
             "tier": "Tier 0",
-            "description": "No policy, no control, no evidence of implementation",
+            "description": "No policy, no evidence of implementation",
             "requirements": {
                 "has_policy": False,
-                "has_control": False,
                 "has_documentation": False,
                 "has_operation": False,
             },
@@ -35,7 +34,6 @@ class ScoringRubric:
             "description": "Ad hoc implementation, informal processes, no documentation",
             "requirements": {
                 "has_policy": False,
-                "has_control": "optional",
                 "has_documentation": False,
                 "has_operation": "partial",
             },
@@ -43,10 +41,9 @@ class ScoringRubric:
         2: {
             "name": "Risk-Informed",
             "tier": "Tier 2",
-            "description": "Policy OR control exists, but implementation is inconsistent",
+            "description": "Policy exists, but implementation is inconsistent",
             "requirements": {
-                "has_policy": "or_control",
-                "has_control": "or_policy",
+                "has_policy": True,
                 "has_documentation": "partial",
                 "has_operation": "partial",
             },
@@ -54,10 +51,9 @@ class ScoringRubric:
         3: {
             "name": "Repeatable",
             "tier": "Tier 3",
-            "description": "Policy AND control exist, documented, consistent execution",
+            "description": "Policy exists, documented, consistent execution",
             "requirements": {
                 "has_policy": True,
-                "has_control": True,
                 "has_documentation": True,
                 "has_operation": True,
             },
@@ -68,7 +64,6 @@ class ScoringRubric:
             "description": "All Tier 3 requirements plus metrics and continuous improvement",
             "requirements": {
                 "has_policy": True,
-                "has_control": True,
                 "has_documentation": True,
                 "has_operation": True,
                 "has_metrics": True,
@@ -88,7 +83,6 @@ class ScoringRubric:
         Args:
             evidence: Dictionary containing:
                 - has_policy: bool
-                - has_control: bool
                 - has_documentation: bool or "partial"
                 - has_operation: bool or "partial"
                 - has_metrics: bool (optional)
@@ -101,22 +95,19 @@ class ScoringRubric:
             Tuple of (score, score_breakdown)
         """
         has_policy = evidence.get("has_policy", False)
-        has_control = evidence.get("has_control", False)
         has_documentation = evidence.get("has_documentation", False)
         has_operation = evidence.get("has_operation", False)
         has_metrics = evidence.get("has_metrics", False)
         has_improvement = evidence.get("has_improvement", False)
 
         # For design-only assessments, assume operation is satisfied if
-        # policy and controls are in place (don't penalize for missing
-        # operational evidence since it's not being evaluated)
+        # policy is in place (don't penalize for missing operational evidence)
         if depth_level == "design" and not has_operation:
-            if has_policy and has_control:
+            if has_policy:
                 has_operation = True
 
         breakdown = {
             "has_policy": has_policy,
-            "has_control": has_control,
             "has_documentation": has_documentation,
             "has_operation": has_operation,
             "has_metrics": has_metrics,
@@ -124,20 +115,20 @@ class ScoringRubric:
         }
 
         # Score determination logic
-        if not has_policy and not has_control:
+        if not has_policy:
             # Check if there's any evidence at all
             if has_operation == "partial" or has_documentation == "partial":
                 score = MaturityTier.PARTIAL
             else:
                 score = MaturityTier.NON_EXISTENT
-        elif has_policy and has_control and has_documentation and has_operation:
+        elif has_policy and has_documentation and has_operation:
             # At least Tier 3
             if has_metrics and has_improvement:
                 score = MaturityTier.ADAPTIVE
             else:
                 score = MaturityTier.REPEATABLE
-        elif has_policy or has_control:
-            # Tier 2 - at least one exists
+        elif has_policy:
+            # Tier 2 - policy exists but not fully documented/operational
             score = MaturityTier.RISK_INFORMED
         else:
             score = MaturityTier.PARTIAL
@@ -168,7 +159,6 @@ class ScoringRubric:
         """
         evidence = {
             "has_policy": False,
-            "has_control": False,
             "has_documentation": False,
             "has_operation": False,
             "has_metrics": False,
@@ -183,16 +173,9 @@ class ScoringRubric:
             is_strong_positive = value in ["yes", "true", "1"]
 
             if q_type == "existence":
-                # Existence questions indicate presence of policy/control
-                if "policy" in resp.get("question_text", "").lower():
-                    evidence["has_policy"] = is_positive
-                elif "control" in resp.get("question_text", "").lower():
-                    evidence["has_control"] = is_positive
-                else:
-                    # Generic existence - assume it indicates both
-                    if is_positive:
-                        evidence["has_policy"] = True
-                        evidence["has_control"] = True
+                # Existence questions indicate presence of policy
+                if is_positive:
+                    evidence["has_policy"] = True
 
             elif q_type == "documentation":
                 if is_strong_positive:
@@ -207,7 +190,7 @@ class ScoringRubric:
                     evidence["has_operation"] = "partial"
 
             elif q_type == "design":
-                # Design questions can indicate policy/control quality
+                # Design questions can indicate policy quality
                 pass  # Captured in the overall assessment
 
         return evidence

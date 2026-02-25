@@ -3,7 +3,6 @@ export * from './auth';
 export * from './users';
 export * from './dashboard';
 export * from './assessments';
-export * from './controls';
 export * from './policies';
 export * from './mappings';
 export * from './interviews';

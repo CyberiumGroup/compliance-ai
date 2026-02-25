@@ -5,7 +5,6 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.models.control import Control, ControlMapping
 from app.models.policy import Policy, PolicyMapping
 from app.models.unified_framework import FrameworkRequirement, AssessmentFrameworkScope
 from app.services.frameworks.requirement_service import RequirementService
@@ -22,10 +21,7 @@ class GapDetectionService:
         """
         Detect coverage gaps for an assessment.
 
-        Identifies assessable requirements that are missing approved mappings:
-        - Requirements with no approved mappings (policy or control)
-        - Requirements with only policy mappings
-        - Requirements with only control mappings
+        Identifies assessable requirements that have no approved policy mappings.
 
         Returns:
             Gap analysis results
@@ -36,10 +32,9 @@ class GapDetectionService:
         if not requirements:
             return {
                 "assessment_id": assessment_id,
+                "total_requirements": 0,
                 "total_gaps": 0,
                 "unmapped_requirements": 0,
-                "policy_only_count": 0,
-                "control_only_count": 0,
                 "coverage_percentage": 0.0,
                 "gaps": [],
             }
@@ -57,70 +52,38 @@ class GapDetectionService:
         )
         policy_req_ids = {pm.requirement_id for pm in policy_mappings}
 
-        # Get approved control mappings for this assessment
-        control_mappings = (
-            self.db.query(ControlMapping)
-            .join(Control)
-            .filter(
-                Control.assessment_id == assessment_id,
-                ControlMapping.is_approved == True,
-                ControlMapping.requirement_id.isnot(None),
-            )
-            .all()
-        )
-        control_req_ids = {cm.requirement_id for cm in control_mappings}
-
-        # Build name lookups
+        # Build policy name lookup
         policy_names_by_req: dict[uuid.UUID, list[str]] = {}
         for pm in policy_mappings:
             policy = self.db.query(Policy).filter(Policy.id == pm.policy_id).first()
             if policy:
                 policy_names_by_req.setdefault(pm.requirement_id, []).append(policy.name)
 
-        control_names_by_req: dict[uuid.UUID, list[str]] = {}
-        for cm in control_mappings:
-            control = self.db.query(Control).filter(Control.id == cm.control_id).first()
-            if control:
-                control_names_by_req.setdefault(cm.requirement_id, []).append(control.name)
-
         gaps = []
         unmapped_count = 0
-        policy_only_count = 0
-        control_only_count = 0
 
         for req in requirements:
             has_policy = req.id in policy_req_ids
-            has_control = req.id in control_req_ids
 
-            if not has_policy and not has_control:
-                gap_type = "unmapped_requirement"
-                unmapped_count += 1
-            elif has_policy and not has_control:
-                gap_type = "policy_only"
-                policy_only_count += 1
-            elif has_control and not has_policy:
-                gap_type = "control_only"
-                control_only_count += 1
-            else:
+            if has_policy:
                 # Fully covered
                 continue
+
+            unmapped_count += 1
 
             # Get parent and framework info
             parent_code = req.parent.code if req.parent else None
             framework_name = req.framework.name if req.framework else None
 
             gaps.append({
-                "gap_type": gap_type,
+                "gap_type": "unmapped_requirement",
                 "requirement_id": req.id,
                 "requirement_code": req.code,
                 "requirement_name": req.name,
                 "requirement_description": req.description,
                 "framework_name": framework_name,
                 "parent_code": parent_code,
-                "has_policy": has_policy,
-                "has_control": has_control,
                 "policy_names": policy_names_by_req.get(req.id),
-                "control_names": control_names_by_req.get(req.id),
             })
 
         total_requirements = len(requirements)
@@ -132,8 +95,6 @@ class GapDetectionService:
             "total_requirements": total_requirements,
             "total_gaps": len(gaps),
             "unmapped_requirements": unmapped_count,
-            "policy_only_count": policy_only_count,
-            "control_only_count": control_only_count,
             "coverage_percentage": round(coverage_percentage, 2),
             "gaps": gaps,
         }

@@ -4,7 +4,6 @@ import {
   MappingGenerateResponse,
   MappingApproveResponse,
   GapListResponse,
-  ControlMapping,
   PolicyMapping,
 } from '../types';
 
@@ -52,23 +51,13 @@ export async function rejectMapping(
 export async function clearAllMappings(
   assessmentId: string,
   userId?: string
-): Promise<{ control_mappings_deleted: number; policy_mappings_deleted: number; total_deleted: number }> {
+): Promise<{ policy_mappings_deleted: number; total_deleted: number }> {
   return apiRequest(
     `/mappings/assessments/${assessmentId}/all`,
     {
       method: 'DELETE',
       userId,
     }
-  );
-}
-
-export async function listControlMappings(
-  assessmentId: string,
-  userId?: string
-): Promise<ControlMapping[]> {
-  return apiRequest<ControlMapping[]>(
-    `/mappings/assessments/${assessmentId}/controls`,
-    { userId }
   );
 }
 
@@ -107,24 +96,22 @@ export interface BulkMappingResponse {
 
 export async function bulkApproveMappings(
   mappingIds: string[],
-  mappingType: 'policy' | 'control',
   userId?: string
 ): Promise<BulkMappingResponse> {
   return apiRequest<BulkMappingResponse>('/mappings/bulk-approve', {
     method: 'POST',
-    body: { mapping_ids: mappingIds, mapping_type: mappingType },
+    body: { mapping_ids: mappingIds, mapping_type: 'policy' },
     userId,
   });
 }
 
 export async function bulkRejectMappings(
   mappingIds: string[],
-  mappingType: 'policy' | 'control',
   userId?: string
 ): Promise<BulkMappingResponse> {
   return apiRequest<BulkMappingResponse>('/mappings/bulk-reject', {
     method: 'POST',
-    body: { mapping_ids: mappingIds, mapping_type: mappingType },
+    body: { mapping_ids: mappingIds, mapping_type: 'policy' },
     userId,
   });
 }

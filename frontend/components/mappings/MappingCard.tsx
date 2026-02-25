@@ -1,18 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { Link2, FileText, Check, X, Loader2, ArrowRight, Lightbulb } from 'lucide-react';
+import { FileText, Check, X, Loader2, ArrowRight, Lightbulb } from 'lucide-react';
 import { Card, CardContent, Button } from '@/components/ui';
-import { ControlMapping, PolicyMapping } from '@/lib/types';
+import { PolicyMapping } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 interface MappingCardProps {
-  mapping: ControlMapping | PolicyMapping;
-  type: 'control' | 'policy';
+  mapping: PolicyMapping;
   onApprove: (approved: boolean) => Promise<void>;
 }
 
-export function MappingCard({ mapping, type, onApprove }: MappingCardProps) {
+export function MappingCard({ mapping, onApprove }: MappingCardProps) {
   const [loading, setLoading] = useState(false);
 
   const handleAction = async (approved: boolean) => {
@@ -24,16 +23,10 @@ export function MappingCard({ mapping, type, onApprove }: MappingCardProps) {
     }
   };
 
-  const entityName = type === 'control'
-    ? (mapping as ControlMapping).control_name
-    : (mapping as PolicyMapping).policy_name;
-
-  const entityDescription = type === 'control'
-    ? (mapping as ControlMapping).control_description
-    : (mapping as PolicyMapping).policy_description;
-
+  const entityName = mapping.policy_name;
+  const entityDescription = mapping.policy_description;
   const reasoning = mapping.reasoning;
-  const sourceExcerpt = type === 'policy' ? (mapping as PolicyMapping).source_excerpt : null;
+  const sourceExcerpt = mapping.source_excerpt;
 
   const reqCode = mapping.requirement_code || mapping.subcategory_code;
   const reqName = mapping.requirement_name;
@@ -61,7 +54,6 @@ export function MappingCard({ mapping, type, onApprove }: MappingCardProps) {
   };
 
   const colors = getConfidenceColor(confidencePercent);
-  const Icon = type === 'control' ? Link2 : FileText;
 
   return (
     <Card className={cn(
@@ -72,14 +64,9 @@ export function MappingCard({ mapping, type, onApprove }: MappingCardProps) {
         {/* Header: type badge, confidence, and actions */}
         <div className="flex items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3">
-            <span className={cn(
-              'inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg',
-              type === 'control'
-                ? 'bg-blue-100 text-blue-700'
-                : 'bg-purple-100 text-purple-700'
-            )}>
-              <Icon className="h-3.5 w-3.5" />
-              {type}
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-purple-100 text-purple-700">
+              <FileText className="h-3.5 w-3.5" />
+              policy
             </span>
             <div className="relative group flex items-center gap-2 cursor-help">
               <div className="w-24 bg-neutral-100 rounded-full h-2 overflow-hidden">
@@ -91,7 +78,7 @@ export function MappingCard({ mapping, type, onApprove }: MappingCardProps) {
               <span className={cn('text-sm font-bold', colors.text)}>{confidencePercent}%</span>
               <div className="absolute left-0 top-full mt-2 w-64 p-3 rounded-lg bg-neutral-800 text-white text-xs leading-relaxed shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-10">
                 <p className="font-semibold mb-1">AI Confidence Score</p>
-                <p>How confident the AI model is that this {type} maps to the suggested requirement. Higher scores indicate a stronger semantic match between the two. Review the descriptions to verify the mapping is correct.</p>
+                <p>How confident the AI model is that this policy maps to the suggested requirement. Higher scores indicate a stronger semantic match. Review the descriptions to verify the mapping is correct.</p>
               </div>
             </div>
           </div>
@@ -140,18 +127,10 @@ export function MappingCard({ mapping, type, onApprove }: MappingCardProps) {
 
         {/* Side-by-side comparison */}
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-3 items-stretch">
-          {/* Left: Control/Policy */}
-          <div className={cn(
-            'rounded-lg border p-4',
-            type === 'control'
-              ? 'bg-blue-50/50 border-blue-200'
-              : 'bg-purple-50/50 border-purple-200'
-          )}>
-            <p className={cn(
-              'text-xs font-semibold uppercase tracking-wide mb-2',
-              type === 'control' ? 'text-blue-500' : 'text-purple-500'
-            )}>
-              {type}
+          {/* Left: Policy */}
+          <div className="rounded-lg border p-4 bg-purple-50/50 border-purple-200">
+            <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-purple-500">
+              policy
             </p>
             <h4 className="font-semibold text-neutral-900 text-sm">
               {entityName || 'Unknown'}

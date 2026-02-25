@@ -3,49 +3,41 @@
 import { useState } from 'react';
 import { Clock, Check, List } from 'lucide-react';
 import { MappingCard } from './MappingCard';
-import { ControlMapping, PolicyMapping } from '@/lib/types';
+import { PolicyMapping } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 type StatusFilter = 'all' | 'pending' | 'approved';
 
 interface MappingsListProps {
-  controlMappings: ControlMapping[];
   policyMappings: PolicyMapping[];
-  onApproveControl: (mappingId: string, approved: boolean) => Promise<void>;
   onApprovePolicy: (mappingId: string, approved: boolean) => Promise<void>;
 }
 
 export function MappingsList({
-  controlMappings,
   policyMappings,
-  onApproveControl,
   onApprovePolicy,
 }: MappingsListProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
 
-  const allMappings = [
-    ...controlMappings.map((m) => ({ ...m, _type: 'control' as const })),
-    ...policyMappings.map((m) => ({ ...m, _type: 'policy' as const })),
-  ].sort((a, b) => {
-    // Sort by approval status (pending first), then by confidence
+  if (policyMappings.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        No mappings generated yet. Click &quot;Suggest Mappings&quot; to analyze your policies.
+      </div>
+    );
+  }
+
+  const sortedMappings = [...policyMappings].sort((a, b) => {
     if (a.is_approved !== b.is_approved) {
       return a.is_approved ? 1 : -1;
     }
     return (b.confidence_score || 0) - (a.confidence_score || 0);
   });
 
-  if (allMappings.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        No mappings generated yet. Click &quot;Suggest Mappings&quot; to analyze your controls and policies.
-      </div>
-    );
-  }
+  const pendingCount = sortedMappings.filter((m) => !m.is_approved).length;
+  const approvedCount = sortedMappings.filter((m) => m.is_approved).length;
 
-  const pendingCount = allMappings.filter((m) => !m.is_approved).length;
-  const approvedCount = allMappings.filter((m) => m.is_approved).length;
-
-  const filteredMappings = allMappings.filter((m) => {
+  const filteredMappings = sortedMappings.filter((m) => {
     if (statusFilter === 'pending') return !m.is_approved;
     if (statusFilter === 'approved') return m.is_approved;
     return true;
@@ -54,7 +46,7 @@ export function MappingsList({
   const filters: { id: StatusFilter; label: string; count: number; icon: typeof List }[] = [
     { id: 'pending', label: 'Pending Review', count: pendingCount, icon: Clock },
     { id: 'approved', label: 'Approved', count: approvedCount, icon: Check },
-    { id: 'all', label: 'All', count: allMappings.length, icon: List },
+    { id: 'all', label: 'All', count: sortedMappings.length, icon: List },
   ];
 
   return (
@@ -111,12 +103,7 @@ export function MappingsList({
             <MappingCard
               key={mapping.id}
               mapping={mapping}
-              type={mapping._type}
-              onApprove={(approved) =>
-                mapping._type === 'control'
-                  ? onApproveControl(mapping.id, approved)
-                  : onApprovePolicy(mapping.id, approved)
-              }
+              onApprove={(approved) => onApprovePolicy(mapping.id, approved)}
             />
           ))}
         </div>

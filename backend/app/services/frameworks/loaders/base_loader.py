@@ -13,7 +13,6 @@ from app.models.unified_framework import (
     RequirementCrosswalk,
     RequirementClusterMember,
 )
-from app.models.control import ControlMapping
 from app.models.policy import PolicyMapping
 from app.models.interview import InterviewQuestion
 from app.models.score import SubcategoryScore
@@ -188,10 +187,6 @@ class BaseFrameworkLoader(ABC):
         ).delete(synchronize_session=False)
 
         # Null out nullable FK columns in dependent tables
-        db.query(ControlMapping).filter(
-            ControlMapping.requirement_id.in_(req_ids)
-        ).update({ControlMapping.requirement_id: None}, synchronize_session=False)
-
         db.query(PolicyMapping).filter(
             PolicyMapping.requirement_id.in_(req_ids)
         ).update({PolicyMapping.requirement_id: None}, synchronize_session=False)

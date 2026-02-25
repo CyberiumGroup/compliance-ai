@@ -3,7 +3,6 @@
 import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import {
-  Settings,
   FileText,
   Link2,
   MessageSquare,
@@ -14,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { LoadingSpinner } from '@/components/ui';
-import { getAssessment, listControls, listPolicies, listSessions, getScoreSummary, getAssessmentScope, listFrameworks } from '@/lib/api';
+import { getAssessment, listPolicies, listSessions, getScoreSummary, getAssessmentScope, listFrameworks } from '@/lib/api';
 import { useUserId } from '@/lib/hooks/useUserId';
 import { Assessment, AssessmentScope, Framework } from '@/lib/types';
 import { WorkflowStepper } from '@/components/assessment/WorkflowStepper';
@@ -25,7 +24,6 @@ interface OverviewPageProps {
 }
 
 interface Stats {
-  controls: number;
   policies: number;
   interviews: number;
   overallScore: number | null;
@@ -39,13 +37,6 @@ interface FrameworkInfo {
 }
 
 const statConfig = [
-  {
-    name: 'Controls',
-    icon: Settings,
-    gradient: 'from-primary-500 to-primary-600',
-    bgGradient: 'from-primary-50 to-primary-100',
-    textColor: 'text-primary-600'
-  },
   {
     name: 'Policies',
     icon: FileText,
@@ -74,7 +65,6 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
   const userId = useUserId();
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [stats, setStats] = useState<Stats>({
-    controls: 0,
     policies: 0,
     interviews: 0,
     overallScore: null,
@@ -87,9 +77,8 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
 
     const fetchData = async () => {
       try {
-        const [assessmentData, controls, policies, sessions] = await Promise.all([
+        const [assessmentData, policies, sessions] = await Promise.all([
           getAssessment(id, userId),
-          listControls(id, userId).catch(() => []),
           listPolicies(id, userId).catch(() => []),
           listSessions(id, userId).catch(() => []),
         ]);
@@ -125,7 +114,6 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
         }
 
         setStats({
-          controls: controls.length,
           policies: policies.length,
           interviews: sessions.length,
           overallScore,
@@ -149,11 +137,10 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
   }
 
   const statCards = [
-    { ...statConfig[0], value: stats.controls, href: `/assessments/${id}/controls` },
-    { ...statConfig[1], value: stats.policies, href: `/assessments/${id}/policies` },
-    { ...statConfig[2], value: stats.interviews, href: `/assessments/${id}/interviews` },
+    { ...statConfig[0], value: stats.policies, href: `/assessments/${id}/policies` },
+    { ...statConfig[1], value: stats.interviews, href: `/assessments/${id}/interviews` },
     {
-      ...statConfig[3],
+      ...statConfig[2],
       value: stats.overallScore !== null ? stats.overallScore.toFixed(1) : '-',
       href: `/assessments/${id}/scores`,
       suffix: stats.overallScore !== null ? '/4.0' : '',
@@ -161,14 +148,6 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
   ];
 
   const quickActions = [
-    {
-      title: 'Upload Controls',
-      description: 'Import CSV/XLSX',
-      href: `/assessments/${id}/controls`,
-      icon: Settings,
-      gradient: 'from-primary-500 to-primary-600',
-      bgGradient: 'from-primary-50 to-primary-100',
-    },
     {
       title: 'Upload Policies',
       description: 'PDF, DOCX, TXT, MD',

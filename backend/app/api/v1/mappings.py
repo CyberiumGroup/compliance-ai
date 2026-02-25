@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models.control import ControlMapping
 from app.models.policy import PolicyMapping
 from app.models.user import User
 from app.schemas.mapping import (
@@ -16,7 +15,6 @@ from app.schemas.mapping import (
     BulkMappingRequest,
     BulkMappingResponse,
 )
-from app.schemas.control import ControlMappingResponse
 from app.schemas.policy import PolicyMappingResponse
 from app.dependencies.auth import get_current_user, require_user
 from app.services.mapping.ai_mapper import AIMappingService
@@ -41,8 +39,6 @@ async def generate_mappings(
     result = mapper.generate_mappings_for_assessment(
         assessment_id=assessment_id,
         user_id=current_user.id,
-        include_policies=request.include_policies,
-        include_controls=request.include_controls,
         confidence_threshold=request.confidence_threshold,
     )
 
@@ -73,30 +69,6 @@ async def get_policy_mappings(
     return [PolicyMappingResponse.model_validate(m) for m in mappings]
 
 
-@router.get("/assessments/{assessment_id}/controls")
-async def get_control_mappings(
-    assessment_id: uuid.UUID,
-    approved_only: bool = False,
-    db: Session = Depends(get_db),
-    current_user: User | None = Depends(get_current_user),
-):
-    """Get all control mappings for an assessment."""
-    from app.models.control import Control
-
-    query = (
-        db.query(ControlMapping)
-        .join(Control)
-        .filter(Control.assessment_id == assessment_id)
-    )
-
-    if approved_only:
-        query = query.filter(ControlMapping.is_approved == True)
-
-    mappings = query.all()
-
-    return [ControlMappingResponse.model_validate(m) for m in mappings]
-
-
 @router.post("/{mapping_id}/approve")
 async def approve_mapping(
     mapping_id: uuid.UUID,
@@ -104,12 +76,11 @@ async def approve_mapping(
     current_user: User = Depends(require_user),
 ):
     """Approve a mapping suggestion."""
-    mapping_type = _detect_mapping_type(db, mapping_id)
     mapper = AIMappingService(db)
 
     result = mapper.approve_mapping(
         mapping_id=mapping_id,
-        mapping_type=mapping_type,
+        mapping_type="policy",
         approved=True,
         user_id=current_user.id,
     )
@@ -132,12 +103,7 @@ async def reject_mapping(
     """Reject and delete a mapping suggestion."""
     from app.services.audit.audit_service import AuditService
 
-    mapping_type = _detect_mapping_type(db, mapping_id)
-
-    if mapping_type == "control":
-        mapping = db.query(ControlMapping).filter(ControlMapping.id == mapping_id).first()
-    else:
-        mapping = db.query(PolicyMapping).filter(PolicyMapping.id == mapping_id).first()
+    mapping = db.query(PolicyMapping).filter(PolicyMapping.id == mapping_id).first()
 
     if not mapping:
         raise HTTPException(
@@ -147,7 +113,7 @@ async def reject_mapping(
 
     audit_service = AuditService(db)
     audit_service.log_delete(
-        entity_type=f"{mapping_type}_mapping",
+        entity_type="policy_mapping",
         entity_id=mapping_id,
         old_values={"is_approved": mapping.is_approved},
         user_id=current_user.id,
@@ -157,18 +123,6 @@ async def reject_mapping(
     db.commit()
 
     return {"mapping_id": mapping_id, "deleted": True}
-
-
-def _detect_mapping_type(db: Session, mapping_id: uuid.UUID) -> str:
-    """Auto-detect whether a mapping ID belongs to a control or policy mapping."""
-    if db.query(ControlMapping).filter(ControlMapping.id == mapping_id).first():
-        return "control"
-    if db.query(PolicyMapping).filter(PolicyMapping.id == mapping_id).first():
-        return "policy"
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Mapping not found",
-    )
 
 
 @router.delete("/assessments/{assessment_id}/all")
@@ -221,14 +175,9 @@ async def bulk_approve_mappings(
 
     for mapping_id in request.mapping_ids:
         try:
-            if request.mapping_type == "control":
-                mapping = db.query(ControlMapping).filter(
-                    ControlMapping.id == mapping_id
-                ).first()
-            else:
-                mapping = db.query(PolicyMapping).filter(
-                    PolicyMapping.id == mapping_id
-                ).first()
+            mapping = db.query(PolicyMapping).filter(
+                PolicyMapping.id == mapping_id
+            ).first()
 
             if not mapping:
                 results.append({
@@ -244,7 +193,7 @@ async def bulk_approve_mappings(
             mapping.approved_at = datetime.utcnow()
 
             audit_service.log_update(
-                entity_type=f"{request.mapping_type}_mapping",
+                entity_type="policy_mapping",
                 entity_id=mapping_id,
                 old_values={"is_approved": False},
                 new_values={"is_approved": True},
@@ -297,14 +246,9 @@ async def bulk_reject_mappings(
 
     for mapping_id in request.mapping_ids:
         try:
-            if request.mapping_type == "control":
-                mapping = db.query(ControlMapping).filter(
-                    ControlMapping.id == mapping_id
-                ).first()
-            else:
-                mapping = db.query(PolicyMapping).filter(
-                    PolicyMapping.id == mapping_id
-                ).first()
+            mapping = db.query(PolicyMapping).filter(
+                PolicyMapping.id == mapping_id
+            ).first()
 
             if not mapping:
                 results.append({
@@ -318,7 +262,7 @@ async def bulk_reject_mappings(
             db.delete(mapping)
 
             audit_service.log_delete(
-                entity_type=f"{request.mapping_type}_mapping",
+                entity_type="policy_mapping",
                 entity_id=mapping_id,
                 old_values={"is_approved": mapping.is_approved},
                 user_id=current_user.id,
