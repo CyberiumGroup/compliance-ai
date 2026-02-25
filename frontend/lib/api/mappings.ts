@@ -48,6 +48,19 @@ export async function rejectMapping(
   );
 }
 
+export async function unrejectMapping(
+  mappingId: string,
+  userId?: string
+): Promise<MappingApproveResponse> {
+  return apiRequest<MappingApproveResponse>(
+    `/mappings/${mappingId}/unreject`,
+    {
+      method: 'POST',
+      userId,
+    }
+  );
+}
+
 export async function clearAllMappings(
   assessmentId: string,
   userId?: string
