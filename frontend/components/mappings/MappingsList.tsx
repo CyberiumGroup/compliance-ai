@@ -180,6 +180,7 @@ interface NodeSectionProps {
   collapsedNodes: Set<string>;
   onToggleNode: (key: string) => void;
   defaultThreshold: number;
+  onThresholdChange: (code: string, threshold: number) => void;
   onReject: (mappingId: string) => Promise<void>;
   onUnreject: (mappingId: string) => Promise<void>;
 }
@@ -192,6 +193,7 @@ function NodeSection({
   collapsedNodes,
   onToggleNode,
   defaultThreshold,
+  onThresholdChange,
   onReject,
   onUnreject,
 }: NodeSectionProps) {
@@ -260,6 +262,7 @@ function NodeSection({
               collapsedNodes={collapsedNodes}
               onToggleNode={onToggleNode}
               defaultThreshold={defaultThreshold}
+              onThresholdChange={onThresholdChange}
               onReject={onReject}
               onUnreject={onUnreject}
             />
@@ -281,6 +284,7 @@ function NodeSection({
                   requirementParentCode={req.requirementParentCode}
                   mappings={req.mappings}
                   defaultThreshold={defaultThreshold}
+                  onThresholdChange={(t) => onThresholdChange(req.requirementCode, t)}
                   onReject={onReject}
                   onUnreject={onUnreject}
                 />
@@ -314,6 +318,7 @@ export function MappingsList({
   const [collapsedFw, setCollapsedFw] = useState<Set<string>>(new Set());
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
   const [globalThreshold, setGlobalThreshold] = useState(initialThreshold ?? DEFAULT_GLOBAL_THRESHOLD);
+  const [reqThresholds, setReqThresholds] = useState<Map<string, number>>(new Map());
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -330,6 +335,22 @@ export function MappingsList({
     [policyMappings, globalThreshold]
   );
   const totalMissing = frameworks.reduce((s, fw) => s + fw.missingCount, 0);
+
+  const handleReqThresholdChange = (code: string, t: number) =>
+    setReqThresholds(prev => new Map(prev).set(code, t));
+
+  const traversalStats = useMemo(() => {
+    const uniqueReqs = new Set(policyMappings.map(m => m.requirement_code).filter(Boolean)).size;
+    const uniqueDocs = new Set(policyMappings.map(m => m.policy_id)).size;
+    const baseline = uniqueReqs * uniqueDocs;
+    const relevant = policyMappings.filter(m => {
+      if (m.is_rejected) return false;
+      const t = reqThresholds.get(m.requirement_code ?? '') ?? globalThreshold;
+      return computeScore(m) >= t;
+    }).length;
+    const reduction = baseline > 0 ? Math.round((1 - relevant / baseline) * 100) : 0;
+    return { uniqueReqs, uniqueDocs, baseline, relevant, reduction };
+  }, [policyMappings, globalThreshold, reqThresholds]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -425,9 +446,9 @@ export function MappingsList({
           type="range"
           min={0}
           max={100}
-          step={5}
+          step={1}
           value={globalThreshold}
-          onChange={e => { setGlobalThreshold(Number(e.target.value)); setSaved(false); }}
+          onChange={e => { setGlobalThreshold(Number(e.target.value)); setSaved(false); setReqThresholds(new Map()); }}
           className="w-32 accent-primary-500 cursor-pointer"
         />
         <span className="w-8 text-right tabular-nums font-semibold">{globalThreshold}%</span>
@@ -450,12 +471,30 @@ export function MappingsList({
         </button>
         {globalThreshold !== (initialThreshold ?? DEFAULT_GLOBAL_THRESHOLD) && (
           <button
-            onClick={() => { setGlobalThreshold(initialThreshold ?? DEFAULT_GLOBAL_THRESHOLD); setSaved(false); }}
+            onClick={() => { setGlobalThreshold(initialThreshold ?? DEFAULT_GLOBAL_THRESHOLD); setSaved(false); setReqThresholds(new Map()); }}
             className="text-neutral-400 hover:text-neutral-600 transition-colors"
           >
             Reset
           </button>
         )}
+      </div>
+
+      {/* Traversal reduction stats */}
+      <div className="flex items-center gap-6 px-4 py-3 rounded-lg bg-primary-50/60 border border-primary-100">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-3xl font-bold text-primary-700 tabular-nums">{traversalStats.reduction}%</span>
+          <span className="text-sm font-medium text-primary-600">reduction in document review</span>
+        </div>
+        <div className="h-8 w-px bg-primary-200" />
+        <div className="text-xs text-neutral-600 space-y-0.5">
+          <p>
+            <span className="font-semibold text-neutral-800">{traversalStats.relevant}</span> relevant pairs at current thresholds
+            {' '}vs <span className="font-semibold text-neutral-800">{traversalStats.baseline}</span> baseline
+          </p>
+          <p className="text-neutral-400">
+            {traversalStats.uniqueReqs} requirements × {traversalStats.uniqueDocs} documents
+          </p>
+        </div>
       </div>
 
       {/* Collapse / expand all */}
@@ -521,6 +560,7 @@ export function MappingsList({
                       collapsedNodes={collapsedNodes}
                       onToggleNode={toggleNode}
                       defaultThreshold={globalThreshold}
+                      onThresholdChange={handleReqThresholdChange}
                       onReject={onRejectPolicy}
                       onUnreject={onUnrejectPolicy}
                     />
@@ -539,6 +579,7 @@ export function MappingsList({
                           requirementParentCode={req.requirementParentCode}
                           mappings={req.mappings}
                           defaultThreshold={globalThreshold}
+                          onThresholdChange={(t) => handleReqThresholdChange(req.requirementCode, t)}
                           onReject={onRejectPolicy}
                           onUnreject={onUnrejectPolicy}
                         />

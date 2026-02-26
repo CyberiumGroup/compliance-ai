@@ -14,6 +14,7 @@ interface RequirementMappingGroupProps {
   requirementParentCode: string | null;
   mappings: PolicyMapping[];
   defaultThreshold: number;
+  onThresholdChange?: (threshold: number) => void;
   onReject: (mappingId: string) => Promise<void>;
   onUnreject: (mappingId: string) => Promise<void>;
 }
@@ -26,6 +27,7 @@ export function RequirementMappingGroup({
   requirementParentCode,
   mappings,
   defaultThreshold,
+  onThresholdChange,
   onReject,
   onUnreject,
 }: RequirementMappingGroupProps) {
@@ -149,9 +151,9 @@ export function RequirementMappingGroup({
               type="range"
               min={0}
               max={100}
-              step={5}
+              step={1}
               value={threshold}
-              onChange={(e) => setThreshold(Number(e.target.value))}
+              onChange={(e) => { const t = Number(e.target.value); setThreshold(t); onThresholdChange?.(t); }}
               className="w-28 accent-primary-500 cursor-pointer"
             />
             <span className="text-xs font-semibold text-neutral-700 w-8 text-right tabular-nums">
