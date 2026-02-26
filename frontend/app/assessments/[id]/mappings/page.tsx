@@ -11,6 +11,8 @@ import {
   listPolicyMappings,
   rejectMapping,
   unrejectMapping,
+  getAssessment,
+  updateAssessment,
 } from '@/lib/api';
 import { useUserId } from '@/lib/hooks/useUserId';
 import { PolicyMapping } from '@/lib/types';
@@ -23,6 +25,7 @@ export default function MappingsPage({ params }: MappingsPageProps) {
   const { id } = use(params);
   const userId = useUserId();
   const [policyMappings, setPolicyMappings] = useState<PolicyMapping[]>([]);
+  const [savedThreshold, setSavedThreshold] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [clearing, setClearing] = useState(false);
@@ -32,8 +35,14 @@ export default function MappingsPage({ params }: MappingsPageProps) {
     if (!userId) return;
 
     try {
-      const policies = await listPolicyMappings(id, userId).catch(() => []);
+      const [policies, assessment] = await Promise.all([
+        listPolicyMappings(id, userId).catch(() => []),
+        getAssessment(id, userId).catch(() => null),
+      ]);
       setPolicyMappings(policies);
+      if (assessment?.policy_mapping_threshold != null) {
+        setSavedThreshold(assessment.policy_mapping_threshold);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load mappings');
     } finally {
@@ -46,6 +55,12 @@ export default function MappingsPage({ params }: MappingsPageProps) {
       fetchMappings();
     }
   }, [id, userId]);
+
+  const handleSaveThreshold = async (threshold: number) => {
+    if (!userId) return;
+    await updateAssessment(id, { policy_mapping_threshold: threshold }, userId);
+    setSavedThreshold(threshold);
+  };
 
   const handleGenerate = async () => {
     if (!userId) return;
@@ -169,6 +184,8 @@ export default function MappingsPage({ params }: MappingsPageProps) {
         <CardContent>
           <MappingsList
             policyMappings={policyMappings}
+            initialThreshold={savedThreshold ?? undefined}
+            onSaveThreshold={handleSaveThreshold}
             onRejectPolicy={handleRejectPolicy}
             onUnrejectPolicy={handleUnrejectPolicy}
           />

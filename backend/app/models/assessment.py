@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, JSON
+from sqlalchemy import DateTime, Float, ForeignKey, String, Text, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional
@@ -41,6 +41,7 @@ class Assessment(Base):
         String(50), default=AssessmentDepth.DESIGN.value, nullable=False
     )
     ai_prompt_overrides: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    policy_mapping_threshold: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )

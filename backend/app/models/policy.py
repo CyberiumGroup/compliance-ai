@@ -133,6 +133,23 @@ class PolicyMapping(Base):
         return None
 
     @property
+    def requirement_level(self) -> int | None:
+        return self.requirement.level if self.requirement else None
+
+    @property
+    def requirement_ancestors(self) -> list[dict] | None:
+        """Ordered list of ancestors from root to immediate parent: [{code, name}, ...]."""
+        if not self.requirement:
+            return None
+        ancestors = []
+        node = self.requirement.parent
+        while node is not None:
+            ancestors.append({"code": node.code, "name": node.name})
+            node = node.parent
+        ancestors.reverse()
+        return ancestors if ancestors else None
+
+    @property
     def requirement_guidance(self) -> str | None:
         return self.requirement.guidance if self.requirement else None
 

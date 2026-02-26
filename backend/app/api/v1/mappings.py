@@ -54,11 +54,22 @@ async def get_policy_mappings(
 ):
     """Get all policy mappings for an assessment."""
     from app.models.policy import Policy
+    from app.models.unified_framework import FrameworkRequirement
+    from sqlalchemy.orm import selectinload
+
+    # Eager-load up to 3 levels of the requirement ancestor chain to avoid N+1 queries
+    ancestor_chain = (
+        selectinload(PolicyMapping.requirement)
+        .selectinload(FrameworkRequirement.parent)
+        .selectinload(FrameworkRequirement.parent)
+        .selectinload(FrameworkRequirement.parent)
+    )
 
     query = (
         db.query(PolicyMapping)
         .join(Policy)
         .filter(Policy.assessment_id == assessment_id)
+        .options(ancestor_chain)
     )
 
     if approved_only:

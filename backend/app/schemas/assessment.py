@@ -35,6 +35,7 @@ class AssessmentUpdate(BaseModel):
     status: AssessmentStatus | None = None
     depth_level: AssessmentDepth | None = None
     ai_prompt_overrides: AIPromptOverrides | None = None
+    policy_mapping_threshold: float | None = Field(default=None, ge=0.0, le=100.0)
 
 
 class AssessmentResponse(AssessmentBase):
@@ -43,6 +44,7 @@ class AssessmentResponse(AssessmentBase):
     status: str
     depth_level: str
     ai_prompt_overrides: dict | None = None
+    policy_mapping_threshold: float | None = None
     created_by_id: UUID
     created_at: datetime
     updated_at: datetime

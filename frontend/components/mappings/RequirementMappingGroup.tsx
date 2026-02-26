@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, FileText, BookOpen, XCircle, AlertTriangle } from 'lucide-react';
 import { PolicyMapping } from '@/lib/types';
 import { PolicyRelevanceRow } from './PolicyRelevanceRow';
@@ -13,11 +13,10 @@ interface RequirementMappingGroupProps {
   requirementGuidance: string | null;
   requirementParentCode: string | null;
   mappings: PolicyMapping[];
+  defaultThreshold: number;
   onReject: (mappingId: string) => Promise<void>;
   onUnreject: (mappingId: string) => Promise<void>;
 }
-
-const DEFAULT_THRESHOLD = 70;
 
 export function RequirementMappingGroup({
   requirementCode,
@@ -26,11 +25,17 @@ export function RequirementMappingGroup({
   requirementGuidance,
   requirementParentCode,
   mappings,
+  defaultThreshold,
   onReject,
   onUnreject,
 }: RequirementMappingGroupProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
+  const [threshold, setThreshold] = useState(defaultThreshold);
+
+  // Sync when the global default changes
+  useEffect(() => {
+    setThreshold(defaultThreshold);
+  }, [defaultThreshold]);
   const [guidanceExpanded, setGuidanceExpanded] = useState(false);
   const [showRejected, setShowRejected] = useState(false);
 
@@ -152,9 +157,9 @@ export function RequirementMappingGroup({
             <span className="text-xs font-semibold text-neutral-700 w-8 text-right tabular-nums">
               {threshold}%
             </span>
-            {threshold !== DEFAULT_THRESHOLD && (
+            {threshold !== defaultThreshold && (
               <button
-                onClick={() => setThreshold(DEFAULT_THRESHOLD)}
+                onClick={() => setThreshold(defaultThreshold)}
                 className="text-xs text-neutral-400 hover:text-neutral-600 transition-colors"
               >
                 Reset

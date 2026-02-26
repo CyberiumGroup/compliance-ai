@@ -40,6 +40,8 @@ export interface PolicyMapping {
   requirement_description: string | null;
   requirement_framework_name: string | null;
   requirement_parent_code: string | null;
+  requirement_level: number | null;
+  requirement_ancestors: { code: string; name: string | null }[] | null;
   requirement_guidance: string | null;
   reasoning: string | null;
   source_excerpt: string | null;
