@@ -36,6 +36,9 @@ class AssessmentUpdate(BaseModel):
     depth_level: AssessmentDepth | None = None
     ai_prompt_overrides: AIPromptOverrides | None = None
     policy_mapping_threshold: float | None = Field(default=None, ge=0.0, le=100.0)
+    industry: str | None = Field(default=None, max_length=255)
+    business_description: str | None = None
+    product_service_description: str | None = None
 
 
 class AssessmentResponse(AssessmentBase):
@@ -45,6 +48,9 @@ class AssessmentResponse(AssessmentBase):
     depth_level: str
     ai_prompt_overrides: dict | None = None
     policy_mapping_threshold: float | None = None
+    industry: str | None = None
+    business_description: str | None = None
+    product_service_description: str | None = None
     created_by_id: UUID
     created_at: datetime
     updated_at: datetime

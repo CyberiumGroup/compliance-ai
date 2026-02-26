@@ -17,6 +17,9 @@ export interface Assessment {
   depth_level: AssessmentDepth;
   ai_prompt_overrides: AIPromptOverrides | null;
   policy_mapping_threshold: number | null;
+  industry: string | null;
+  business_description: string | null;
+  product_service_description: string | null;
   created_by_id: UUID;
   created_at: string;
   updated_at: string;
@@ -38,6 +41,9 @@ export interface AssessmentUpdate {
   depth_level?: AssessmentDepth;
   ai_prompt_overrides?: AIPromptOverrides;
   policy_mapping_threshold?: number | null;
+  industry?: string | null;
+  business_description?: string | null;
+  product_service_description?: string | null;
 }
 
 export interface AssessmentListResponse {

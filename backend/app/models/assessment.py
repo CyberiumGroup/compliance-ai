@@ -42,6 +42,9 @@ class Assessment(Base):
     )
     ai_prompt_overrides: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     policy_mapping_threshold: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    industry: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    business_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    product_service_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
