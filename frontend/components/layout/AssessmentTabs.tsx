@@ -21,7 +21,7 @@ interface AssessmentTabsProps {
 
 const tabs = [
   { name: 'Overview', path: '', icon: Home },
-  { name: 'Company Profile', path: '/company-profile', icon: Building2 },
+  { name: 'Context', path: '/context', icon: Building2 },
   { name: 'Scope', path: '/scope', icon: Layers },
   { name: 'Policies', path: '/policies', icon: FileText },
   { name: 'Mappings', path: '/mappings', icon: Link2 },

@@ -20,6 +20,7 @@ export interface Assessment {
   industry: string | null;
   business_description: string | null;
   product_service_description: string | null;
+  information_types: string | null;
   created_by_id: UUID;
   created_at: string;
   updated_at: string;
@@ -44,6 +45,7 @@ export interface AssessmentUpdate {
   industry?: string | null;
   business_description?: string | null;
   product_service_description?: string | null;
+  information_types?: string | null;
 }
 
 export interface AssessmentListResponse {

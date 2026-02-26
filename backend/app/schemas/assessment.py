@@ -39,6 +39,7 @@ class AssessmentUpdate(BaseModel):
     industry: str | None = Field(default=None, max_length=255)
     business_description: str | None = None
     product_service_description: str | None = None
+    information_types: str | None = None
 
 
 class AssessmentResponse(AssessmentBase):
@@ -51,6 +52,7 @@ class AssessmentResponse(AssessmentBase):
     industry: str | None = None
     business_description: str | None = None
     product_service_description: str | None = None
+    information_types: str | None = None
     created_by_id: UUID
     created_at: datetime
     updated_at: datetime
