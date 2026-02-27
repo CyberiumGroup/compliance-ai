@@ -184,6 +184,7 @@ export default function MappingsPage({ params }: MappingsPageProps) {
         <CardContent>
           <MappingsList
             policyMappings={policyMappings}
+            assessmentId={id}
             initialThreshold={savedThreshold ?? undefined}
             onSaveThreshold={handleSaveThreshold}
             onRejectPolicy={handleRejectPolicy}

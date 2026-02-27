@@ -11,6 +11,8 @@ from app.models.interview import (
     InterviewSessionStatus,
 )
 from app.models.score import SubcategoryScore, CategoryScore, FunctionScore
+from app.models.requirement_threshold import AssessmentRequirementThreshold
+from app.models.scoring_job import RequirementElement, ScoringJob, RequirementScore
 from app.models.deviation import (
     Deviation,
     DeviationType,
@@ -70,6 +72,11 @@ __all__ = [
     "SubcategoryScore",
     "CategoryScore",
     "FunctionScore",
+    # LLM Scoring
+    "AssessmentRequirementThreshold",
+    "RequirementElement",
+    "ScoringJob",
+    "RequirementScore",
     # Deviations
     "Deviation",
     "DeviationType",

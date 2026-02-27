@@ -31,7 +31,7 @@ api_router.include_router(assessments_router, prefix="/assessments", tags=["asse
 api_router.include_router(policies_router, tags=["policies"])
 api_router.include_router(mappings_router, prefix="/mappings", tags=["mappings"])
 api_router.include_router(interviews_router, prefix="/interviews", tags=["interviews"])
-api_router.include_router(scores_router, prefix="/scores", tags=["scores"])
+api_router.include_router(scores_router, prefix="/assessments", tags=["scoring"])
 api_router.include_router(deviations_router, tags=["deviations"])
 api_router.include_router(reports_router, prefix="/reports", tags=["reports"])
 api_router.include_router(framework_router, prefix="/framework", tags=["framework"])

@@ -173,7 +173,7 @@ class FrameworkService:
         framework_type: str,
         force_reload: bool = False,
     ) -> Framework:
-        """Load a built-in framework using its loader.
+        """Load a built-in framework using its loader and seed Phase 1 elements if available.
 
         Args:
             framework_type: Type of framework (nist_csf, iso_27001, soc2_tsc)
@@ -183,7 +183,17 @@ class FrameworkService:
             The loaded Framework object
         """
         loader = BaseFrameworkLoader.get_loader(framework_type)
-        return loader.load(self.db, force_reload=force_reload)
+        framework = loader.load(self.db, force_reload=force_reload)
+
+        # Seed pre-generated Phase 1 requirement elements if a data file exists.
+        # On force_reload the old requirements are CASCADE-deleted so elements are
+        # automatically wiped; the seeder will re-insert them fresh.
+        from app.services.scoring.element_seeder import get_elements_json_path, seed_requirement_elements
+        json_path = get_elements_json_path(framework_type)
+        if json_path:
+            seed_requirement_elements(self.db, framework, json_path)
+
+        return framework
 
     def load_all_builtin_frameworks(
         self,

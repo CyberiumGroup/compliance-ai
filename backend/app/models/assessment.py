@@ -21,6 +21,7 @@ class AssessmentStatus(str, Enum):
 class AssessmentDepth(str, Enum):
     DESIGN = "design"
     IMPLEMENTATION = "implementation"
+    OPERATING_EFFECTIVENESS = "operating_effectiveness"
 
 
 class Assessment(Base):

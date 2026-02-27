@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Layers, Search, Wrench } from 'lucide-react';
+import { Layers, Search, Wrench, Activity } from 'lucide-react';
 import { Button, Input, Textarea } from '@/components/ui';
 import { FrameworkSelector } from '@/components/frameworks';
 import { createAssessment, setAssessmentScope } from '@/lib/api';
@@ -27,6 +27,12 @@ const depthOptions: {
     label: 'Implementation',
     description: 'Verify controls are in place and operating as designed',
     icon: Wrench,
+  },
+  {
+    value: 'operating_effectiveness',
+    label: 'Operating Effectiveness',
+    description: 'Assess whether controls operate consistently and effectively over time',
+    icon: Activity,
   },
 ];
 
@@ -114,7 +120,7 @@ export function AssessmentForm() {
         <p className="text-sm text-neutral-500 mb-4">
           Choose the depth of evaluation for this assessment.
         </p>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-3">
           {depthOptions.map((option) => {
             const Icon = option.icon;
             const isSelected = depthLevel === option.value;

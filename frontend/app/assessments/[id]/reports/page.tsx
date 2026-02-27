@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { FileDown, FileText } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui';
 import { LoadingSpinner, ErrorMessage } from '@/components/ui';
 import { ReportList, GenerateButton, ReportViewer } from '@/components/reports';
 import { listReports, getReport } from '@/lib/api';

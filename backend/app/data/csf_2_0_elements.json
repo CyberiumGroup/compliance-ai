@@ -1,0 +1,1814 @@
+[
+    {
+        "requirement_id": "GV.OC-01",
+        "requirement_text": "The organizational mission is understood and informs cybersecurity risk management",
+        "elements": [
+            {
+                "element_id": "GV.OC-01-E1",
+                "element_text": "The organization has documented its mission statement."
+            },
+            {
+                "element_id": "GV.OC-01-E2",
+                "element_text": "The documented organizational mission is used in cybersecurity risk management."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.OC-02",
+        "requirement_text": "Internal and external stakeholders are understood, and their needs and expectations regarding cybersecurity risk management are understood and considered",
+        "elements": [
+            {
+                "element_id": "GV.OC-02-E1",
+                "element_text": "Internal stakeholders relevant to cybersecurity are identified by the organization."
+            },
+            {
+                "element_id": "GV.OC-02-E2",
+                "element_text": "External stakeholders relevant to cybersecurity are identified."
+            },
+            {
+                "element_id": "GV.OC-02-E3",
+                "element_text": "The organization documents the needs and expectations of identified stakeholders regarding cybersecurity risk management."
+            },
+            {
+                "element_id": "GV.OC-02-E4",
+                "element_text": "The documented stakeholder needs and expectations are considered in cybersecurity risk management."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.OC-03",
+        "requirement_text": "Legal, regulatory, and contractual requirements regarding cybersecurity - including privacy and civil liberties obligations - are understood and managed",
+        "elements": [
+            {
+                "element_id": "GV.OC-03-E1",
+                "element_text": "The organization identifies legal, regulatory, and contractual requirements related to cybersecurity (including privacy and civil liberties)."
+            },
+            {
+                "element_id": "GV.OC-03-E2",
+                "element_text": "Identified requirements are documented in a requirements register."
+            },
+            {
+                "element_id": "GV.OC-03-E3",
+                "element_text": "Processes are implemented to ensure compliance with identified legal, regulatory, and contractual cybersecurity requirements."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.OC-04",
+        "requirement_text": "Critical objectives, capabilities, and services that external stakeholders depend on or expect from the organization are understood and communicated",
+        "elements": [
+            {
+                "element_id": "GV.OC-04-E1",
+                "element_text": "The organization identifies critical objectives, capabilities, and services required by external stakeholders."
+            },
+            {
+                "element_id": "GV.OC-04-E2",
+                "element_text": "The organization communicates identified critical objectives, capabilities, and services to relevant internal personnel."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.OC-05",
+        "requirement_text": "Outcomes, capabilities, and services that the organization depends on are understood and communicated",
+        "elements": [
+            {
+                "element_id": "GV.OC-05-E1",
+                "element_text": "The organization identifies critical outcomes, capabilities, and services it depends on to operate."
+            },
+            {
+                "element_id": "GV.OC-05-E2",
+                "element_text": "These identified dependencies are communicated internally to relevant stakeholders."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.RM-01",
+        "requirement_text": "Risk management objectives are established and agreed to by organizational stakeholders",
+        "elements": [
+            {
+                "element_id": "GV.RM-01-E1",
+                "element_text": "The organization has defined objectives for its cybersecurity risk management program."
+            },
+            {
+                "element_id": "GV.RM-01-E2",
+                "element_text": "The defined risk management objectives are agreed upon by relevant organizational stakeholders."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.RM-02",
+        "requirement_text": "Risk appetite and risk tolerance statements are established, communicated, and maintained",
+        "elements": [
+            {
+                "element_id": "GV.RM-02-E1",
+                "element_text": "The organization documents a risk appetite statement for cybersecurity risk."
+            },
+            {
+                "element_id": "GV.RM-02-E2",
+                "element_text": "The organization documents a risk tolerance statement for cybersecurity risk."
+            },
+            {
+                "element_id": "GV.RM-02-E3",
+                "element_text": "These statements are communicated to relevant stakeholders."
+            },
+            {
+                "element_id": "GV.RM-02-E4",
+                "element_text": "The organization periodically reviews and updates its risk appetite and tolerance statements."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.RM-03",
+        "requirement_text": "Cybersecurity risk management activities and outcomes are included in enterprise risk management processes",
+        "elements": [
+            {
+                "element_id": "GV.RM-03-E1",
+                "element_text": "Cybersecurity risk management activities are integrated into the enterprise-wide risk management process."
+            },
+            {
+                "element_id": "GV.RM-03-E2",
+                "element_text": "Outcomes of cybersecurity risk management are incorporated into the enterprise risk management process."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.RM-04",
+        "requirement_text": "Strategic direction that describes appropriate risk response options is established and communicated",
+        "elements": [
+            {
+                "element_id": "GV.RM-04-E1",
+                "element_text": "The organization establishes strategic guidance on cybersecurity risk response options."
+            },
+            {
+                "element_id": "GV.RM-04-E2",
+                "element_text": "The guidance on risk response options is communicated to relevant stakeholders."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.RM-05",
+        "requirement_text": "Lines of communication across the organization are established for cybersecurity risks, including risks from suppliers and other third parties",
+        "elements": [
+            {
+                "element_id": "GV.RM-05-E1",
+                "element_text": "Formal communication channels (e.g., meetings, reporting lines) exist for discussing cybersecurity risk across the organization."
+            },
+            {
+                "element_id": "GV.RM-05-E2",
+                "element_text": "Communication channels include discussions of cybersecurity risks from suppliers and other third parties."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.RM-06",
+        "requirement_text": "A standardized method for calculating, documenting, categorizing, and prioritizing cybersecurity risks is established and communicated",
+        "elements": [
+            {
+                "element_id": "GV.RM-06-E1",
+                "element_text": "A standardized method is defined for calculating, documenting, categorizing, and prioritizing cybersecurity risks."
+            },
+            {
+                "element_id": "GV.RM-06-E2",
+                "element_text": "The organization uses this method to assess cybersecurity risks."
+            },
+            {
+                "element_id": "GV.RM-06-E3",
+                "element_text": "The risk assessment method is communicated to relevant stakeholders."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.RM-07",
+        "requirement_text": "Strategic opportunities (i.e., positive risks) are characterized and are included in organizational cybersecurity risk discussions",
+        "elements": [
+            {
+                "element_id": "GV.RM-07-E1",
+                "element_text": "The organization identifies strategic opportunities (positive risks) related to cybersecurity."
+            },
+            {
+                "element_id": "GV.RM-07-E2",
+                "element_text": "Identified strategic opportunities are documented or characterized."
+            },
+            {
+                "element_id": "GV.RM-07-E3",
+                "element_text": "Strategic opportunities are considered in cybersecurity risk discussions."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.RR-01",
+        "requirement_text": "Organizational leadership is responsible and accountable for cybersecurity risk and fosters a culture that is risk-aware, ethical, and continually improving",
+        "elements": [
+            {
+                "element_id": "GV.RR-01-E1",
+                "element_text": "Senior organizational leadership is explicitly responsible and accountable for cybersecurity risk management."
+            },
+            {
+                "element_id": "GV.RR-01-E2",
+                "element_text": "Leadership fosters an organizational culture that is risk-aware and ethical."
+            },
+            {
+                "element_id": "GV.RR-01-E3",
+                "element_text": "Leadership supports continuous improvement in cybersecurity practices."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.RR-02",
+        "requirement_text": "Roles, responsibilities, and authorities related to cybersecurity risk management are established, communicated, understood, and enforced",
+        "elements": [
+            {
+                "element_id": "GV.RR-02-E1",
+                "element_text": "Roles, responsibilities, and authorities for cybersecurity risk management are formally defined."
+            },
+            {
+                "element_id": "GV.RR-02-E2",
+                "element_text": "Defined roles and responsibilities are documented and communicated to relevant personnel."
+            },
+            {
+                "element_id": "GV.RR-02-E3",
+                "element_text": "The organization enforces adherence to the defined cybersecurity roles and responsibilities."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.RR-03",
+        "requirement_text": "Adequate resources are allocated commensurate with the cybersecurity risk strategy, roles, responsibilities, and policies",
+        "elements": [
+            {
+                "element_id": "GV.RR-03-E1",
+                "element_text": "Resources (such as funding and personnel) are allocated for cybersecurity in accordance with the risk strategy and policies."
+            },
+            {
+                "element_id": "GV.RR-03-E2",
+                "element_text": "Resource allocations align with defined cybersecurity roles and responsibilities."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.RR-04",
+        "requirement_text": "Cybersecurity is included in human resources practices",
+        "elements": [
+            {
+                "element_id": "GV.RR-04-E1",
+                "element_text": "Human resources policies and practices include cybersecurity responsibilities (e.g., background checks, security training)."
+            },
+            {
+                "element_id": "GV.RR-04-E2",
+                "element_text": "The organization considers cybersecurity competence in recruitment and onboarding."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.PO-01",
+        "requirement_text": "Policy for managing cybersecurity risks is established based on organizational context, cybersecurity strategy, and priorities and is communicated and enforced",
+        "elements": [
+            {
+                "element_id": "GV.PO-01-E1",
+                "element_text": "The organization has a documented cybersecurity risk management policy based on its context, strategy, and priorities."
+            },
+            {
+                "element_id": "GV.PO-01-E2",
+                "element_text": "The policy is communicated to and understood by relevant personnel."
+            },
+            {
+                "element_id": "GV.PO-01-E3",
+                "element_text": "The organization enforces the cybersecurity risk management policy."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.PO-02",
+        "requirement_text": "Policy for managing cybersecurity risks is reviewed, updated, communicated, and enforced to reflect changes in requirements, threats, technology, and organizational mission",
+        "elements": [
+            {
+                "element_id": "GV.PO-02-E1",
+                "element_text": "The organization periodically reviews and updates its cybersecurity risk management policy to address changes in requirements, threats, technology, or mission."
+            },
+            {
+                "element_id": "GV.PO-02-E2",
+                "element_text": "Updated policy versions are communicated to relevant personnel."
+            },
+            {
+                "element_id": "GV.PO-02-E3",
+                "element_text": "Enforcement of the policy continues after updates."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.OV-01",
+        "requirement_text": "Cybersecurity risk management strategy outcomes are reviewed to inform and adjust strategy and direction",
+        "elements": [
+            {
+                "element_id": "GV.OV-01-E1",
+                "element_text": "The organization reviews the outcomes of its cybersecurity risk management strategy (e.g., effectiveness of controls)."
+            },
+            {
+                "element_id": "GV.OV-01-E2",
+                "element_text": "Insights from the review are used to adjust the cybersecurity strategy and direction."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.OV-02",
+        "requirement_text": "The cybersecurity risk management strategy is reviewed and adjusted to ensure coverage of organizational requirements and risks",
+        "elements": [
+            {
+                "element_id": "GV.OV-02-E1",
+                "element_text": "The organization periodically reviews its cybersecurity risk management strategy."
+            },
+            {
+                "element_id": "GV.OV-02-E2",
+                "element_text": "The strategy is adjusted as needed to ensure it covers current organizational requirements and risks."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.OV-03",
+        "requirement_text": "Organizational cybersecurity risk management performance is evaluated and reviewed for adjustments needed",
+        "elements": [
+            {
+                "element_id": "GV.OV-03-E1",
+                "element_text": "The organization measures cybersecurity risk management performance using defined metrics."
+            },
+            {
+                "element_id": "GV.OV-03-E2",
+                "element_text": "Performance evaluation results are reviewed to determine if adjustments are needed."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.SC-01",
+        "requirement_text": "A cybersecurity supply chain risk management program, strategy, objectives, policies, and processes are established and agreed to by organizational stakeholders",
+        "elements": [
+            {
+                "element_id": "GV.SC-01-E1",
+                "element_text": "The organization establishes a supply chain cybersecurity risk management program with a defined strategy, objectives, policies, and processes."
+            },
+            {
+                "element_id": "GV.SC-01-E2",
+                "element_text": "Stakeholders agree to and support the supply chain risk management program and its components."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.SC-02",
+        "requirement_text": "Cybersecurity roles and responsibilities for suppliers, customers, and partners are established, communicated, and coordinated internally and externally",
+        "elements": [
+            {
+                "element_id": "GV.SC-02-E1",
+                "element_text": "Cybersecurity roles and responsibilities related to suppliers, customers, and partners are defined by the organization."
+            },
+            {
+                "element_id": "GV.SC-02-E2",
+                "element_text": "These roles and responsibilities are communicated to internal personnel."
+            },
+            {
+                "element_id": "GV.SC-02-E3",
+                "element_text": "The organization coordinates cybersecurity roles with external parties as needed."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.SC-03",
+        "requirement_text": "Cybersecurity supply chain risk management is integrated into cybersecurity and enterprise risk management, risk assessment, and improvement processes",
+        "elements": [
+            {
+                "element_id": "GV.SC-03-E1",
+                "element_text": "Supply chain cybersecurity risk management is integrated into the organization’s cybersecurity risk management processes."
+            },
+            {
+                "element_id": "GV.SC-03-E2",
+                "element_text": "Supply chain risk considerations are included in enterprise risk management, risk assessments, and continuous improvement processes."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.SC-04",
+        "requirement_text": "Suppliers are known and prioritized by criticality",
+        "elements": [
+            {
+                "element_id": "GV.SC-04-E1",
+                "element_text": "The organization maintains a list of its suppliers."
+            },
+            {
+                "element_id": "GV.SC-04-E2",
+                "element_text": "Suppliers are categorized and prioritized based on their criticality to operations."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.SC-05",
+        "requirement_text": "Requirements to address cybersecurity risks in supply chains are established, prioritized, and integrated into contracts and other types of agreements with suppliers and other relevant third parties",
+        "elements": [
+            {
+                "element_id": "GV.SC-05-E1",
+                "element_text": "The organization defines requirements to address cybersecurity risks in its supply chains."
+            },
+            {
+                "element_id": "GV.SC-05-E2",
+                "element_text": "The supply chain cybersecurity requirements are prioritized by importance."
+            },
+            {
+                "element_id": "GV.SC-05-E3",
+                "element_text": "These requirements are integrated into contracts and agreements with suppliers and third parties."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.SC-06",
+        "requirement_text": "Planning and due diligence are performed to reduce risks before entering into formal supplier or other third-party relationships",
+        "elements": [
+            {
+                "element_id": "GV.SC-06-E1",
+                "element_text": "The organization conducts cybersecurity due diligence on potential suppliers and third parties before engagement."
+            },
+            {
+                "element_id": "GV.SC-06-E2",
+                "element_text": "Planning activities are undertaken to reduce cybersecurity risks before formalizing supplier relationships."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.SC-07",
+        "requirement_text": "The risks posed by a supplier, their products and services, and other third parties are understood, recorded, prioritized, assessed, responded to, and monitored over the course of the relationship",
+        "elements": [
+            {
+                "element_id": "GV.SC-07-E1",
+                "element_text": "The organization identifies and documents cybersecurity risks posed by each supplier and their products/services."
+            },
+            {
+                "element_id": "GV.SC-07-E2",
+                "element_text": "Identified supplier risks are prioritized and appropriate risk responses are implemented."
+            },
+            {
+                "element_id": "GV.SC-07-E3",
+                "element_text": "Supplier cybersecurity risks are monitored over the course of the relationship."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.SC-08",
+        "requirement_text": "Relevant suppliers and other third parties are included in incident planning, response, and recovery activities",
+        "elements": [
+            {
+                "element_id": "GV.SC-08-E1",
+                "element_text": "Incident response plans include relevant suppliers and third parties."
+            },
+            {
+                "element_id": "GV.SC-08-E2",
+                "element_text": "The organization involves suppliers in incident response and recovery activities."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.SC-09",
+        "requirement_text": "Supply chain security practices are integrated into cybersecurity and enterprise risk management programs, and their performance is monitored throughout the technology product and service life cycle",
+        "elements": [
+            {
+                "element_id": "GV.SC-09-E1",
+                "element_text": "Supply chain cybersecurity security practices are incorporated into the organization’s cybersecurity and enterprise risk management programs."
+            },
+            {
+                "element_id": "GV.SC-09-E2",
+                "element_text": "The performance of these supply chain security practices is monitored throughout the technology lifecycle."
+            }
+        ]
+    },
+    {
+        "requirement_id": "GV.SC-10",
+        "requirement_text": "Cybersecurity supply chain risk management plans include provisions for activities that occur after the conclusion of a partnership or service agreement",
+        "elements": [
+            {
+                "element_id": "GV.SC-10-E1",
+                "element_text": "The organization’s supply chain risk management plan includes provisions for activities after a supplier partnership or service agreement ends."
+            },
+            {
+                "element_id": "GV.SC-10-E2",
+                "element_text": "Post-contract cybersecurity activities (e.g., offboarding) are defined in the supply chain risk management plan."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.AM-01",
+        "requirement_text": "Inventories of hardware managed by the organization are maintained",
+        "elements": [
+            {
+                "element_id": "ID.AM-01-E1",
+                "element_text": "The organization maintains a documented inventory of all hardware assets it manages."
+            },
+            {
+                "element_id": "ID.AM-01-E2",
+                "element_text": "All hardware assets managed by the organization are included in the inventory."
+            },
+            {
+                "element_id": "ID.AM-01-E3",
+                "element_text": "The hardware inventory is kept up-to-date when assets are added, replaced, or retired."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.AM-02",
+        "requirement_text": "Inventories of software, services, and systems managed by the organization are maintained",
+        "elements": [
+            {
+                "element_id": "ID.AM-02-E1",
+                "element_text": "The organization maintains a documented inventory of all software assets it manages."
+            },
+            {
+                "element_id": "ID.AM-02-E2",
+                "element_text": "The organization maintains a documented inventory of all services it manages."
+            },
+            {
+                "element_id": "ID.AM-02-E3",
+                "element_text": "The organization maintains a documented inventory of all systems it manages."
+            },
+            {
+                "element_id": "ID.AM-02-E4",
+                "element_text": "All software, services, and systems managed by the organization are included in their respective inventories."
+            },
+            {
+                "element_id": "ID.AM-02-E5",
+                "element_text": "The inventories of software, services, and systems are updated when these assets are added or removed."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.AM-03",
+        "requirement_text": "Representations of the organization\u2019s authorized network communication and internal and external network data flows are maintained",
+        "elements": [
+            {
+                "element_id": "ID.AM-03-E1",
+                "element_text": "The organization maintains documented network diagrams or models of authorized network communications."
+            },
+            {
+                "element_id": "ID.AM-03-E2",
+                "element_text": "The documentation includes internal and external data flow representations."
+            },
+            {
+                "element_id": "ID.AM-03-E3",
+                "element_text": "The network communication and data flow documentation is updated when changes occur."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.AM-04",
+        "requirement_text": "Inventories of services provided by suppliers are maintained",
+        "elements": [
+            {
+                "element_id": "ID.AM-04-E1",
+                "element_text": "The organization maintains a documented inventory of services provided by suppliers."
+            },
+            {
+                "element_id": "ID.AM-04-E2",
+                "element_text": "All services provided by suppliers are included in the inventory."
+            },
+            {
+                "element_id": "ID.AM-04-E3",
+                "element_text": "The inventory of supplier-provided services is updated when supplier services change."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.AM-05",
+        "requirement_text": "Assets are prioritized based on classification, criticality, resources, and impact on the mission",
+        "elements": [
+            {
+                "element_id": "ID.AM-05-E1",
+                "element_text": "The organization classifies its assets using defined criteria."
+            },
+            {
+                "element_id": "ID.AM-05-E2",
+                "element_text": "The organization assesses the criticality of assets based on their impact to the organizational mission."
+            },
+            {
+                "element_id": "ID.AM-05-E3",
+                "element_text": "Asset prioritization incorporates classification, criticality, resource requirements, and mission impact."
+            },
+            {
+                "element_id": "ID.AM-05-E4",
+                "element_text": "The prioritization of assets is documented and updated as classifications or mission impacts change."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.AM-07",
+        "requirement_text": "Inventories of data and corresponding metadata for designated data types are maintained",
+        "elements": [
+            {
+                "element_id": "ID.AM-07-E1",
+                "element_text": "The organization maintains a documented inventory of data assets and their corresponding metadata for designated data types."
+            },
+            {
+                "element_id": "ID.AM-07-E2",
+                "element_text": "All designated data assets have associated metadata recorded in the inventory."
+            },
+            {
+                "element_id": "ID.AM-07-E3",
+                "element_text": "The inventory of data and metadata for designated types is updated when data assets change."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.AM-08",
+        "requirement_text": "Systems, hardware, software, services, and data are managed throughout their life cycles",
+        "elements": [
+            {
+                "element_id": "ID.AM-08-E1",
+                "element_text": "The organization has procedures for managing the life cycle of systems, hardware, software, services, and data."
+            },
+            {
+                "element_id": "ID.AM-08-E2",
+                "element_text": "Life cycle management covers acquisition, deployment, operation, maintenance, and disposition stages for these assets."
+            },
+            {
+                "element_id": "ID.AM-08-E3",
+                "element_text": "Systems, hardware, software, services, and data assets are tracked through their life cycles."
+            },
+            {
+                "element_id": "ID.AM-08-E4",
+                "element_text": "Records of life cycle management activities (such as updates, decommissioning) are maintained."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.RA-01",
+        "requirement_text": "Vulnerabilities in assets are identified, validated, and recorded",
+        "elements": [
+            {
+                "element_id": "ID.RA-01-E1",
+                "element_text": "The organization identifies vulnerabilities in its assets."
+            },
+            {
+                "element_id": "ID.RA-01-E2",
+                "element_text": "Identified vulnerabilities are validated (e.g., via assessment or testing)."
+            },
+            {
+                "element_id": "ID.RA-01-E3",
+                "element_text": "Validated vulnerabilities are documented in a vulnerability registry or tracking system."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.RA-02",
+        "requirement_text": "Cyber threat intelligence is received from information sharing forums and sources",
+        "elements": [
+            {
+                "element_id": "ID.RA-02-E1",
+                "element_text": "The organization receives cyber threat intelligence from relevant information-sharing forums and sources."
+            },
+            {
+                "element_id": "ID.RA-02-E2",
+                "element_text": "The organization documents the sources of received threat intelligence."
+            },
+            {
+                "element_id": "ID.RA-02-E3",
+                "element_text": "Received threat intelligence is used to inform the organization\u2019s risk assessments."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.RA-03",
+        "requirement_text": "Internal and external threats to the organization are identified and recorded",
+        "elements": [
+            {
+                "element_id": "ID.RA-03-E1",
+                "element_text": "The organization identifies internal threats to its cybersecurity (e.g., insider threats)."
+            },
+            {
+                "element_id": "ID.RA-03-E2",
+                "element_text": "The organization identifies external threats to its cybersecurity."
+            },
+            {
+                "element_id": "ID.RA-03-E3",
+                "element_text": "Identified internal and external threats are documented in a threat register."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.RA-04",
+        "requirement_text": "Potential impacts and likelihoods of threats exploiting vulnerabilities are identified and recorded",
+        "elements": [
+            {
+                "element_id": "ID.RA-04-E1",
+                "element_text": "The organization determines potential impacts if threats exploit identified vulnerabilities."
+            },
+            {
+                "element_id": "ID.RA-04-E2",
+                "element_text": "The organization estimates the likelihood of each threat exploiting each vulnerability."
+            },
+            {
+                "element_id": "ID.RA-04-E3",
+                "element_text": "Potential impacts and likelihoods are documented for each threat-vulnerability pair."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.RA-05",
+        "requirement_text": "Threats, vulnerabilities, likelihoods, and impacts are used to understand inherent risk and inform risk response prioritization",
+        "elements": [
+            {
+                "element_id": "ID.RA-05-E1",
+                "element_text": "The organization combines threats, vulnerabilities, likelihoods, and impacts to assess inherent cybersecurity risk."
+            },
+            {
+                "element_id": "ID.RA-05-E2",
+                "element_text": "The assessment of inherent risk is used to prioritize risk responses."
+            },
+            {
+                "element_id": "ID.RA-05-E3",
+                "element_text": "The organization documents how these factors are used in risk prioritization."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.RA-06",
+        "requirement_text": "Risk responses are chosen, prioritized, planned, tracked, and communicated",
+        "elements": [
+            {
+                "element_id": "ID.RA-06-E1",
+                "element_text": "The organization selects appropriate risk response strategies for identified risks (e.g., mitigate, accept)."
+            },
+            {
+                "element_id": "ID.RA-06-E2",
+                "element_text": "Chosen risk responses are prioritized based on risk assessment results."
+            },
+            {
+                "element_id": "ID.RA-06-E3",
+                "element_text": "Risk response plans are documented and tracked for implementation."
+            },
+            {
+                "element_id": "ID.RA-06-E4",
+                "element_text": "The organization communicates chosen risk responses and their status to stakeholders."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.RA-07",
+        "requirement_text": "Changes and exceptions are managed, assessed for risk impact, recorded, and tracked",
+        "elements": [
+            {
+                "element_id": "ID.RA-07-E1",
+                "element_text": "Planned changes to systems or processes are identified and assessed for cybersecurity risk impact."
+            },
+            {
+                "element_id": "ID.RA-07-E2",
+                "element_text": "Exceptions (deviations from policies) are identified and assessed for cybersecurity risk impact."
+            },
+            {
+                "element_id": "ID.RA-07-E3",
+                "element_text": "All changes and exceptions are documented in a change/exceptions registry."
+            },
+            {
+                "element_id": "ID.RA-07-E4",
+                "element_text": "The status of documented changes and exceptions is tracked until closure."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.RA-08",
+        "requirement_text": "Processes for receiving, analyzing, and responding to vulnerability disclosures are established",
+        "elements": [
+            {
+                "element_id": "ID.RA-08-E1",
+                "element_text": "The organization has a documented process to receive vulnerability disclosures (e.g., from researchers)."
+            },
+            {
+                "element_id": "ID.RA-08-E2",
+                "element_text": "The process includes analyzing disclosed vulnerabilities to assess relevance."
+            },
+            {
+                "element_id": "ID.RA-08-E3",
+                "element_text": "The organization has procedures to respond to analyzed vulnerabilities (e.g., remediation)."
+            },
+            {
+                "element_id": "ID.RA-08-E4",
+                "element_text": "The vulnerability disclosure handling process is documented and followed."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.RA-09",
+        "requirement_text": "The authenticity and integrity of hardware and software are assessed prior to acquisition and use",
+        "elements": [
+            {
+                "element_id": "ID.RA-09-E1",
+                "element_text": "The organization verifies the authenticity of hardware and software before acquisition."
+            },
+            {
+                "element_id": "ID.RA-09-E2",
+                "element_text": "The organization verifies the integrity of hardware and software (e.g., checksums, signatures) before acquisition."
+            },
+            {
+                "element_id": "ID.RA-09-E3",
+                "element_text": "Hardware and software authenticity and integrity are verified before deployment or use."
+            },
+            {
+                "element_id": "ID.RA-09-E4",
+                "element_text": "Procedures for these verifications are documented."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.RA-10",
+        "requirement_text": "Critical suppliers are assessed prior to acquisition",
+        "elements": [
+            {
+                "element_id": "ID.RA-10-E1",
+                "element_text": "The organization defines criteria to identify critical suppliers."
+            },
+            {
+                "element_id": "ID.RA-10-E2",
+                "element_text": "Suppliers meeting the critical criteria are assessed for cybersecurity risk before procurement."
+            },
+            {
+                "element_id": "ID.RA-10-E3",
+                "element_text": "Critical supplier assessment results are documented."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.IM-01",
+        "requirement_text": "Improvements are identified from evaluations",
+        "elements": [
+            {
+                "element_id": "ID.IM-01-E1",
+                "element_text": "The organization conducts evaluations (e.g., audits, assessments) of its cybersecurity processes."
+            },
+            {
+                "element_id": "ID.IM-01-E2",
+                "element_text": "Findings from evaluations are analyzed to identify improvement opportunities."
+            },
+            {
+                "element_id": "ID.IM-01-E3",
+                "element_text": "The organization documents improvements identified from evaluations."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.IM-02",
+        "requirement_text": "Improvements are identified from security tests and exercises, including those done in coordination with suppliers and relevant third parties",
+        "elements": [
+            {
+                "element_id": "ID.IM-02-E1",
+                "element_text": "The organization conducts security tests and exercises (including with suppliers/third parties)."
+            },
+            {
+                "element_id": "ID.IM-02-E2",
+                "element_text": "Results from security tests and exercises are analyzed to identify improvement opportunities."
+            },
+            {
+                "element_id": "ID.IM-02-E3",
+                "element_text": "The organization documents improvements identified from these tests and exercises."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.IM-03",
+        "requirement_text": "Improvements are identified from execution of operational processes, procedures, and activities",
+        "elements": [
+            {
+                "element_id": "ID.IM-03-E1",
+                "element_text": "The organization monitors execution of its operational cybersecurity processes and procedures."
+            },
+            {
+                "element_id": "ID.IM-03-E2",
+                "element_text": "Observations from operations are analyzed to identify improvement opportunities."
+            },
+            {
+                "element_id": "ID.IM-03-E3",
+                "element_text": "The organization documents improvements identified from operational activities."
+            }
+        ]
+    },
+    {
+        "requirement_id": "ID.IM-04",
+        "requirement_text": "Incident response plans and other cybersecurity plans that affect operations are established, communicated, maintained, and improved",
+        "elements": [
+            {
+                "element_id": "ID.IM-04-E1",
+                "element_text": "The organization documents incident response plans and other relevant cybersecurity plans."
+            },
+            {
+                "element_id": "ID.IM-04-E2",
+                "element_text": "These plans are communicated to relevant personnel."
+            },
+            {
+                "element_id": "ID.IM-04-E3",
+                "element_text": "Plans are reviewed and updated regularly."
+            },
+            {
+                "element_id": "ID.IM-04-E4",
+                "element_text": "The organization implements improvements to these plans based on lessons learned."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.AA-01",
+        "requirement_text": "Identities and credentials for authorized users, services, and hardware are managed by the organization",
+        "elements": [
+            {
+                "element_id": "PR.AA-01-E1",
+                "element_text": "The organization issues and manages digital identities for authorized users."
+            },
+            {
+                "element_id": "PR.AA-01-E2",
+                "element_text": "Authorized services and hardware have managed credentials."
+            },
+            {
+                "element_id": "PR.AA-01-E3",
+                "element_text": "The organization has a process in place to manage identity and credential lifecycle."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.AA-02",
+        "requirement_text": "Identities are proofed and bound to credentials based on the context of interactions",
+        "elements": [
+            {
+                "element_id": "PR.AA-02-E1",
+                "element_text": "The organization verifies (proofs) the identity of users before issuing credentials."
+            },
+            {
+                "element_id": "PR.AA-02-E2",
+                "element_text": "The level of identity verification is determined by the context of the user’s role or access."
+            },
+            {
+                "element_id": "PR.AA-02-E3",
+                "element_text": "Credentials are issued only after identity proofing is completed."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.AA-03",
+        "requirement_text": "Users, services, and hardware are authenticated",
+        "elements": [
+            {
+                "element_id": "PR.AA-03-E1",
+                "element_text": "Users are required to authenticate before accessing organizational resources."
+            },
+            {
+                "element_id": "PR.AA-03-E2",
+                "element_text": "Services authenticate to each other before exchanging data."
+            },
+            {
+                "element_id": "PR.AA-03-E3",
+                "element_text": "Hardware devices are authenticated before connecting to the network."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.AA-04",
+        "requirement_text": "Identity assertions are protected, conveyed, and verified",
+        "elements": [
+            {
+                "element_id": "PR.AA-04-E1",
+                "element_text": "Identity assertions (e.g., tokens, certificates) are transmitted securely to protect confidentiality."
+            },
+            {
+                "element_id": "PR.AA-04-E2",
+                "element_text": "The organization verifies identity assertions before granting access."
+            },
+            {
+                "element_id": "PR.AA-04-E3",
+                "element_text": "Controls are in place to prevent unauthorized alteration of identity assertions."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.AA-05",
+        "requirement_text": "Access permissions, entitlements, and authorizations are defined in a policy, managed, enforced, and reviewed, and incorporate the principles of least privilege and separation of duties",
+        "elements": [
+            {
+                "element_id": "PR.AA-05-E1",
+                "element_text": "An access control policy defines permissions, entitlements, and authorizations for users."
+            },
+            {
+                "element_id": "PR.AA-05-E2",
+                "element_text": "The organization manages and enforces these access permissions according to the policy."
+            },
+            {
+                "element_id": "PR.AA-05-E3",
+                "element_text": "Access permissions are reviewed periodically for validity."
+            },
+            {
+                "element_id": "PR.AA-05-E4",
+                "element_text": "The organization applies the principle of least privilege when assigning access rights."
+            },
+            {
+                "element_id": "PR.AA-05-E5",
+                "element_text": "The organization enforces separation of duties in its access control implementation."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.AA-06",
+        "requirement_text": "Physical access to assets is managed, monitored, and enforced commensurate with risk",
+        "elements": [
+            {
+                "element_id": "PR.AA-06-E1",
+                "element_text": "The organization uses physical controls (e.g., locks, badges) to manage access to assets."
+            },
+            {
+                "element_id": "PR.AA-06-E2",
+                "element_text": "Physical access to assets is monitored (e.g., via cameras or access logs)."
+            },
+            {
+                "element_id": "PR.AA-06-E3",
+                "element_text": "Unauthorized physical access attempts are detected and addressed."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.AT-01",
+        "requirement_text": "Personnel are provided with awareness and training so that they possess the knowledge and skills to perform general tasks with cybersecurity risks in mind",
+        "elements": [
+            {
+                "element_id": "PR.AT-01-E1",
+                "element_text": "All personnel receive cybersecurity awareness training covering general security risks."
+            },
+            {
+                "element_id": "PR.AT-01-E2",
+                "element_text": "The training ensures personnel understand how to consider cybersecurity when performing their tasks."
+            },
+            {
+                "element_id": "PR.AT-01-E3",
+                "element_text": "The organization tracks completion of cybersecurity awareness training for all personnel."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.AT-02",
+        "requirement_text": "Individuals in specialized roles are provided with awareness and training so that they possess the knowledge and skills to perform relevant tasks with cybersecurity risks in mind",
+        "elements": [
+            {
+                "element_id": "PR.AT-02-E1",
+                "element_text": "Individuals in specialized roles receive role-specific cybersecurity training."
+            },
+            {
+                "element_id": "PR.AT-02-E2",
+                "element_text": "Role-specific training provides knowledge and skills needed for cybersecurity aspects of their tasks."
+            },
+            {
+                "element_id": "PR.AT-02-E3",
+                "element_text": "The organization tracks completion of role-specific cybersecurity training."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.DS-01",
+        "requirement_text": "The confidentiality, integrity, and availability of data-at-rest are protected",
+        "elements": [
+            {
+                "element_id": "PR.DS-01-E1",
+                "element_text": "Data at rest is encrypted or otherwise protected to maintain confidentiality."
+            },
+            {
+                "element_id": "PR.DS-01-E2",
+                "element_text": "Integrity controls (e.g., checksums) are applied to data at rest to detect unauthorized changes."
+            },
+            {
+                "element_id": "PR.DS-01-E3",
+                "element_text": "Measures are in place to ensure availability of data at rest to authorized users."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.DS-02",
+        "requirement_text": "The confidentiality, integrity, and availability of data-in-transit are protected",
+        "elements": [
+            {
+                "element_id": "PR.DS-02-E1",
+                "element_text": "Data in transit is encrypted or otherwise protected during transmission."
+            },
+            {
+                "element_id": "PR.DS-02-E2",
+                "element_text": "Integrity mechanisms (e.g., digital signatures) are applied to data in transit."
+            },
+            {
+                "element_id": "PR.DS-02-E3",
+                "element_text": "Network controls ensure reliable delivery and availability of data in transit."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.DS-10",
+        "requirement_text": "The confidentiality, integrity, and availability of data-in-use are protected",
+        "elements": [
+            {
+                "element_id": "PR.DS-10-E1",
+                "element_text": "The organization protects data while in use (e.g., in memory) to maintain confidentiality."
+            },
+            {
+                "element_id": "PR.DS-10-E2",
+                "element_text": "Controls (e.g., secure computation environments) ensure data integrity during processing."
+            },
+            {
+                "element_id": "PR.DS-10-E3",
+                "element_text": "Processes ensure continued availability of data during processing."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.DS-11",
+        "requirement_text": "Backups of data are created, protected, maintained, and tested",
+        "elements": [
+            {
+                "element_id": "PR.DS-11-E1",
+                "element_text": "The organization regularly creates backups of critical data."
+            },
+            {
+                "element_id": "PR.DS-11-E2",
+                "element_text": "Backups are protected against unauthorized access (e.g., via encryption or secure storage)."
+            },
+            {
+                "element_id": "PR.DS-11-E3",
+                "element_text": "Backup data is updated regularly to include recent changes."
+            },
+            {
+                "element_id": "PR.DS-11-E4",
+                "element_text": "The organization tests backups periodically to confirm they can be restored."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.PS-01",
+        "requirement_text": "Configuration management practices are established and applied",
+        "elements": [
+            {
+                "element_id": "PR.PS-01-E1",
+                "element_text": "The organization has documented configuration management procedures."
+            },
+            {
+                "element_id": "PR.PS-01-E2",
+                "element_text": "Configuration baselines are defined for systems and applications."
+            },
+            {
+                "element_id": "PR.PS-01-E3",
+                "element_text": "Changes to configurations are controlled and documented."
+            },
+            {
+                "element_id": "PR.PS-01-E4",
+                "element_text": "Configuration management procedures are applied to all relevant systems."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.PS-02",
+        "requirement_text": "Software is maintained, replaced, and removed commensurate with risk",
+        "elements": [
+            {
+                "element_id": "PR.PS-02-E1",
+                "element_text": "The organization applies software updates and patches based on assessed risk."
+            },
+            {
+                "element_id": "PR.PS-02-E2",
+                "element_text": "Obsolete or end-of-life software is replaced according to risk considerations."
+            },
+            {
+                "element_id": "PR.PS-02-E3",
+                "element_text": "Unnecessary software is removed from systems."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.PS-03",
+        "requirement_text": "Hardware is maintained, replaced, and removed commensurate with risk",
+        "elements": [
+            {
+                "element_id": "PR.PS-03-E1",
+                "element_text": "The organization performs maintenance on hardware assets according to a risk-based schedule."
+            },
+            {
+                "element_id": "PR.PS-03-E2",
+                "element_text": "Outdated or malfunctioning hardware is replaced based on risk assessments."
+            },
+            {
+                "element_id": "PR.PS-03-E3",
+                "element_text": "Hardware that is no longer needed or is compromised is removed from use."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.PS-04",
+        "requirement_text": "Log records are generated and made available for continuous monitoring",
+        "elements": [
+            {
+                "element_id": "PR.PS-04-E1",
+                "element_text": "Systems and applications generate log records for security-relevant events."
+            },
+            {
+                "element_id": "PR.PS-04-E2",
+                "element_text": "Generated log records are collected and made available for review or monitoring."
+            },
+            {
+                "element_id": "PR.PS-04-E3",
+                "element_text": "Logging configurations capture all necessary security events."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.PS-05",
+        "requirement_text": "Installation and execution of unauthorized software are prevented",
+        "elements": [
+            {
+                "element_id": "PR.PS-05-E1",
+                "element_text": "Controls (e.g., application whitelisting) prevent the installation of unauthorized software."
+            },
+            {
+                "element_id": "PR.PS-05-E2",
+                "element_text": "Mechanisms are in place to prevent execution of unauthorized or unapproved software."
+            },
+            {
+                "element_id": "PR.PS-05-E3",
+                "element_text": "The organization enforces software installation and execution policies on its systems."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.PS-06",
+        "requirement_text": "Secure software development practices are integrated, and their performance is monitored throughout the software development life cycle",
+        "elements": [
+            {
+                "element_id": "PR.PS-06-E1",
+                "element_text": "Secure development practices are incorporated into the software development lifecycle."
+            },
+            {
+                "element_id": "PR.PS-06-E2",
+                "element_text": "Developers follow secure coding standards and guidelines."
+            },
+            {
+                "element_id": "PR.PS-06-E3",
+                "element_text": "Security testing (e.g., code scanning) is performed during development."
+            },
+            {
+                "element_id": "PR.PS-06-E4",
+                "element_text": "The organization monitors adherence to secure development practices."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.IR-01",
+        "requirement_text": "Networks and environments are protected from unauthorized logical access and usage",
+        "elements": [
+            {
+                "element_id": "PR.IR-01-E1",
+                "element_text": "Network access control mechanisms (e.g., firewalls) are implemented to restrict unauthorized access."
+            },
+            {
+                "element_id": "PR.IR-01-E2",
+                "element_text": "The organization enforces network segmentation or security zones."
+            },
+            {
+                "element_id": "PR.IR-01-E3",
+                "element_text": "Monitoring tools detect and alert on unauthorized network usage."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.IR-02",
+        "requirement_text": "The organization's technology assets are protected from environmental threats",
+        "elements": [
+            {
+                "element_id": "PR.IR-02-E1",
+                "element_text": "The organization has physical controls (e.g., fire suppression, climate control) to protect assets from environmental hazards."
+            },
+            {
+                "element_id": "PR.IR-02-E2",
+                "element_text": "Critical systems have backup power or redundant systems to protect against power failures."
+            },
+            {
+                "element_id": "PR.IR-02-E3",
+                "element_text": "The organization maintains equipment and facilities to mitigate environmental threats."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.IR-03",
+        "requirement_text": "Mechanisms are implemented to achieve resilience requirements in normal and adverse situations",
+        "elements": [
+            {
+                "element_id": "PR.IR-03-E1",
+                "element_text": "Resilience requirements for normal and adverse conditions are defined for critical systems."
+            },
+            {
+                "element_id": "PR.IR-03-E2",
+                "element_text": "Systems are designed or configured to meet defined resilience requirements."
+            },
+            {
+                "element_id": "PR.IR-03-E3",
+                "element_text": "Redundancy or failover mechanisms are implemented for critical services."
+            }
+        ]
+    },
+    {
+        "requirement_id": "PR.IR-04",
+        "requirement_text": "Adequate resource capacity to ensure availability is maintained",
+        "elements": [
+            {
+                "element_id": "PR.IR-04-E1",
+                "element_text": "The organization monitors resource utilization (e.g., CPU, memory) to ensure system availability."
+            },
+            {
+                "element_id": "PR.IR-04-E2",
+                "element_text": "The organization scales or adds resources when monitoring indicates capacity constraints."
+            },
+            {
+                "element_id": "PR.IR-04-E3",
+                "element_text": "Resource capacity planning is conducted to ensure resources meet anticipated demand."
+            }
+        ]
+    },
+    {
+        "requirement_id": "DE.CM-01",
+        "requirement_text": "Networks and network services are monitored to find potentially adverse events",
+        "elements": [
+            {
+                "element_id": "DE.CM-01-E1",
+                "element_text": "Network traffic and network service usage are monitored for potentially adverse events."
+            },
+            {
+                "element_id": "DE.CM-01-E2",
+                "element_text": "Monitoring tools analyze network activity for indicators of compromise."
+            },
+            {
+                "element_id": "DE.CM-01-E3",
+                "element_text": "Alerts are generated when potentially adverse network events are detected."
+            }
+        ]
+    },
+    {
+        "requirement_id": "DE.CM-02",
+        "requirement_text": "The physical environment is monitored to find potentially adverse events",
+        "elements": [
+            {
+                "element_id": "DE.CM-02-E1",
+                "element_text": "The organization monitors the physical environment (e.g., server rooms) for potentially adverse events."
+            },
+            {
+                "element_id": "DE.CM-02-E2",
+                "element_text": "Sensors or cameras detect unauthorized physical access or environmental changes."
+            },
+            {
+                "element_id": "DE.CM-02-E3",
+                "element_text": "Alerts are generated when potentially adverse physical events are detected."
+            }
+        ]
+    },
+    {
+        "requirement_id": "DE.CM-03",
+        "requirement_text": "Personnel activity and technology usage are monitored to find potentially adverse events",
+        "elements": [
+            {
+                "element_id": "DE.CM-03-E1",
+                "element_text": "The organization monitors user activity and system usage for potentially adverse events."
+            },
+            {
+                "element_id": "DE.CM-03-E2",
+                "element_text": "Logs of personnel actions (e.g., login, data access) are analyzed for anomalies."
+            },
+            {
+                "element_id": "DE.CM-03-E3",
+                "element_text": "Alerts are generated when potentially adverse user or system activities are detected."
+            }
+        ]
+    },
+    {
+        "requirement_id": "DE.CM-06",
+        "requirement_text": "External service provider activities and services are monitored to find potentially adverse events",
+        "elements": [
+            {
+                "element_id": "DE.CM-06-E1",
+                "element_text": "The organization monitors activities and services provided by external providers for anomalies."
+            },
+            {
+                "element_id": "DE.CM-06-E2",
+                "element_text": "Logs from external service providers are reviewed or integrated into monitoring."
+            },
+            {
+                "element_id": "DE.CM-06-E3",
+                "element_text": "Alerts are generated when potentially adverse events involving external providers are detected."
+            }
+        ]
+    },
+    {
+        "requirement_id": "DE.CM-09",
+        "requirement_text": "Computing hardware and software, runtime environments, and their data are monitored to find potentially adverse events",
+        "elements": [
+            {
+                "element_id": "DE.CM-09-E1",
+                "element_text": "Computing hardware (e.g., servers, endpoints) is monitored for anomalies or security events."
+            },
+            {
+                "element_id": "DE.CM-09-E2",
+                "element_text": "Software applications are monitored for abnormal behavior."
+            },
+            {
+                "element_id": "DE.CM-09-E3",
+                "element_text": "Runtime environments (e.g., containers, virtual machines) are monitored for potentially adverse events."
+            }
+        ]
+    },
+    {
+        "requirement_id": "DE.AE-02",
+        "requirement_text": "Potentially adverse events are analyzed to better understand associated activities",
+        "elements": [
+            {
+                "element_id": "DE.AE-02-E1",
+                "element_text": "The organization analyzes detected potentially adverse events to understand what occurred."
+            },
+            {
+                "element_id": "DE.AE-02-E2",
+                "element_text": "Event data is examined to identify associated activities or causes."
+            }
+        ]
+    },
+    {
+        "requirement_id": "DE.AE-03",
+        "requirement_text": "Information is correlated from multiple sources",
+        "elements": [
+            {
+                "element_id": "DE.AE-03-E1",
+                "element_text": "The organization collects event information from multiple sources (e.g., network, system logs)."
+            },
+            {
+                "element_id": "DE.AE-03-E2",
+                "element_text": "Correlating information from multiple sources is performed to detect patterns of potentially adverse events."
+            }
+        ]
+    },
+    {
+        "requirement_id": "DE.AE-04",
+        "requirement_text": "The estimated impact and scope of adverse events are understood",
+        "elements": [
+            {
+                "element_id": "DE.AE-04-E1",
+                "element_text": "The organization assesses the estimated impact of detected adverse events on systems or data."
+            },
+            {
+                "element_id": "DE.AE-04-E2",
+                "element_text": "The organization identifies the scope (e.g., affected systems, data) of each adverse event."
+            },
+            {
+                "element_id": "DE.AE-04-E3",
+                "element_text": "Impact and scope assessments are documented."
+            }
+        ]
+    },
+    {
+        "requirement_id": "DE.AE-06",
+        "requirement_text": "Information on adverse events is provided to authorized staff and tools",
+        "elements": [
+            {
+                "element_id": "DE.AE-06-E1",
+                "element_text": "Information about detected adverse events is communicated to authorized personnel."
+            },
+            {
+                "element_id": "DE.AE-06-E2",
+                "element_text": "Security tools or dashboards receive updates on adverse events for analysis and response."
+            }
+        ]
+    },
+    {
+        "requirement_id": "DE.AE-07",
+        "requirement_text": "Cyber threat intelligence and other contextual information are integrated into the analysis",
+        "elements": [
+            {
+                "element_id": "DE.AE-07-E1",
+                "element_text": "Cyber threat intelligence is incorporated into the analysis of detected adverse events."
+            },
+            {
+                "element_id": "DE.AE-07-E2",
+                "element_text": "Contextual information (e.g., threat feeds or indicators) is integrated into event analysis to enhance understanding."
+            }
+        ]
+    },
+    {
+        "requirement_id": "DE.AE-08",
+        "requirement_text": "Incidents are declared when adverse events meet the defined incident criteria",
+        "elements": [
+            {
+                "element_id": "DE.AE-08-E1",
+                "element_text": "The organization has defined criteria for declaring an event as a cybersecurity incident."
+            },
+            {
+                "element_id": "DE.AE-08-E2",
+                "element_text": "Detected adverse events are evaluated against the incident criteria."
+            },
+            {
+                "element_id": "DE.AE-08-E3",
+                "element_text": "Events meeting the incident criteria are formally declared as incidents."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.MA-01",
+        "requirement_text": "The incident response plan is executed in coordination with relevant third parties once an incident is declared",
+        "elements": [
+            {
+                "element_id": "RS.MA-01-E1",
+                "element_text": "Once an incident is declared, the organization executes the incident response plan."
+            },
+            {
+                "element_id": "RS.MA-01-E2",
+                "element_text": "The execution of the incident response plan involves coordination with relevant third parties."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.MA-02",
+        "requirement_text": "Incident reports are triaged and validated",
+        "elements": [
+            {
+                "element_id": "RS.MA-02-E1",
+                "element_text": "The organization triages incident reports to determine priority or severity."
+            },
+            {
+                "element_id": "RS.MA-02-E2",
+                "element_text": "Reported incidents are validated for accuracy and legitimacy."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.MA-03",
+        "requirement_text": "Incidents are categorized and prioritized",
+        "elements": [
+            {
+                "element_id": "RS.MA-03-E1",
+                "element_text": "The organization categorizes incidents by type (e.g., malware, intrusion)."
+            },
+            {
+                "element_id": "RS.MA-03-E2",
+                "element_text": "The organization prioritizes incidents based on their assessed impact and severity."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.MA-04",
+        "requirement_text": "Incidents are escalated or elevated as needed",
+        "elements": [
+            {
+                "element_id": "RS.MA-04-E1",
+                "element_text": "The organization defines criteria for escalating incidents to higher levels."
+            },
+            {
+                "element_id": "RS.MA-04-E2",
+                "element_text": "Incidents meeting escalation criteria are escalated accordingly."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.MA-05",
+        "requirement_text": "The criteria for initiating incident recovery are applied",
+        "elements": [
+            {
+                "element_id": "RS.MA-05-E1",
+                "element_text": "The organization has defined criteria for initiating incident recovery."
+            },
+            {
+                "element_id": "RS.MA-05-E2",
+                "element_text": "The incident recovery process is initiated when these criteria are met."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.AN-03",
+        "requirement_text": "Analysis is performed to establish what has taken place during an incident and the root cause of the incident",
+        "elements": [
+            {
+                "element_id": "RS.AN-03-E1",
+                "element_text": "The organization analyzes incident data to determine what occurred during the incident."
+            },
+            {
+                "element_id": "RS.AN-03-E2",
+                "element_text": "The analysis identifies the root cause of the incident."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.AN-06",
+        "requirement_text": "Actions performed during an investigation are recorded, and the records\u2019 integrity and provenance are preserved",
+        "elements": [
+            {
+                "element_id": "RS.AN-06-E1",
+                "element_text": "Actions performed during the incident investigation are documented."
+            },
+            {
+                "element_id": "RS.AN-06-E2",
+                "element_text": "Documentation and records of investigation actions are preserved with integrity (e.g., chain of custody is maintained)."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.AN-07",
+        "requirement_text": "Incident data and metadata are collected, and their integrity and provenance are preserved",
+        "elements": [
+            {
+                "element_id": "RS.AN-07-E1",
+                "element_text": "Data and metadata related to the incident are collected as part of the investigation."
+            },
+            {
+                "element_id": "RS.AN-07-E2",
+                "element_text": "The integrity and provenance of collected incident data and metadata are maintained (e.g., through hashing or write-once logs)."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.AN-08",
+        "requirement_text": "An incident\u2019s magnitude is estimated and validated",
+        "elements": [
+            {
+                "element_id": "RS.AN-08-E1",
+                "element_text": "The organization estimates the magnitude (scope, size) of the incident."
+            },
+            {
+                "element_id": "RS.AN-08-E2",
+                "element_text": "The estimated magnitude of the incident is validated (e.g., by confirming affected assets)."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.CO-02",
+        "requirement_text": "Internal and external stakeholders are notified of incidents",
+        "elements": [
+            {
+                "element_id": "RS.CO-02-E1",
+                "element_text": "Internal stakeholders are notified when a cybersecurity incident occurs."
+            },
+            {
+                "element_id": "RS.CO-02-E2",
+                "element_text": "External stakeholders are notified of incidents according to requirements."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.CO-03",
+        "requirement_text": "Information is shared with designated internal and external stakeholders",
+        "elements": [
+            {
+                "element_id": "RS.CO-03-E1",
+                "element_text": "Incident details and updates are shared with designated internal stakeholders."
+            },
+            {
+                "element_id": "RS.CO-03-E2",
+                "element_text": "Incident information is shared with designated external stakeholders."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.MI-01",
+        "requirement_text": "Incidents are contained",
+        "elements": [
+            {
+                "element_id": "RS.MI-01-E1",
+                "element_text": "The organization contains the incident to prevent further damage or spread."
+            },
+            {
+                "element_id": "RS.MI-01-E2",
+                "element_text": "Containment measures are applied according to incident response procedures."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RS.MI-02",
+        "requirement_text": "Incidents are eradicated",
+        "elements": [
+            {
+                "element_id": "RS.MI-02-E1",
+                "element_text": "The organization eradicates the root cause of the incident (e.g., removes malware)."
+            },
+            {
+                "element_id": "RS.MI-02-E2",
+                "element_text": "All components related to the incident are removed from systems as part of eradication."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RC.RP-01",
+        "requirement_text": "The recovery portion of the incident response plan is executed once initiated from the incident response process",
+        "elements": [
+            {
+                "element_id": "RC.RP-01-E1",
+                "element_text": "Once initiated, the organization executes the recovery portion of its incident response plan."
+            },
+            {
+                "element_id": "RC.RP-01-E2",
+                "element_text": "Recovery actions are performed according to the incident response plan."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RC.RP-02",
+        "requirement_text": "Recovery actions are selected, scoped, prioritized, and performed",
+        "elements": [
+            {
+                "element_id": "RC.RP-02-E1",
+                "element_text": "Recovery actions are identified and defined for the incident."
+            },
+            {
+                "element_id": "RC.RP-02-E2",
+                "element_text": "Recovery actions are prioritized according to criticality or impact."
+            },
+            {
+                "element_id": "RC.RP-02-E3",
+                "element_text": "The organization performs the selected recovery actions."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RC.RP-03",
+        "requirement_text": "The integrity of backups and other restoration assets is verified before using them for restoration",
+        "elements": [
+            {
+                "element_id": "RC.RP-03-E1",
+                "element_text": "The organization verifies the integrity of backups before they are used for restoration."
+            },
+            {
+                "element_id": "RC.RP-03-E2",
+                "element_text": "The organization verifies the integrity of other restoration assets (e.g., system images) before use."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RC.RP-04",
+        "requirement_text": "Critical mission functions and cybersecurity risk management are considered to establish post-incident operational norms",
+        "elements": [
+            {
+                "element_id": "RC.RP-04-E1",
+                "element_text": "The organization identifies critical mission functions to guide the restoration process."
+            },
+            {
+                "element_id": "RC.RP-04-E2",
+                "element_text": "Cybersecurity risk considerations are included when establishing post-incident operational norms."
+            },
+            {
+                "element_id": "RC.RP-04-E3",
+                "element_text": "Post-incident operational norms are documented and aligned with mission priorities."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RC.RP-05",
+        "requirement_text": "The integrity of restored assets is verified, systems and services are restored, and normal operating status is confirmed",
+        "elements": [
+            {
+                "element_id": "RC.RP-05-E1",
+                "element_text": "After restoration, the integrity of restored assets is verified."
+            },
+            {
+                "element_id": "RC.RP-05-E2",
+                "element_text": "Restored systems and services are brought back online."
+            },
+            {
+                "element_id": "RC.RP-05-E3",
+                "element_text": "The organization confirms that systems and services have returned to normal operational status."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RC.RP-06",
+        "requirement_text": "The end of incident recovery is declared based on criteria, and incident-related documentation is completed",
+        "elements": [
+            {
+                "element_id": "RC.RP-06-E1",
+                "element_text": "The organization has defined criteria for declaring the end of incident recovery."
+            },
+            {
+                "element_id": "RC.RP-06-E2",
+                "element_text": "Recovery is declared complete when those criteria are satisfied."
+            },
+            {
+                "element_id": "RC.RP-06-E3",
+                "element_text": "Incident-related documentation is finalized and completed at recovery closure."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RC.CO-03",
+        "requirement_text": "Recovery activities and progress in restoring operational capabilities are communicated to designated internal and external stakeholders",
+        "elements": [
+            {
+                "element_id": "RC.CO-03-E1",
+                "element_text": "The organization communicates recovery activities and progress to designated internal stakeholders."
+            },
+            {
+                "element_id": "RC.CO-03-E2",
+                "element_text": "The organization communicates recovery activities and progress to designated external stakeholders."
+            }
+        ]
+    },
+    {
+        "requirement_id": "RC.CO-04",
+        "requirement_text": "Public updates on incident recovery are shared using approved methods and messaging",
+        "elements": [
+            {
+                "element_id": "RC.CO-04-E1",
+                "element_text": "The organization provides public updates on incident recovery through approved channels."
+            },
+            {
+                "element_id": "RC.CO-04-E2",
+                "element_text": "Public recovery updates use messaging approved by relevant authorities (e.g., communications team)."
+            }
+        ]
+    }
+]

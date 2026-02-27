@@ -5,10 +5,12 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.assessment import Assessment, AssessmentStatus
+from app.models.requirement_threshold import AssessmentRequirementThreshold
 from app.models.user import User
 from app.schemas.assessment import (
     AssessmentCreate,
@@ -193,6 +195,68 @@ async def delete_assessment(
 
     db.delete(assessment)
     db.commit()
+
+
+class RequirementThresholdUpsert(BaseModel):
+    threshold: float = Field(..., ge=0.0, le=100.0)
+
+
+@router.put("/{assessment_id}/requirement-thresholds/{requirement_id}")
+async def upsert_requirement_threshold(
+    assessment_id: uuid.UUID,
+    requirement_id: uuid.UUID,
+    body: RequirementThresholdUpsert,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user),
+):
+    """Upsert a per-requirement relevance threshold for an assessment."""
+    assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
+    if not assessment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
+
+    existing = (
+        db.query(AssessmentRequirementThreshold)
+        .filter(
+            AssessmentRequirementThreshold.assessment_id == assessment_id,
+            AssessmentRequirementThreshold.requirement_id == requirement_id,
+        )
+        .first()
+    )
+
+    if existing:
+        existing.threshold = body.threshold
+        existing.updated_at = datetime.utcnow()
+    else:
+        record = AssessmentRequirementThreshold(
+            id=uuid.uuid4(),
+            assessment_id=assessment_id,
+            requirement_id=requirement_id,
+            threshold=body.threshold,
+            updated_at=datetime.utcnow(),
+        )
+        db.add(record)
+
+    db.commit()
+    return {"assessment_id": str(assessment_id), "requirement_id": str(requirement_id), "threshold": body.threshold}
+
+
+@router.get("/{assessment_id}/requirement-thresholds")
+async def get_requirement_thresholds(
+    assessment_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user),
+):
+    """Get all per-requirement thresholds for an assessment as a {requirement_id: threshold} map."""
+    assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
+    if not assessment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
+
+    rows = (
+        db.query(AssessmentRequirementThreshold)
+        .filter(AssessmentRequirementThreshold.assessment_id == assessment_id)
+        .all()
+    )
+    return {str(row.requirement_id): row.threshold for row in rows}
 
 
 @router.get("/{assessment_id}/transitions")

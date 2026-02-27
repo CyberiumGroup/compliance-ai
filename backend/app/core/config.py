@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     default_confidence_threshold: float = 0.5
     mapping_relevance_threshold: float = 70.0  # minimum relevance_percentage to store a mapping
 
+    # LLM Scoring
+    scoring_model: str = "gpt-4o-mini"
+    scoring_model_enhanced: str = "gpt-4o"
+    scoring_max_output_tokens: int = 1200
+
     # Chunking (for semantic relevance scoring)
     chunk_size_chars: int = 1200      # ~300 tokens (4 chars/token approx)
     chunk_overlap_chars: int = 150    # ~12% overlap

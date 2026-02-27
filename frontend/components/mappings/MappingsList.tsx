@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Info, Save } fr
 import { PolicyMapping } from '@/lib/types';
 import { RequirementMappingGroup } from './RequirementMappingGroup';
 import { cn } from '@/lib/utils';
+import { apiRequest } from '@/lib/api/client';
 
 const DEFAULT_GLOBAL_THRESHOLD = 80;
 
@@ -301,6 +302,7 @@ function NodeSection({
 
 interface MappingsListProps {
   policyMappings: PolicyMapping[];
+  assessmentId: string;
   initialThreshold?: number;
   onSaveThreshold: (threshold: number) => Promise<void>;
   onRejectPolicy: (mappingId: string) => Promise<void>;
@@ -309,6 +311,7 @@ interface MappingsListProps {
 
 export function MappingsList({
   policyMappings,
+  assessmentId,
   initialThreshold,
   onSaveThreshold,
   onRejectPolicy,
@@ -322,6 +325,40 @@ export function MappingsList({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reqDebounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Build code -> requirement_id lookup from policyMappings
+  const codeToRequirementId = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const pm of policyMappings) {
+      if (pm.requirement_code && pm.requirement_id) {
+        m.set(pm.requirement_code, pm.requirement_id);
+      }
+    }
+    return m;
+  }, [policyMappings]);
+
+  // On mount: fetch persisted per-requirement thresholds and convert to code-keyed map
+  useEffect(() => {
+    if (!assessmentId) return;
+    apiRequest<Record<string, number>>(`/assessments/${assessmentId}/requirement-thresholds`)
+      .then(data => {
+        const idToCode = new Map<string, string>();
+        for (const pm of policyMappings) {
+          if (pm.requirement_id && pm.requirement_code) {
+            idToCode.set(pm.requirement_id, pm.requirement_code);
+          }
+        }
+        const codeKeyed = new Map<string, number>();
+        for (const [reqId, threshold] of Object.entries(data)) {
+          const code = idToCode.get(reqId);
+          if (code) codeKeyed.set(code, threshold);
+        }
+        if (codeKeyed.size > 0) setReqThresholds(codeKeyed);
+      })
+      .catch(() => {/* ignore — thresholds not persisted yet */});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assessmentId]);
 
   // Sync if the saved threshold loads after initial render
   useEffect(() => {
@@ -336,8 +373,23 @@ export function MappingsList({
   );
   const totalMissing = frameworks.reduce((s, fw) => s + fw.missingCount, 0);
 
-  const handleReqThresholdChange = (code: string, t: number) =>
+  const handleReqThresholdChange = (code: string, t: number) => {
     setReqThresholds(prev => new Map(prev).set(code, t));
+
+    // Debounce-save to backend (300ms)
+    const existing = reqDebounceRef.current.get(code);
+    if (existing) clearTimeout(existing);
+    const timer = setTimeout(() => {
+      const requirementId = codeToRequirementId.get(code);
+      if (!requirementId) return;
+      apiRequest(`/assessments/${assessmentId}/requirement-thresholds/${requirementId}`, {
+        method: 'PUT',
+        body: { threshold: t },
+      }).catch(() => {/* ignore save errors silently */});
+      reqDebounceRef.current.delete(code);
+    }, 300);
+    reqDebounceRef.current.set(code, timer);
+  };
 
   const traversalStats = useMemo(() => {
     const uniqueReqs = new Set(policyMappings.map(m => m.requirement_code).filter(Boolean)).size;

@@ -1,5 +1,76 @@
 import { UUID } from './common';
 
+// ─── LLM Scoring Types ────────────────────────────────────────────────────────
+
+export interface ScoringJob {
+  id: UUID;
+  assessment_id: UUID;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  total_requirements: number;
+  completed_requirements: number;
+  failed_requirements: number;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+}
+
+export interface ScoreExplanationItem {
+  element_id?: string;
+  mechanism_id?: string;
+  issue?: string;
+  gap?: string;
+}
+
+export interface ScoreImprovement {
+  level: string;
+  action: string;
+}
+
+export interface ScoreExplanation {
+  executive_summary: string;
+  deficiencies?: ScoreExplanationItem[];
+  gap_analysis?: ScoreExplanationItem[];
+  peer_analysis?: ScoreExplanationItem[];
+  improvements?: ScoreImprovement[];
+  recommendations?: ScoreImprovement[];
+  guidance?: ScoreImprovement[];
+}
+
+export interface ScoreAncestor {
+  id: string;
+  code: string | null;
+  name: string | null;
+}
+
+export interface RequirementScore {
+  id: UUID;
+  assessment_id: UUID;
+  requirement_id: UUID;
+  requirement_code: string | null;
+  requirement_name: string | null;
+  requirement_description: string | null;
+  ancestors: ScoreAncestor[];
+  score1: number | null;
+  score2: number | null;
+  score3: number | null;
+  phase1_output: Record<string, unknown> | null;
+  phase2_output: Record<string, unknown> | null;
+  phase4_output: Record<string, unknown> | null;
+  phase5_output: Record<string, unknown> | null;
+  score1_explanation: ScoreExplanation | null;
+  score2_explanation: ScoreExplanation | null;
+  score3_explanation: ScoreExplanation | null;
+  model_used: string | null;
+  llm_calls_used: number | null;
+  status: 'not_scored' | 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
+  skip_reason: 'missing_documentation' | null;
+  error_message: string | null;
+  scored_at: string | null;
+}
+
+// ─── Legacy types (kept for backward compatibility with old score tables) ─────
+
 export interface ExplanationComponent {
   type: string;
   source: string;
@@ -58,7 +129,7 @@ export interface ScoreSummary {
   calculated_at: string;
 }
 
-export interface ScoreExplanation {
+export interface ScoreExplanationLegacy {
   score_id: UUID;
   level: 'subcategory' | 'category' | 'function';
   code: string;
