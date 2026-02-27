@@ -1,7 +1,7 @@
 import { UUID } from './common';
 
 export type AssessmentStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
-export type AssessmentDepth = 'design' | 'implementation';
+export type AssessmentDepth = 'design' | 'implementation' | 'operating_effectiveness';
 
 export interface AIPromptOverrides {
   mapping_prompt_suffix?: string | null;
