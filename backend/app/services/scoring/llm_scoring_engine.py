@@ -10,7 +10,7 @@ Implements the 7-phase scoring system:
   Phase 7  — Deterministic Score 3 (peer alignment)
 
 Produces three 0–100% scores per requirement:
-  score1 — Requirement Met by Design
+  score1 — Requirement Met by Documentation
   score2 — Risk-Based Best Practice Adequacy
   score3 — Peer Alignment
 """
@@ -339,14 +339,13 @@ class LLMScoringEngine:
                 "compliance requirement. For each element, select the status that best "
                 "describes what the documentation demonstrates. Use ONLY the status values "
                 f"listed: {status_vocab}. "
-                "Then provide a concise Score 1 explanation summarising the overall finding."
+                "Then provide a concise explanation summarising the overall finding."
             ),
             "requirement": {
                 "code": req.code,
                 "name": req.name,
                 "description": req.description or "",
             },
-            "depth": depth,
             "elements": elements,
             "control_documentation": control_docs,
             "output_format": {
@@ -355,7 +354,7 @@ class LLMScoringEngine:
                         "id": "E1",
                         "status": f"one of: {', '.join(status_vocab)}",
                         "evidence_reference": "quote from docs or 'None found'",
-                        "deficiency_summary": "what is missing or null if fully addressed",
+                        "deficiency_summary": "what is missing or 'null' if fully addressed",
                     }
                 ],
                 "score1_explanation": {

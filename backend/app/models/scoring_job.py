@@ -81,7 +81,7 @@ class RequirementScore(Base):
     """LLM-computed scores for a single requirement in an assessment.
 
     Stores three 0–100% scores:
-      score1 — Requirement Met by Design
+      score1 — Requirement Met by Documentation
       score2 — Risk-Based Best Practice Adequacy
       score3 — Peer Alignment
     """

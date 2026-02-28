@@ -80,7 +80,7 @@ export function RequirementScoreListItem({
           )}
           {isCompleted && (
             <>
-              <ScorePip value={score.score1} label="Design" />
+              <ScorePip value={score.score1} label="Documentation" />
               <ScorePip value={score.score2} label="Risk" />
               <ScorePip value={score.score3} label="Peer" />
             </>

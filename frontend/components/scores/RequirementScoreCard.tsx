@@ -91,7 +91,7 @@ export function RequirementScoreCard({ score, onRerun }: RequirementScoreCardPro
           )}
           {isCompleted && (
             <>
-              <ScoreBadge value={score.score1} label="Design" />
+              <ScoreBadge value={score.score1} label="Documentation" />
               <ScoreBadge value={score.score2} label="Risk" />
               <ScoreBadge value={score.score3} label="Peer" />
             </>
@@ -119,7 +119,7 @@ export function RequirementScoreCard({ score, onRerun }: RequirementScoreCardPro
         <div className="border-t border-neutral-100 px-4 pb-4 pt-3 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <ScorePanel
-              title="Score 1 — Met by Design"
+              title="Score 1 — Met by Documentation"
               subtitle="Control documentation coverage of requirement elements"
               score={score.score1}
               explanation={score.score1_explanation}

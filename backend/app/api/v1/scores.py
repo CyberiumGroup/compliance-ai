@@ -74,6 +74,7 @@ def _req_to_unscored_dict(req: FrameworkRequirement, req_map: dict) -> dict:
         "id": str(req.id),          # use requirement_id as id — consistent with requirement_id
         "assessment_id": None,
         "requirement_id": str(req.id),
+        "framework_id": str(req.framework_id),
         "requirement_code": req.code,
         "requirement_name": req.name,
         "requirement_description": req.description,
@@ -104,6 +105,7 @@ def _score_to_dict(score: RequirementScore, req_map: dict | None = None) -> dict
         "id": str(score.id),
         "assessment_id": str(score.assessment_id),
         "requirement_id": str(score.requirement_id),
+        "framework_id": str(req.framework_id) if req else None,
         "requirement_code": req.code if req else None,
         "requirement_name": req.name if req else None,
         "requirement_description": req.description if req else None,

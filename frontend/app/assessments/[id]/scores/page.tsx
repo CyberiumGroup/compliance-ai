@@ -14,9 +14,32 @@ import {
   rerunRequirementScore,
   clearRequirementScores,
   downloadScoringExcel,
-} from '@/lib/api/scores';
+  getAssessment,
+  getAssessmentScope,
+  listFrameworks,
+} from '@/lib/api';
 import { useUserId } from '@/lib/hooks/useUserId';
-import { ScoringJob, RequirementScore } from '@/lib/types';
+import { ScoringJob, RequirementScore, Assessment, AssessmentScope, Framework } from '@/lib/types';
+
+const FRAMEWORK_TYPE_COLORS: Record<string, string> = {
+  nist_csf: 'bg-blue-100 text-blue-700',
+  iso_27001: 'bg-green-100 text-green-700',
+  soc2_tsc: 'bg-purple-100 text-purple-700',
+  custom: 'bg-orange-100 text-orange-700',
+};
+
+const FRAMEWORK_TYPE_LABELS: Record<string, string> = {
+  nist_csf: 'NIST CSF',
+  iso_27001: 'ISO 27001',
+  soc2_tsc: 'SOC 2',
+  custom: 'Custom',
+};
+
+const DEPTH_LABELS: Record<string, string> = {
+  design: 'Design',
+  implementation: 'Implementation',
+  operating_effectiveness: 'Operating Effectiveness',
+};
 
 interface ScoresPageProps {
   params: Promise<{ id: string }>;
@@ -26,6 +49,9 @@ export default function ScoresPage({ params }: ScoresPageProps) {
   const { id } = use(params);
   const userId = useUserId();
 
+  const [assessment, setAssessment] = useState<Assessment | null>(null);
+  const [scopes, setScopes] = useState<AssessmentScope[]>([]);
+  const [allFrameworks, setAllFrameworks] = useState<Framework[]>([]);
   const [job, setJob] = useState<ScoringJob | null>(null);
   const [scores, setScores] = useState<RequirementScore[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -46,10 +72,16 @@ export default function ScoresPage({ params }: ScoresPageProps) {
   const fetchData = useCallback(async () => {
     if (!userId) return;
     try {
-      const [jobData, scoresData] = await Promise.all([
+      const [assessmentData, frameworksData, scopeData, jobData, scoresData] = await Promise.all([
+        getAssessment(id, userId).catch(() => null),
+        listFrameworks().catch(() => [] as Framework[]),
+        getAssessmentScope(id).catch(() => [] as AssessmentScope[]),
         getScoringJob(id, userId).catch(() => null),
         getRequirementScores(id, userId).catch(() => [] as RequirementScore[]),
       ]);
+      setAssessment(assessmentData);
+      setAllFrameworks(frameworksData ?? []);
+      setScopes(scopeData ?? []);
       setJob(jobData);
       setScores(scoresData);
       if (scoresData.length > 0) {
@@ -88,10 +120,14 @@ export default function ScoresPage({ params }: ScoresPageProps) {
 
   const handleJobUpdate = useCallback(async (updatedJob: ScoringJob) => {
     setJob(updatedJob);
-    if (updatedJob.status === 'completed' || updatedJob.status === 'failed') {
+    // Refresh scores on every poll tick while running so the progress bar stays accurate,
+    // and on completion/failure to get final results.
+    if (updatedJob.status === 'running' || updatedJob.status === 'completed' || updatedJob.status === 'failed') {
       const freshScores = await getRequirementScores(id, userId).catch(() => [] as RequirementScore[]);
       setScores(freshScores);
-      setSelectedId(prev => prev ?? (freshScores[0]?.id ?? null));
+      if (updatedJob.status === 'completed' || updatedJob.status === 'failed') {
+        setSelectedId(prev => prev ?? (freshScores[0]?.id ?? null));
+      }
     }
   }, [id, userId]);
 
@@ -211,6 +247,10 @@ export default function ScoresPage({ params }: ScoresPageProps) {
   const avgScore3 = avg(completedScores.map(s => s.score3));
 
   const jobIsActive = job?.status === 'pending' || job?.status === 'running';
+  const scoredCount = scores.filter(s => s.status !== 'not_scored').length;
+  const frameworkMap = new Map(
+    allFrameworks.map(fw => [fw.id, { name: fw.name, type: fw.framework_type }])
+  );
   const selectedScore = scores.find(s => s.id === selectedId) ?? null;
   // True when at least one checked requirement has existing score data to clear
   const checkedHaveScoredItems = Array.from(checkedReqIds).some(reqId =>
@@ -259,19 +299,68 @@ export default function ScoresPage({ params }: ScoresPageProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-neutral-600 mb-4">
+          <p className="text-sm text-neutral-600 mb-5">
             AI-assisted scoring generates three independent scores (0–100%) per requirement:
-            design coverage, risk-based best practice adequacy, and peer alignment.
+            documentation coverage, risk-based best practice adequacy, and peer alignment.
           </p>
+
+          {/* Scope summary */}
+          {(scopes.length > 0 || assessment) && (
+            <div className="my-5 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+              <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-2.5">Scope</p>
+              <div className="flex flex-wrap gap-x-6 gap-y-2.5">
+                {scopes.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-neutral-500 font-medium min-w-fit">Frameworks</span>
+                    {scopes.map(scope => {
+                      const fw = allFrameworks.find(f => f.id === scope.framework_id);
+                      const type = fw?.framework_type ?? 'custom';
+                      const colorClass = FRAMEWORK_TYPE_COLORS[type] ?? FRAMEWORK_TYPE_COLORS.custom;
+                      const label = fw?.name ?? scope.framework_code ?? FRAMEWORK_TYPE_LABELS[type] ?? 'Framework';
+                      return (
+                        <span key={scope.id} className={`px-2.5 py-1 rounded-full text-xs font-medium ${colorClass}`}>
+                          {label}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                {assessment && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-neutral-500 font-medium">Depth</span>
+                    <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-neutral-100 text-neutral-600">
+                      {DEPTH_LABELS[assessment.depth_level] ?? assessment.depth_level}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Persistent scored-count indicator */}
+          {scores.length > 0 && (
+            <div className="flex items-center gap-1.5 text-sm text-neutral-500 mb-3">
+              <span className="font-semibold text-neutral-800">{scoredCount}</span>
+              <span>of</span>
+              <span className="font-semibold text-neutral-800">{scores.length}</span>
+              <span>requirements scored</span>
+            </div>
+          )}
 
           {error && <ErrorMessage message={error} className="mb-4" />}
           {exportError && <ErrorMessage message={exportError} className="mb-4" />}
+          {job?.status === 'failed' && job.error_message && (
+            <ErrorMessage message={`Scoring job failed: ${job.error_message}`} className="mb-4" />
+          )}
 
+          {/* Progress bar — only visible while a full scoring job is running */}
           {job && (
             <ScoringProgress
               assessmentId={id}
               job={job}
               onJobUpdate={handleJobUpdate}
+              scoredCount={scoredCount}
+              totalCount={scores.length}
             />
           )}
         </CardContent>
@@ -281,7 +370,7 @@ export default function ScoresPage({ params }: ScoresPageProps) {
       {completedScores.length > 0 && (
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Score 1 — Met by Design', value: avgScore1, subtitle: 'Control documentation coverage' },
+            { label: 'Score 1 — Met by Documentation', value: avgScore1, subtitle: 'Control documentation coverage' },
             { label: 'Score 2 — Risk Adequacy', value: avgScore2, subtitle: 'Best practice alignment' },
             { label: 'Score 3 — Peer Alignment', value: avgScore3, subtitle: 'Industry peer comparison' },
           ].map(({ label, value, subtitle }) => (
@@ -302,18 +391,18 @@ export default function ScoresPage({ params }: ScoresPageProps) {
       {scores.length > 0 && (
         <div className="flex gap-4 items-start">
           {/* Left — requirement list */}
-          <div className="w-80 flex-shrink-0">
-            <div className="sticky top-4 flex flex-col max-h-[calc(100vh-16rem)] overflow-y-auto pr-1">
-              {/* List header + selection toolbar */}
-              <div className="flex items-center gap-2 px-1 mb-1.5">
+          <div className="w-96 flex-shrink-0">
+            <div className="sticky top-4 flex flex-col max-h-[calc(100vh-16rem)]">
+              {/* List header */}
+              <div className="flex items-center gap-2 px-1 mb-1.5 flex-shrink-0">
                 <p className="text-xs font-semibold text-neutral-500 flex-1">
                   Requirements ({scores.length})
                 </p>
               </div>
 
-              {/* Selection / action toolbar */}
+              {/* Selection / action toolbar — always visible above the scrollable list */}
               {(checkedReqIds.size > 0 || rerunProgress || clearing) && (
-                <div className="mb-2 rounded-lg border overflow-hidden text-xs">
+                <div className="mb-2 rounded-lg border overflow-hidden text-xs flex-shrink-0">
                   {clearConfirming ? (
                     /* ── Confirmation state ── */
                     <div className="bg-red-50 border-red-200 px-3 py-2 space-y-2">
@@ -386,14 +475,18 @@ export default function ScoresPage({ params }: ScoresPageProps) {
                 </div>
               )}
 
-              <RequirementScoreHierarchyList
-                scores={scores}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                checkedReqIds={checkedReqIds}
-                onToggleReq={handleToggleReq}
-                onToggleGroup={handleToggleGroup}
-              />
+              {/* Scrollable hierarchy list */}
+              <div className="overflow-y-auto flex-1 pr-1">
+                <RequirementScoreHierarchyList
+                  scores={scores}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  checkedReqIds={checkedReqIds}
+                  onToggleReq={handleToggleReq}
+                  onToggleGroup={handleToggleGroup}
+                  frameworkMap={frameworkMap}
+                />
+              </div>
             </div>
           </div>
 

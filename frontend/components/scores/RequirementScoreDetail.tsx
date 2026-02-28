@@ -90,7 +90,7 @@ export function RequirementScoreDetail({ score, onRerun }: RequirementScoreDetai
       {isCompleted && (
         <div className="space-y-3">
           <ScorePanel
-            title="Score 1 — Met by Design"
+            title="Score 1 — Met by Documentation"
             subtitle="Control documentation coverage of requirement elements"
             score={score.score1}
             explanation={score.score1_explanation}

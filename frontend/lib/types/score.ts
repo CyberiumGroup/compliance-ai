@@ -47,6 +47,7 @@ export interface RequirementScore {
   id: UUID;
   assessment_id: UUID;
   requirement_id: UUID;
+  framework_id: UUID | null;
   requirement_code: string | null;
   requirement_name: string | null;
   requirement_description: string | null;
