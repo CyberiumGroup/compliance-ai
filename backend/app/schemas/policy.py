@@ -73,6 +73,7 @@ class PolicyMappingResponse(PolicyMappingBase):
     requirement_parent_code: str | None = None
     requirement_level: int | None = None
     requirement_ancestors: list | None = None
+    requirement_display_order: int | None = None
     requirement_guidance: str | None = None
     relevance_percentage: float | None = None
     reasoning: str | None = None

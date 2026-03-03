@@ -139,16 +139,20 @@ class PolicyMapping(Base):
 
     @property
     def requirement_ancestors(self) -> list[dict] | None:
-        """Ordered list of ancestors from root to immediate parent: [{code, name}, ...]."""
+        """Ordered list of ancestors from root to immediate parent: [{code, name, display_order}, ...]."""
         if not self.requirement:
             return None
         ancestors = []
         node = self.requirement.parent
         while node is not None:
-            ancestors.append({"code": node.code, "name": node.name})
+            ancestors.append({"code": node.code, "name": node.name, "display_order": node.display_order})
             node = node.parent
         ancestors.reverse()
         return ancestors if ancestors else None
+
+    @property
+    def requirement_display_order(self) -> int | None:
+        return self.requirement.display_order if self.requirement else None
 
     @property
     def requirement_guidance(self) -> str | None:

@@ -11,7 +11,7 @@ const DEFAULT_GLOBAL_THRESHOLD = 80;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Ancestor = { code: string; name: string | null };
+type Ancestor = { code: string; name: string | null; display_order?: number };
 
 interface ReqGroupData {
   requirementCode: string;
@@ -67,9 +67,13 @@ function groupByAncestor(requirements: ReqGroupData[], depth: number): Hierarchy
     nodeMap.get(ancestor.code)!.reqs.push(req);
   }
 
-  return [...nodeMap.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([, { ancestor, reqs }]) => {
+  return [...nodeMap.values()]
+    .sort((a, b) => {
+      const orderA = a.ancestor.display_order ?? 0;
+      const orderB = b.ancestor.display_order ?? 0;
+      return orderA !== orderB ? orderA - orderB : a.ancestor.code.localeCompare(b.ancestor.code);
+    })
+    .map(({ ancestor, reqs }) => {
       const directRequirements = reqs.filter(r => r.ancestors.length === depth + 1);
       const deeperReqs = reqs.filter(r => r.ancestors.length > depth + 1);
       const children = groupByAncestor(deeperReqs, depth + 1);
@@ -93,6 +97,7 @@ function buildGroups(mappings: PolicyMapping[], threshold: number): FrameworkDat
     guidance: string | null;
     parentCode: string | null;
     ancestors: Ancestor[];
+    displayOrder: number;
     mappings: PolicyMapping[];
   };
 
@@ -112,6 +117,7 @@ function buildGroups(mappings: PolicyMapping[], threshold: number): FrameworkDat
         guidance: m.requirement_guidance ?? null,
         parentCode: m.requirement_parent_code ?? null,
         ancestors: m.requirement_ancestors ?? [],
+        displayOrder: m.requirement_display_order ?? 0,
         mappings: [],
       });
     }
@@ -122,7 +128,7 @@ function buildGroups(mappings: PolicyMapping[], threshold: number): FrameworkDat
 
   for (const [fw, reqMap] of [...fwMap.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     const requirements: ReqGroupData[] = [...reqMap.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([codeA, a], [codeB, b]) => a.displayOrder - b.displayOrder || codeA.localeCompare(codeB))
       .map(([code, entry]) => ({
         requirementCode: code,
         requirementName: entry.name,
