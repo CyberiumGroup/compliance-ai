@@ -36,18 +36,18 @@ Each assessment instance shall receive:
 
 ## 2.1 Control Documentation (Input 1)
 
-May include:
+Two categories of documents are supported, stored in the `policies` table with a `document_type` column:
 
-* Policies
-* Procedures
-* Evidence
-* Process documentation
+| `document_type` | Purpose |
+|---|---|
+| `policy` | Design-level documentation — policies, procedures, standards. Used in Phase 2a. |
+| `evidence` | Implementation evidence — configuration exports, audit logs, test results, screenshots. Used in Phase 2b (implementation depth only). |
 
-Depth depends on assessment type:
+Depth determines which document types are evaluated:
 
-* Design
-* Design + Implementation
-* Design + Implementation + Operating Effectiveness
+* Design — policy documents only (Phase 2a)
+* Design + Implementation — policy documents (Phase 2a) + evidence documents (Phase 2b)
+* Design + Implementation + Operating Effectiveness — same as implementation
 
 ---
 
@@ -85,18 +85,42 @@ For each requirement, the system must produce:
 
 ---
 
-## 3.1 Score 1 — Requirement Met by Design (0–100%)
+## 3.1 Score 1 — Requirement Met by Documentation (0–100%)
 
-Based on:
+Score 1 is a composite of two sub-scores:
 
-* Control documentation
-* Assessment depth
+**Score 1a — Design** (`score1_design`): Evaluated from policy documents via Phase 2a.
+Always uses design-level status vocabulary (`Fully Addressed`, `Partially Addressed`, `Not Addressed`)
+regardless of assessment depth, because policies describe intent, not deployment.
+
+**Score 1b — Implementation** (`score1_implementation`): Evaluated from evidence documents via Phase 2b.
+Only computed at implementation depth. `null` means N/A (design depth). `0.0` means no evidence
+documents were mapped (penalised).
+
+Status vocabulary for Phase 2b: `Fully Implemented`, `Partially Implemented`, `No Evidence Found`.
+
+**Composite Score 1** (`score1`) = average of Score 1a and Score 1b (when both are present).
+At design depth, Score 1 = Score 1a.
+
+Edge cases:
+
+| Depth | Policy docs | Evidence docs | Score 1a | Score 1b | Composite |
+|---|---|---|---|---|---|
+| design | ✓ | — | calculated | null (N/A) | = Score 1a |
+| design | ✗ | — | skipped | null (N/A) | skipped |
+| implementation | ✓ | ✓ | calculated | calculated | average |
+| implementation | ✓ | ✗ | calculated | 0% + warning | average (penalised) |
+| implementation | ✗ | ✓ | 0% + warning | calculated | average (penalised) |
+| implementation | ✗ | ✗ | skipped | skipped | skipped |
+
+Each sub-score produces its own explanation:
+* `score1_design_explanation` — executive summary, supporting documents, deficiencies, improvements
+* `score1_implementation_explanation` — same structure with implementation-specific vocabulary
 
 Plus:
 
-* Executive explanation
-* Structured deficiency list
-* Improvement guidance aligned to depth
+* `score1_explanation` — top-level explanation (same as `score1_design_explanation`)
+* Supporting documents anchored to exact document titles from `available_document_titles`
 
 ---
 
@@ -246,47 +270,75 @@ This output must be reused for Score 1.
 
 ---
 
-# Phase 2 — Control Evaluation Against Elements (1 LLM Call)
+# Phase 2a — Policy/Design Evaluation (1 LLM Call)
 
-LLM must classify each element based on assessment depth.
+LLM classifies each requirement element against policy documents (design-level documentation).
+This phase always runs if policy documents are available, regardless of assessment depth.
 
-Allowed classifications vary by depth:
-
-### Design
+Allowed status values (always design-level vocabulary):
 
 * Fully Addressed
 * Partially Addressed
 * Not Addressed
 
-### Design + Implementation
-
-* Fully Designed and Implemented
-* Designed but Not Implemented
-* Partially Implemented
-* Not Addressed
-
-### Design + Implementation + Operating Effectiveness
-
-* Fully Designed, Implemented, and Operating Effectively
-* Implemented but Not Operating Consistently
-* Designed but Not Implemented
-* Not Addressed
-
 Structured JSON required with:
 
-* Status
+* Status per element
 * Evidence reference
 * Deficiency summary
+* `score1_explanation` with executive summary, supporting documents, deficiencies, improvements
+
+The Phase 2a prompt provides an `available_document_titles` list with exact `policy_name` values.
+The LLM must select supporting document titles exclusively from this list (copied character-for-character).
+
+Output stored in: `phase2_output` (DB column), `score1_design_explanation`
+
+---
+
+# Phase 2b — Implementation Evidence Evaluation (1 LLM Call, implementation depth only)
+
+LLM classifies each requirement element against evidence documents (implementation artifacts).
+This phase only runs at implementation depth. If no evidence documents are mapped, `score1_implementation = 0.0` with a warning explanation.
+
+Allowed status values (implementation vocabulary):
+
+* Fully Implemented
+* Partially Implemented
+* No Evidence Found
+
+The prompt optionally receives `design_evaluation_context` (Phase 2a element evaluations) to help
+the LLM judge whether the evidence confirms the documented design is deployed.
+
+Output stored in: `phase2b_output` (DB column), `score1_implementation_explanation`
+
+---
+
+# Phase 2b Edge Case: No Design Context
+
+If no policy documents exist but evidence documents do, Phase 2b runs without `design_evaluation_context`.
+The prompt instructs the LLM to evaluate evidence directly and note where design documentation would be needed.
 
 ---
 
 # Phase 3 — Deterministic Score 1 Calculation
 
-System shall compute:
+System computes Score 1a (Design) from Phase 2a element evaluations and Score 1b (Implementation)
+from Phase 2b element evaluations using the same formula:
 
-Score1 = (Sum(element_values) / Total_possible_value) × 100
+Sub-score = (Sum(element_values) / Total_elements) × 100
 
-Numeric mapping must be deterministic and configurable.
+Status → value mapping (design vocabulary):
+* Fully Addressed → 1.0
+* Partially Addressed → 0.5
+* Not Addressed → 0.0
+
+Status → value mapping (implementation vocabulary):
+* Fully Implemented → 1.0
+* Partially Implemented → 0.5
+* No Evidence Found → 0.0
+
+Composite Score 1 = (Score 1a + Score 1b) / 2 when both sub-scores are present.
+At design depth, Score 1 = Score 1a (Score 1b is null/N/A).
 
 LLM must not perform arithmetic.
 
@@ -332,6 +384,32 @@ Must also provide:
 
 Structured JSON required.
 
+**Compliance Picture (replacing raw documents):**
+Phase 5 receives a `company_compliance_picture` (structured findings distilled from Phases 2a/2b)
+instead of raw document text. This reduces token usage and improves accuracy by providing structured,
+element-level findings. The compliance picture contains:
+
+```json
+{
+  "element_findings": [
+    {
+      "id": "E1",
+      "description": "...",
+      "design_status": "Fully Addressed",
+      "design_evidence_reference": "...",
+      "design_deficiency": null,
+      "implementation_status": "Partially Implemented",
+      "implementation_evidence_reference": "...",
+      "implementation_deficiency": "..."
+    }
+  ],
+  "design_coverage_summary": "2-3 sentence Phase 2a executive summary",
+  "implementation_coverage_summary": "2-3 sentence Phase 2b executive summary"
+}
+```
+
+Phase 4 also receives the compliance picture instead of raw documents.
+
 ---
 
 # Phase 6 — Deterministic Score 2 Calculation
@@ -371,6 +449,10 @@ For each of the three scores, LLM must produce:
    * Design level
    * Implementation level
    * Operating effectiveness level
+
+For Score 1 specifically, LLM must also produce:
+
+4. Supporting documents — an accurate list of which provided context documents contained relevant information, with a brief description of what was found in each. Titles must match the `available_document_titles` list exactly.
 
 Explanations must:
 

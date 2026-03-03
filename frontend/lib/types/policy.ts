@@ -7,6 +7,7 @@ export interface Policy {
   description: string | null;
   version: string | null;
   owner: string | null;
+  document_type: 'policy' | 'evidence';
   file_path: string | null;
   content_text: string | null;
   summary: string | null;

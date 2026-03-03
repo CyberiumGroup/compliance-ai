@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { useState } from 'react';
 import { ScoreExplanation } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -54,9 +54,10 @@ function ScoreRing({ score }: { score: number }) {
 export function ScorePanel({ title, subtitle, score, explanation, nullReason }: ScorePanelProps) {
   const [expanded, setExpanded] = useState(false);
 
+  const supportingDocs = explanation?.supporting_documents ?? [];
   const deficiencies = explanation?.deficiencies ?? explanation?.gap_analysis ?? explanation?.peer_analysis ?? [];
   const improvements = explanation?.improvements ?? explanation?.recommendations ?? explanation?.guidance ?? [];
-  const hasDetails = deficiencies.length > 0 || improvements.length > 0;
+  const hasDetails = supportingDocs.length > 0 || deficiencies.length > 0 || improvements.length > 0;
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
@@ -96,6 +97,23 @@ export function ScorePanel({ title, subtitle, score, explanation, nullReason }: 
 
       {expanded && explanation && (
         <div className="border-t border-neutral-100 px-4 pb-4 pt-3 space-y-3">
+          {supportingDocs.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-neutral-700 mb-1.5">Supporting Documents</p>
+              <ul className="space-y-2">
+                {supportingDocs.map((doc, i) => (
+                  <li key={i} className="flex gap-2.5">
+                    <FileText className="h-3.5 w-3.5 flex-shrink-0 text-neutral-400 mt-0.5" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-neutral-800 leading-snug">{doc.title}</p>
+                      <p className="text-xs text-neutral-500 mt-0.5 leading-relaxed">{doc.relevant_details}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {deficiencies.length > 0 && (
             <div>
               <p className="text-xs font-semibold text-neutral-700 mb-1.5">Deficiencies / Gaps</p>

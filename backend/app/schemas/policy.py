@@ -33,6 +33,7 @@ class PolicyResponse(PolicyBase):
     """Schema for Policy response."""
     id: UUID
     assessment_id: UUID
+    document_type: str = "policy"
     file_path: str | None = None
     content_text: str | None = None
     summary: str | None = None

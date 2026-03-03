@@ -9,9 +9,10 @@ import { PolicyUploadResponse } from '@/lib/types';
 interface PolicyUploaderProps {
   assessmentId: string;
   onUploadComplete: (response: PolicyUploadResponse) => void;
+  documentType?: 'policy' | 'evidence';
 }
 
-export function PolicyUploader({ assessmentId, onUploadComplete }: PolicyUploaderProps) {
+export function PolicyUploader({ assessmentId, onUploadComplete, documentType = 'policy' }: PolicyUploaderProps) {
   const userId = useUserId();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +38,7 @@ export function PolicyUploader({ assessmentId, onUploadComplete }: PolicyUploade
     setError(null);
 
     try {
-      const response = await uploadPolicy(assessmentId, selectedFile, metadata, userId);
+      const response = await uploadPolicy(assessmentId, selectedFile, { ...metadata, document_type: documentType }, userId);
       onUploadComplete(response);
       setSelectedFile(null);
       setMetadata({ name: '', description: '', version: '', owner: '' });
@@ -54,7 +55,7 @@ export function PolicyUploader({ assessmentId, onUploadComplete }: PolicyUploade
         accept=".pdf,.docx,.doc,.txt,.md"
         onFileSelect={handleFileSelect}
         uploading={uploading}
-        label="Upload Policy Document"
+        label={documentType === 'evidence' ? 'Upload Evidence Document' : 'Upload Policy Document'}
         helperText="PDF, DOCX, TXT, or Markdown files"
       />
 
@@ -93,7 +94,7 @@ export function PolicyUploader({ assessmentId, onUploadComplete }: PolicyUploade
 
           <div className="flex justify-end">
             <Button onClick={handleUpload} loading={uploading}>
-              Upload Policy
+              {documentType === 'evidence' ? 'Upload Evidence' : 'Upload Policy'}
             </Button>
           </div>
         </div>

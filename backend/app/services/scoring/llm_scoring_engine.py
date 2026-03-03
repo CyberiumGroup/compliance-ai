@@ -1,16 +1,17 @@
 """LLM-assisted requirement scoring engine.
 
 Implements the 7-phase scoring system:
-  Phase 1  — Requirement element decomposition (pre-seeded from static JSON, never via LLM)
-  Phase 2  — Control evaluation against elements (LLM call 1 per assessment run)
-  Phase 3  — Deterministic Score 1 calculation
-  Phase 4  — Expected mechanism extraction (LLM call 2)
-  Phase 5  — Mechanism evaluation + explanations (LLM call 3)
-  Phase 6  — Deterministic Score 2 (risk-based)
-  Phase 7  — Deterministic Score 3 (peer alignment)
+  Phase 1   — Requirement element decomposition (pre-seeded from static JSON, never via LLM)
+  Phase 2a  — Design evaluation against elements using policy documents (LLM call 1)
+  Phase 2b  — Implementation evaluation using evidence documents (LLM call 2, implementation depth only)
+  Phase 3   — Deterministic Score 1 calculation (composite of 2a + 2b)
+  Phase 4   — Expected mechanism extraction (LLM call, risk profile required)
+  Phase 5   — Mechanism evaluation + explanations (LLM call)
+  Phase 6   — Deterministic Score 2 (risk-based)
+  Phase 7   — Deterministic Score 3 (peer alignment)
 
 Produces three 0–100% scores per requirement:
-  score1 — Requirement Met by Documentation
+  score1 — Requirement Met by Documentation (composite of score1_design + score1_implementation)
   score2 — Risk-Based Best Practice Adequacy
   score3 — Peer Alignment
 """
@@ -36,14 +37,19 @@ logger = logging.getLogger(__name__)
 # ─── Status weight tables ─────────────────────────────────────────────────────
 
 ELEMENT_STATUS_WEIGHTS: dict[str, float] = {
+    # Design vocabulary (Phase 2a)
     "Fully Addressed": 1.0,
+    "Partially Addressed": 0.5,
+    "Not Addressed": 0.0,
+    # Implementation vocabulary (Phase 2b)
+    "Fully Implemented": 1.0,
+    "Partially Implemented": 0.5,
+    "No Evidence Found": 0.0,
+    # Legacy / operating effectiveness vocabulary (kept for backward compat)
     "Fully Designed and Implemented": 1.0,
     "Fully Designed, Implemented, and Operating Effectively": 1.0,
-    "Partially Addressed": 0.5,
-    "Partially Implemented": 0.5,
     "Implemented but Not Operating Consistently": 0.5,
     "Designed but Not Implemented": 0.25,
-    "Not Addressed": 0.0,
 }
 
 MECHANISM_STATUS_VALUES: dict[str, float] = {
@@ -54,25 +60,9 @@ MECHANISM_STATUS_VALUES: dict[str, float] = {
 
 RISK_WEIGHTS: dict[str, int] = {"High": 3, "Medium": 2, "Low": 1}
 
-DEPTH_STATUS_VOCAB: dict[str, list[str]] = {
-    "design": [
-        "Fully Addressed",
-        "Partially Addressed",
-        "Not Addressed",
-    ],
-    "implementation": [
-        "Fully Designed and Implemented",
-        "Designed but Not Implemented",
-        "Partially Implemented",
-        "Not Addressed",
-    ],
-    "operating_effectiveness": [
-        "Fully Designed, Implemented, and Operating Effectively",
-        "Implemented but Not Operating Consistently",
-        "Designed but Not Implemented",
-        "Not Addressed",
-    ],
-}
+# Phase 2a always uses design vocabulary regardless of assessment depth
+DESIGN_STATUS_VOCAB = ["Fully Addressed", "Partially Addressed", "Not Addressed"]
+IMPLEMENTATION_STATUS_VOCAB = ["Fully Implemented", "Partially Implemented", "No Evidence Found"]
 
 # NIST SP 800-60 information type human-readable labels
 INFORMATION_TYPE_LABELS: dict[str, str] = {
@@ -135,28 +125,7 @@ class LLMScoringEngine:
 
         for req in requirements:
             try:
-                qualifying_policies = self._get_qualifying_policies(req.id, assessment)
-                if not qualifying_policies:
-                    self._upsert_requirement_score(
-                        assessment_id=assessment_id,
-                        requirement_id=req.id,
-                        job_id=job_id,
-                        status="skipped",
-                        skip_reason="missing_documentation",
-                    )
-                    job.completed_requirements += 1
-                    self.db.commit()
-                    continue
-
-                score_data = await self._score_requirement(req, assessment, qualifying_policies)
-
-                self._upsert_requirement_score(
-                    assessment_id=assessment_id,
-                    requirement_id=req.id,
-                    job_id=job_id,
-                    status="completed",
-                    **score_data,
-                )
+                await self._score_and_save_requirement(req, assessment, job_id)
                 job.completed_requirements += 1
             except Exception as exc:
                 logger.exception("Error scoring requirement %s: %s", req.id, exc)
@@ -191,26 +160,7 @@ class LLMScoringEngine:
         if not req or not assessment:
             raise ValueError("Requirement or assessment not found")
 
-        qualifying_policies = self._get_qualifying_policies(req.id, assessment)
-        if not qualifying_policies:
-            result = self._upsert_requirement_score(
-                assessment_id=assessment_id,
-                requirement_id=req.id,
-                job_id=job_id,
-                status="skipped",
-                skip_reason="missing_documentation",
-            )
-            self.db.commit()
-            return result
-
-        score_data = await self._score_requirement(req, assessment, qualifying_policies)
-        result = self._upsert_requirement_score(
-            assessment_id=assessment_id,
-            requirement_id=req.id,
-            job_id=job_id,
-            status="completed",
-            **score_data,
-        )
+        result = await self._score_and_save_requirement(req, assessment, job_id)
         self.db.commit()
         return result
 
@@ -218,13 +168,63 @@ class LLMScoringEngine:
     # Internal scoring flow
     # ─────────────────────────────────────────────────────────────────────────
 
+    async def _score_and_save_requirement(
+        self,
+        req: FrameworkRequirement,
+        assessment: Assessment,
+        job_id: uuid.UUID | None,
+    ) -> dict[str, Any]:
+        """Determine skip/score path and persist the result."""
+        depth = assessment.depth_level or "design"
+        assessment_id = assessment.id
+
+        design_docs = self._get_qualifying_docs(req.id, assessment, "policy")
+        evidence_docs = (
+            self._get_qualifying_docs(req.id, assessment, "evidence")
+            if depth == "implementation"
+            else []
+        )
+
+        # Skip checks
+        if depth == "design" and not design_docs:
+            result = self._upsert_requirement_score(
+                assessment_id=assessment_id,
+                requirement_id=req.id,
+                job_id=job_id,
+                status="skipped",
+                skip_reason="no_policy_documents",
+            )
+            return result
+
+        if depth == "implementation" and not design_docs and not evidence_docs:
+            result = self._upsert_requirement_score(
+                assessment_id=assessment_id,
+                requirement_id=req.id,
+                job_id=job_id,
+                status="skipped",
+                skip_reason="no_documentation",
+            )
+            return result
+
+        score_data = await self._score_requirement(req, assessment, design_docs, evidence_docs)
+        result = self._upsert_requirement_score(
+            assessment_id=assessment_id,
+            requirement_id=req.id,
+            job_id=job_id,
+            status="completed",
+            **score_data,
+        )
+        return result
+
     async def _score_requirement(
         self,
         req: FrameworkRequirement,
         assessment: Assessment,
-        qualifying_policies: list[PolicyMapping],
+        design_docs: list[PolicyMapping],
+        evidence_docs: list[PolicyMapping],
     ) -> dict[str, Any]:
-        """Run the full 3-call LLM scoring flow for one requirement."""
+        """Run the full LLM scoring flow for one requirement."""
+        depth = assessment.depth_level or "design"
         info_types = _resolve_info_type_labels(assessment.information_types)
         has_risk_profile = bool(info_types)
         has_company_profile = any([
@@ -232,9 +232,6 @@ class LLMScoringEngine:
             assessment.business_description,
             assessment.product_service_description,
         ])
-
-        # Build control documentation snippets (truncated, never summarised)
-        control_docs = self._build_control_docs(qualifying_policies)
 
         # Load pre-seeded Phase 1 elements (never generated on-demand via LLM)
         elements = self._load_elements(req.id)
@@ -244,24 +241,69 @@ class LLMScoringEngine:
                 "Load element data for this framework before running scoring."
             )
         phase1_output = {"elements": [{"id": e.element_id, "description": e.description} for e in elements]}
+        element_dicts = phase1_output["elements"]
 
-        # ── Call 1: Phase 2 — element evaluation ──
-        depth = assessment.depth_level or "design"
-        status_vocab = DEPTH_STATUS_VOCAB.get(depth, DEPTH_STATUS_VOCAB["design"])
+        # ── Phase 2a — Design evaluation (always runs if design_docs present) ──
+        if design_docs:
+            control_docs_2a = self._build_control_docs(design_docs)
+            phase2a_prompt = self._build_phase2a_prompt(req, element_dicts, control_docs_2a)
+            phase2a_output = await self._call_llm(phase2a_prompt)
+            score1_design = self._calculate_score1(phase2a_output.get("element_evaluations", []))
+            score1_design_explanation: dict | None = phase2a_output.get("score1_explanation")
+            p2_supporting_docs: list | None = (
+                score1_design_explanation.get("supporting_documents") if score1_design_explanation else None
+            )
+        else:
+            phase2a_output = {}
+            score1_design = 0.0
+            score1_design_explanation = {
+                "executive_summary": "No qualifying policy documentation was found for this requirement.",
+                "skip_reason": "no_policy_documents",
+            }
+            p2_supporting_docs = None
 
-        phase2_prompt = self._build_phase2_prompt(req, depth, phase1_output["elements"], control_docs, status_vocab)
-        phase2_output = await self._call_llm(phase2_prompt)
+        # ── Phase 2b — Implementation evaluation (only at implementation depth) ──
+        phase2b_output: dict[str, Any] = {}
+        score1_implementation: float | None = None
+        score1_implementation_explanation: dict | None = None
 
-        element_evaluations = phase2_output.get("element_evaluations", [])
+        if depth == "implementation":
+            if evidence_docs:
+                control_docs_2b = self._build_control_docs(evidence_docs)
+                design_element_evaluations = phase2a_output.get("element_evaluations", [])
+                phase2b_prompt = self._build_phase2b_prompt(
+                    req,
+                    element_dicts,
+                    control_docs_2b,
+                    design_element_evaluations=design_element_evaluations,
+                    has_design_context=bool(design_docs),
+                )
+                phase2b_output = await self._call_llm(phase2b_prompt)
+                score1_implementation = self._calculate_score1(phase2b_output.get("element_evaluations", []))
+                score1_implementation_explanation = phase2b_output.get("score1_explanation")
+            else:
+                score1_implementation = 0.0
+                score1_implementation_explanation = {
+                    "executive_summary": (
+                        "No implementation evidence is associated with this requirement. "
+                        "Upload and map evidence documents to score implementation coverage."
+                    ),
+                    "skip_reason": "no_evidence_documents",
+                }
 
-        # ── Phase 3: Deterministic Score 1 ──
-        score1 = self._calculate_score1(element_evaluations)
+        # ── Phase 3 — Composite Score 1 ──
+        if score1_implementation is not None:
+            score1 = round((score1_design + score1_implementation) / 2, 1)
+        else:
+            score1 = score1_design
 
-        # Score 1 explanation always comes from Phase 2 (no risk profile needed).
-        # Phase 5 will override this with a richer version when it runs.
-        score1_explanation: dict | None = phase2_output.get("score1_explanation")
+        # Phase 2a score1_explanation is the primary Score 1 explanation (preserved unchanged)
+        score1_explanation: dict | None = score1_design_explanation
 
-        # ── Call 2: Phase 4 — expected mechanisms ──
+        # ── Compliance picture — replaces raw docs in Phase 4/5 ──
+        compliance_picture = self._build_compliance_picture(element_dicts, phase2a_output, phase2b_output)
+
+        # ── Phase 4/5 (Score 2/3) ──
         phase4_output: dict[str, Any] = {}
         score2: float | None = None
         score3: float | None = None
@@ -275,10 +317,10 @@ class LLMScoringEngine:
             )
             phase4_output = await self._call_llm(phase4_prompt)
 
-            # ── Call 3: Phase 5 — mechanism evaluation + explanations ──
             phase5_prompt = self._build_phase5_prompt(
-                req, depth, control_docs, element_evaluations,
-                phase4_output, score1, has_company_profile
+                req, depth, compliance_picture,
+                phase2a_output.get("element_evaluations", []),
+                phase4_output, score1, has_company_profile,
             )
             phase5_output = await self._call_llm(phase5_prompt)
 
@@ -291,25 +333,33 @@ class LLMScoringEngine:
                 peer_evals = phase5_output.get("peer_mechanism_evaluations", [])
                 score3 = self._calculate_weighted_score(peer_mechs, peer_evals)
 
-            # Phase 5 provides a more comprehensive score1_explanation (with risk context).
-            # Fall back to the Phase 2 version if Phase 5 didn't return one.
-            score1_explanation = phase5_output.get("score1_explanation") or score1_explanation
             score2_explanation = phase5_output.get("score2_explanation")
             score3_explanation = phase5_output.get("score3_explanation")
 
+        llm_calls = 1  # Phase 2a
+        if depth == "implementation" and evidence_docs:
+            llm_calls += 1  # Phase 2b
+        if has_risk_profile:
+            llm_calls += 2  # Phase 4 + Phase 5
+
         return {
             "score1": score1,
+            "score1_design": score1_design,
+            "score1_implementation": score1_implementation,
             "score2": score2,
             "score3": score3,
             "phase1_output": phase1_output,
-            "phase2_output": phase2_output,
+            "phase2_output": phase2a_output if phase2a_output else None,
+            "phase2b_output": phase2b_output if phase2b_output else None,
             "phase4_output": phase4_output if phase4_output else None,
             "phase5_output": phase5_output if phase5_output else None,
             "score1_explanation": score1_explanation,
+            "score1_design_explanation": score1_design_explanation,
+            "score1_implementation_explanation": score1_implementation_explanation,
             "score2_explanation": score2_explanation,
             "score3_explanation": score3_explanation,
             "model_used": self.model,
-            "llm_calls_used": 3 if has_risk_profile else 1,
+            "llm_calls_used": llm_calls,
             "scored_at": datetime.utcnow(),
         }
 
@@ -322,24 +372,30 @@ class LLMScoringEngine:
         )
 
     # ─────────────────────────────────────────────────────────────────────────
-    # Phase 2 prompt builder
+    # Phase 2a prompt builder — Design / policy evaluation
     # ─────────────────────────────────────────────────────────────────────────
 
-    def _build_phase2_prompt(
+    def _build_phase2a_prompt(
         self,
         req: FrameworkRequirement,
-        depth: str,
         elements: list[dict],
         control_docs: list[dict],
-        status_vocab: list[str],
     ) -> dict:
+        status_vocab = DESIGN_STATUS_VOCAB
+        available_titles = [doc["policy_name"] for doc in control_docs]
         return {
             "task": (
-                "Evaluate the provided control documentation against each element of the "
-                "compliance requirement. For each element, select the status that best "
-                "describes what the documentation demonstrates. Use ONLY the status values "
-                f"listed: {status_vocab}. "
-                "Then provide a concise explanation summarising the overall finding."
+                "Evaluate the provided policy documentation against each element of the "
+                "compliance requirement. Policy documents describe what an organisation "
+                "intends to do (design-level). "
+                "For each element, select the status that best describes what the "
+                f"documentation demonstrates. Use ONLY these status values: {status_vocab}. "
+                "Then identify which documents were useful. For supporting_documents, "
+                "select titles ONLY from the available_document_titles list provided — "
+                "copy the title exactly as it appears, character for character. "
+                "Only include a document if it contained specific, relevant information; "
+                "omit documents that provided nothing relevant. "
+                "Finally, provide a concise explanation summarising the overall finding."
             ),
             "requirement": {
                 "code": req.code,
@@ -347,6 +403,7 @@ class LLMScoringEngine:
                 "description": req.description or "",
             },
             "elements": elements,
+            "available_document_titles": available_titles,
             "control_documentation": control_docs,
             "output_format": {
                 "element_evaluations": [
@@ -359,11 +416,92 @@ class LLMScoringEngine:
                 ],
                 "score1_explanation": {
                     "executive_summary": "2-3 sentences summarising overall documentation coverage of this requirement",
+                    "supporting_documents": [
+                        {
+                            "title": "one of the titles from available_document_titles",
+                            "relevant_details": "specific information found that supports or partially addresses this requirement",
+                        }
+                    ],
                     "deficiencies": [{"element_id": "E1", "issue": "description of gap"}],
                     "improvements": [{"level": "Tactical|Strategic|Long-term", "action": "recommended action"}],
                 },
             },
         }
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Phase 2b prompt builder — Implementation / evidence evaluation
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _build_phase2b_prompt(
+        self,
+        req: FrameworkRequirement,
+        elements: list[dict],
+        evidence_docs: list[dict],
+        design_element_evaluations: list[dict],
+        has_design_context: bool,
+    ) -> dict:
+        status_vocab = IMPLEMENTATION_STATUS_VOCAB
+        available_titles = [doc["policy_name"] for doc in evidence_docs]
+
+        task = (
+            "Evaluate the provided implementation evidence against each requirement element. "
+            "Implementation evidence includes concrete artifacts (configuration exports, test "
+            "results, audit logs, screenshots) that demonstrate a control is actively deployed. "
+            f"Use ONLY these status values: {status_vocab}. "
+            "In supporting_documents, select titles ONLY from the available_document_titles list — "
+            "copy the title exactly. Only include a document if it contained relevant information."
+        )
+
+        if has_design_context and design_element_evaluations:
+            task += (
+                " The design_evaluation_context shows how policy documentation was assessed for "
+                "each element. Use this to judge whether the evidence confirms the documented "
+                "design is deployed."
+            )
+        elif not has_design_context:
+            task += (
+                " No policy documentation exists for this requirement. "
+                "Evaluate the evidence directly against each element. "
+                "Note any elements where design documentation would be needed."
+            )
+
+        prompt: dict[str, Any] = {
+            "task": task,
+            "requirement": {
+                "code": req.code,
+                "name": req.name,
+                "description": req.description or "",
+            },
+            "elements": elements,
+            "available_document_titles": available_titles,
+            "evidence_documentation": evidence_docs,
+            "output_format": {
+                "element_evaluations": [
+                    {
+                        "id": "E1",
+                        "status": f"one of: {', '.join(status_vocab)}",
+                        "evidence_reference": "quote from evidence or 'None found'",
+                        "deficiency_summary": "what is missing or 'null' if fully implemented",
+                    }
+                ],
+                "score1_explanation": {
+                    "executive_summary": "2-3 sentences summarising implementation evidence coverage",
+                    "supporting_documents": [
+                        {
+                            "title": "exact title from available_document_titles",
+                            "relevant_details": "specific relevant content found",
+                        }
+                    ],
+                    "deficiencies": [{"element_id": "E1", "issue": "description of gap"}],
+                    "improvements": [{"level": "Tactical|Strategic|Long-term", "action": "recommended action"}],
+                },
+            },
+        }
+
+        if has_design_context and design_element_evaluations:
+            prompt["design_evaluation_context"] = design_element_evaluations
+
+        return prompt
 
     # ─────────────────────────────────────────────────────────────────────────
     # Phase 3 — Deterministic Score 1
@@ -377,6 +515,58 @@ class LLMScoringEngine:
             for e in element_evaluations
         )
         return round(total / len(element_evaluations) * 100, 1)
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Compliance picture — structured summary replacing raw docs in Phase 4/5
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _build_compliance_picture(
+        self,
+        elements: list[dict],
+        phase2a_output: dict,
+        phase2b_output: dict,
+    ) -> dict:
+        """Build a structured compliance picture from Phase 2a/2b findings.
+
+        This replaces raw document text in Phase 4/5 prompts, reducing token usage
+        while improving accuracy by providing structured findings.
+        """
+        design_evals = {e["id"]: e for e in phase2a_output.get("element_evaluations", [])}
+        impl_evals = {e["id"]: e for e in phase2b_output.get("element_evaluations", [])}
+
+        findings = []
+        for el in elements:
+            el_id = el["id"]
+            de = design_evals.get(el_id, {})
+            f: dict[str, Any] = {
+                "id": el_id,
+                "description": el["description"],
+                "design_status": de.get("status", "Not Assessed"),
+                "design_evidence_reference": de.get("evidence_reference"),
+                "design_deficiency": de.get("deficiency_summary"),
+            }
+            if impl_evals:
+                ie = impl_evals.get(el_id, {})
+                f["implementation_status"] = ie.get("status", "Not Assessed")
+                f["implementation_evidence_reference"] = ie.get("evidence_reference")
+                f["implementation_deficiency"] = ie.get("deficiency_summary")
+            findings.append(f)
+
+        picture: dict[str, Any] = {"element_findings": findings}
+
+        design_summary = (
+            phase2a_output.get("score1_explanation", {}) or {}
+        ).get("executive_summary")
+        if design_summary:
+            picture["design_coverage_summary"] = design_summary
+
+        impl_summary = (
+            phase2b_output.get("score1_explanation", {}) or {}
+        ).get("executive_summary")
+        if impl_summary:
+            picture["implementation_coverage_summary"] = impl_summary
+
+        return picture
 
     # ─────────────────────────────────────────────────────────────────────────
     # Phase 4 prompt builder
@@ -436,7 +626,7 @@ class LLMScoringEngine:
         self,
         req: FrameworkRequirement,
         depth: str,
-        control_docs: list[dict],
+        compliance_picture: dict,
         element_evaluations: list[dict],
         phase4_output: dict,
         score1: float,
@@ -447,7 +637,8 @@ class LLMScoringEngine:
 
         prompt: dict[str, Any] = {
             "task": (
-                "Evaluate whether each expected mechanism is present in the control documentation. "
+                "Evaluate whether each expected mechanism is present based on the company's "
+                "compliance picture (structured findings from policy and evidence evaluation). "
                 "Then provide concise explanation summaries for each score. "
                 "status for mechanisms: 'Present and Robust', 'Present but Weak', or 'Missing'."
             ),
@@ -457,7 +648,7 @@ class LLMScoringEngine:
                 "description": req.description or "",
             },
             "depth": depth,
-            "control_documentation": control_docs,
+            "company_compliance_picture": compliance_picture,
             "element_evaluations": element_evaluations,
             "risk_based_mechanisms": risk_mechs,
             "score1": score1,
@@ -484,7 +675,6 @@ class LLMScoringEngine:
 
         output_format: dict[str, Any] = {
             "risk_mechanism_evaluations": mechanism_eval_schema,
-            "score1_explanation": explanation_schema,
             "score2_explanation": explanation_schema,
         }
         if include_peer and peer_mechs:
@@ -555,18 +745,20 @@ class LLMScoringEngine:
 
         return all_requirements
 
-    def _get_qualifying_policies(
-        self, requirement_id: uuid.UUID, assessment: Assessment
+    def _get_qualifying_docs(
+        self,
+        requirement_id: uuid.UUID,
+        assessment: Assessment,
+        doc_type: str,
     ) -> list[PolicyMapping]:
-        """Get policy mappings that qualify as control documentation for scoring.
+        """Get policy mappings that qualify as documentation for scoring.
 
         A mapping qualifies if:
-        - is_approved = True
+        - Policy.document_type matches doc_type ('policy' or 'evidence')
         - is_rejected = False
         - relevance_percentage >= threshold (per-req override → assessment default → 80)
         - The linked policy has content_text
         """
-        # Look up per-requirement threshold override
         threshold_override = (
             self.db.query(AssessmentRequirementThreshold)
             .filter(
@@ -581,13 +773,12 @@ class LLMScoringEngine:
             else (assessment.policy_mapping_threshold or 80.0)
         )
 
-        # Fetch all non-rejected mappings for this requirement in this assessment.
-        # Approval status is not required — any non-rejected, above-threshold mapping counts.
         mappings = (
             self.db.query(PolicyMapping)
             .join(Policy, PolicyMapping.policy_id == Policy.id)
             .filter(
                 Policy.assessment_id == assessment.id,
+                Policy.document_type == doc_type,
                 PolicyMapping.requirement_id == requirement_id,
                 PolicyMapping.is_rejected == False,  # noqa: E712
             )
@@ -602,6 +793,12 @@ class LLMScoringEngine:
         ]
 
         return qualifying
+
+    # Backward-compat alias used by no internal code, but kept in case external callers exist
+    def _get_qualifying_policies(
+        self, requirement_id: uuid.UUID, assessment: Assessment
+    ) -> list[PolicyMapping]:
+        return self._get_qualifying_docs(requirement_id, assessment, "policy")
 
     def _build_control_docs(self, qualifying_policies: list[PolicyMapping]) -> list[dict]:
         """Build truncated control documentation snippets from qualifying policies.
@@ -630,13 +827,18 @@ class LLMScoringEngine:
         skip_reason: str | None = None,
         error_message: str | None = None,
         score1: float | None = None,
+        score1_design: float | None = None,
+        score1_implementation: float | None = None,
         score2: float | None = None,
         score3: float | None = None,
         phase1_output: dict | None = None,
         phase2_output: dict | None = None,
+        phase2b_output: dict | None = None,
         phase4_output: dict | None = None,
         phase5_output: dict | None = None,
         score1_explanation: dict | None = None,
+        score1_design_explanation: dict | None = None,
+        score1_implementation_explanation: dict | None = None,
         score2_explanation: dict | None = None,
         score3_explanation: dict | None = None,
         model_used: str | None = None,
@@ -667,13 +869,18 @@ class LLMScoringEngine:
         row.skip_reason = skip_reason
         row.error_message = error_message
         row.score1 = score1
+        row.score1_design = score1_design
+        row.score1_implementation = score1_implementation
         row.score2 = score2
         row.score3 = score3
         row.phase1_output = phase1_output
         row.phase2_output = phase2_output
+        row.phase2b_output = phase2b_output
         row.phase4_output = phase4_output
         row.phase5_output = phase5_output
         row.score1_explanation = score1_explanation
+        row.score1_design_explanation = score1_design_explanation
+        row.score1_implementation_explanation = score1_implementation_explanation
         row.score2_explanation = score2_explanation
         row.score3_explanation = score3_explanation
         row.model_used = model_used or self.model
@@ -687,6 +894,8 @@ class LLMScoringEngine:
             "status": status,
             "skip_reason": skip_reason,
             "score1": score1,
+            "score1_design": score1_design,
+            "score1_implementation": score1_implementation,
             "score2": score2,
             "score3": score3,
         }

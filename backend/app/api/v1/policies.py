@@ -31,10 +31,21 @@ async def upload_policy(
     description: Optional[str] = Form(None),
     version: Optional[str] = Form(None),
     owner: Optional[str] = Form(None),
+    document_type: str = Form("policy"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_user),
 ):
-    """Upload a policy document (PDF, DOCX, TXT, MD)."""
+    """Upload a policy document (PDF, DOCX, TXT, MD).
+
+    document_type: 'policy' (design-level documentation, default) or
+                   'evidence' (implementation evidence / audit artefacts).
+    """
+    if document_type not in ("policy", "evidence"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="document_type must be 'policy' or 'evidence'",
+        )
+
     # Validate file extension
     filename = file.filename or "unknown"
     extension = "." + filename.lower().split(".")[-1]
@@ -64,6 +75,7 @@ async def upload_policy(
         description=description,
         version=version,
         owner=owner,
+        document_type=document_type,
     )
 
     return PolicyUploadResponse(
@@ -77,12 +89,18 @@ async def upload_policy(
 @router.get("/assessments/{assessment_id}/policies", response_model=list[PolicyResponse])
 async def list_policies(
     assessment_id: uuid.UUID,
+    document_type: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_current_user),
 ):
-    """List all policies for an assessment."""
-    policies = db.query(Policy).filter(Policy.assessment_id == assessment_id).all()
-    return policies
+    """List all policies for an assessment.
+
+    Optionally filter by document_type ('policy' or 'evidence').
+    """
+    query = db.query(Policy).filter(Policy.assessment_id == assessment_id)
+    if document_type:
+        query = query.filter(Policy.document_type == document_type)
+    return query.all()
 
 
 @router.get("/policies/{policy_id}", response_model=PolicyResponse)

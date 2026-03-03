@@ -3,12 +3,21 @@
 Generates a single-sheet workbook with one row per assessable requirement,
 grouped by framework with section-header rows separating each group.
 
-Column layout:
+Column layout (design depth):
   [Framework] [L1 Code] [L1 Name] ... [Req Code] [Req Name] [Description]
-  [Score 1 (%)] [S1 Summary] [S1 Deficiencies] [S1 Improvements]
-  [Score 2 (%)] [S2 Summary] [S2 Gap Analysis] [S2 Recommendations]
-  [Score 3 (%)] [S3 Summary] [S3 Peer Analysis] [S3 Guidance]
   [Status] [Skip Reason]
+  [Score 1 (%)] [S1 Summary] [S1 Supporting Documents] [S1 Deficiencies] [S1 Improvements]
+  [Score 2 (%)] [S2 Summary] [S2 Supporting Documents] [S2 Gap Analysis] [S2 Recommendations]
+  [Score 3 (%)] [S3 Summary] [S3 Supporting Documents] [S3 Peer Analysis] [S3 Guidance]
+
+Column layout (implementation depth — Score 1 split into sub-scores):
+  [Framework] [L1 Code] [L1 Name] ... [Req Code] [Req Name] [Description]
+  [Status] [Skip Reason]
+  [Score 1 — Composite (%)]
+  [Score 1 — Design (%)] [Design Summary] [Design Supporting Documents] [Design Deficiencies] [Design Improvements]
+  [Score 1 — Implementation (%)] [Impl Summary] [Impl Supporting Documents] [Impl Deficiencies] [Impl Improvements]
+  [Score 2 (%)] [S2 Summary] [S2 Supporting Documents] [S2 Gap Analysis] [S2 Recommendations]
+  [Score 3 (%)] [S3 Summary] [S3 Supporting Documents] [S3 Peer Analysis] [S3 Guidance]
 """
 
 import io
@@ -75,6 +84,12 @@ def _fmt_items(items: list) -> str:
             or item.get("guidance")
         )
         if not text:
+            # Supporting document pattern: {title, relevant_details}
+            if "title" in item:
+                title = item.get("title", "")
+                details = item.get("relevant_details", "")
+                lines.append(f"\u2022 {title}: {details}" if details else f"\u2022 {title}")
+                continue
             level = item.get("level")
             action = item.get("action")
             if level and action:
@@ -89,7 +104,7 @@ def _fmt_items(items: list) -> str:
 
 
 def _fmt_explanation(expl: dict | None, sublist_keys: list[str]) -> list[str]:
-    """Return [summary, list1_text, list2_text] from a score explanation dict.
+    """Return [summary, list1_text, list2_text, ...] from a score explanation dict.
 
     Always returns exactly (1 + len(sublist_keys)) strings.
     """
@@ -109,13 +124,7 @@ def _sort_by_hierarchy(
     req_map: dict[uuid.UUID, FrameworkRequirement],
     framework_id: uuid.UUID,
 ) -> list[FrameworkRequirement]:
-    """Return assessable requirements in DFS pre-order following display_order.
-
-    Builds the full requirement tree for this framework, traverses it depth-first
-    (sorting siblings by display_order then code at each level), and yields only
-    the nodes that appear in assessable_reqs — preserving their position in the
-    framework's natural reading order.
-    """
+    """Return assessable requirements in DFS pre-order following display_order."""
     children: dict[uuid.UUID | None, list[FrameworkRequirement]] = {}
     for r in req_map.values():
         if r.framework_id != framework_id:
@@ -172,6 +181,9 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
     if not assessment:
         raise ValueError(f"Assessment {assessment_id} not found")
 
+    depth = assessment.depth_level or "design"
+    is_implementation = depth == "implementation"
+
     scope_rows = (
         db.query(AssessmentFrameworkScope)
         .filter(AssessmentFrameworkScope.assessment_id == assessment_id)
@@ -199,9 +211,6 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
     # Max number of ancestor columns needed across all frameworks
     max_anc = max((max(f.hierarchy_levels - 1, 0) for f in frameworks.values()), default=0)
 
-    # Derive column-header labels from the first framework's hierarchy_labels.
-    # The section banner for each framework group identifies its own hierarchy
-    # so users can interpret the level columns in a multi-framework export.
     first_fw = next(iter(frameworks.values()), None)
     fw_labels: list[str] = list(first_fw.hierarchy_labels or []) if first_fw else []
 
@@ -218,28 +227,59 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
         header += [f"{lbl} Code", f"{lbl} Name"]
     rl = _req_label()
     header += [f"{rl} Code", f"{rl} Name", "Description"]
+
+    # Status / Skip Reason come before score columns
+    header += ["Status", "Skip Reason"]
+
+    # 0-based index of the first column after the hierarchy prefix
+    # framework(1) + ancestors(2*N) + req code/name/desc(3) + status/skip(2)
+    hier_width = 1 + max_anc * 2 + 3   # cols before status
+    # status_col = hier_width (0-based)
+    # score section starts at hier_width + 2
+
+    score_start = hier_width + 2  # 0-based index of first score % column
+
+    if is_implementation:
+        header += [
+            "Score 1 — Composite (%)",
+            "Score 1 — Design (%)", "Score 1 — Design: Summary",
+            "Score 1 — Design: Supporting Documents",
+            "Score 1 — Design: Deficiencies", "Score 1 — Design: Improvements",
+            "Score 1 — Implementation (%)", "Score 1 — Implementation: Summary",
+            "Score 1 — Implementation: Supporting Documents",
+            "Score 1 — Implementation: Deficiencies", "Score 1 — Implementation: Improvements",
+        ]
+        s1_composite_col = score_start        # 0-based
+        s1_design_col    = score_start + 1
+        s1_impl_col      = score_start + 6
+        score1_width = 11
+    else:
+        header += [
+            "Score 1 (%)", "Score 1: Summary", "Score 1: Supporting Documents",
+            "Score 1: Deficiencies", "Score 1: Improvements",
+        ]
+        s1_col = score_start   # 0-based
+        score1_width = 5
+
+    s2_col = score_start + score1_width        # 0-based
+    s3_col = s2_col + 5
+
     header += [
-        "Score 1 (%)", "Score 1: Summary", "Score 1: Deficiencies", "Score 1: Improvements",
-        "Score 2 (%)", "Score 2: Summary", "Score 2: Gap Analysis", "Score 2: Recommendations",
-        "Score 3 (%)", "Score 3: Summary", "Score 3: Peer Analysis", "Score 3: Guidance",
-        "Status", "Skip Reason",
+        "Score 2 (%)", "Score 2: Summary", "Score 2: Supporting Documents",
+        "Score 2: Gap Analysis", "Score 2: Recommendations",
+        "Score 3 (%)", "Score 3: Summary", "Score 3: Supporting Documents",
+        "Score 3: Peer Analysis", "Score 3: Guidance",
     ]
 
-    # 0-based indices of the three score-% columns (for conditional colouring)
-    hier_width = 1 + max_anc * 2 + 3   # framework(1) + ancestors(2*N) + req(3)
-    s1_col = hier_width       # Score 1 %
-    s2_col = hier_width + 4   # Score 2 %
-    s3_col = hier_width + 8   # Score 3 %
-
     # ── Styles ────────────────────────────────────────────────────────────────
-    FONT        = "Arial"
-    hdr_font    = Font(name=FONT, bold=True, color="FFFFFF", size=10)
-    sec_font    = Font(name=FONT, bold=True, color="1A237E", size=10)
-    data_font   = Font(name=FONT, size=9)
-    wrap_al     = Alignment(wrap_text=True, vertical="top")
-    center_al   = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    hdr_fill    = PatternFill(fill_type="solid", fgColor=_HEADER_BG)
-    sec_fill    = PatternFill(fill_type="solid", fgColor=_SECTION_BG)
+    FONT      = "Arial"
+    hdr_font  = Font(name=FONT, bold=True, color="FFFFFF", size=10)
+    sec_font  = Font(name=FONT, bold=True, color="1A237E", size=10)
+    data_font = Font(name=FONT, size=9)
+    wrap_al   = Alignment(wrap_text=True, vertical="top")
+    center_al = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    hdr_fill  = PatternFill(fill_type="solid", fgColor=_HEADER_BG)
+    sec_fill  = PatternFill(fill_type="solid", fgColor=_SECTION_BG)
 
     # ── Workbook ──────────────────────────────────────────────────────────────
     wb = openpyxl.Workbook()
@@ -289,6 +329,7 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
             ancestors = _get_ancestors(req.id, req_map)
             score = scores_by_req.get(req.id)
 
+            # ── Hierarchy prefix ──
             row: list[Any] = [fw.name]
             for i in range(max_anc):
                 if i < len(ancestors):
@@ -297,32 +338,60 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
                     row += ["", ""]
             row += [req.code or "", req.name or "", req.description or ""]
 
+            # ── Status / Skip Reason (always filled) ──
             if score and score.status == "completed":
-                # Prefer the dedicated explanation columns; fall back to phase outputs
-                # for rows scored before the engine generated standalone explanations.
+                row += ["completed", ""]
+            elif score and score.status == "skipped":
+                row += ["skipped", score.skip_reason or ""]
+            elif score and score.status == "failed":
+                row += ["failed", score.error_message or ""]
+            else:
+                row += ["not scored", ""]
+
+            # ── Score columns ──
+            if score and score.status == "completed":
                 p5 = score.phase5_output or {}
                 p2 = score.phase2_output or {}
-                s1_expl = score.score1_explanation or p5.get("score1_explanation") or p2.get("score1_explanation")
+
+                if is_implementation:
+                    s1d_expl = score.score1_design_explanation
+                    s1i_expl = score.score1_implementation_explanation
+                    s1d = _fmt_explanation(s1d_expl, ["supporting_documents", "deficiencies", "improvements"])
+                    s1i = _fmt_explanation(s1i_expl, ["supporting_documents", "deficiencies", "improvements"])
+                    row += [
+                        round(score.score1) if score.score1 is not None else None,
+                        round(score.score1_design) if score.score1_design is not None else None,
+                        s1d[0], s1d[1], s1d[2], s1d[3],
+                        round(score.score1_implementation) if score.score1_implementation is not None else None,
+                        s1i[0], s1i[1], s1i[2], s1i[3],
+                    ]
+                else:
+                    # Design depth: use design explanation, fall back to legacy explanation
+                    s1_expl = (
+                        score.score1_design_explanation
+                        or score.score1_explanation
+                        or p2.get("score1_explanation")
+                        or p5.get("score1_explanation")
+                    )
+                    s1 = _fmt_explanation(s1_expl, ["supporting_documents", "deficiencies", "improvements"])
+                    row += [
+                        round(score.score1) if score.score1 is not None else None,
+                        s1[0], s1[1], s1[2], s1[3],
+                    ]
+
                 s2_expl = score.score2_explanation or p5.get("score2_explanation")
                 s3_expl = score.score3_explanation or p5.get("score3_explanation")
-                s1 = _fmt_explanation(s1_expl, ["deficiencies", "improvements"])
-                s2 = _fmt_explanation(s2_expl, ["gap_analysis", "recommendations"])
-                s3 = _fmt_explanation(s3_expl, ["peer_analysis", "guidance"])
+                s2 = _fmt_explanation(s2_expl, ["supporting_documents", "gap_analysis", "recommendations"])
+                s3 = _fmt_explanation(s3_expl, ["supporting_documents", "peer_analysis", "guidance"])
                 row += [
-                    round(score.score1) if score.score1 is not None else None,
-                    s1[0], s1[1], s1[2],
                     round(score.score2) if score.score2 is not None else None,
-                    s2[0], s2[1], s2[2],
+                    s2[0], s2[1], s2[2], s2[3],
                     round(score.score3) if score.score3 is not None else None,
-                    s3[0], s3[1], s3[2],
-                    "completed", "",
+                    s3[0], s3[1], s3[2], s3[3],
                 ]
-            elif score and score.status == "skipped":
-                row += ["", "", "", "", "", "", "", "", "", "", "", "", "skipped", score.skip_reason or ""]
-            elif score and score.status == "failed":
-                row += ["", "", "", "", "", "", "", "", "", "", "", "", "failed", score.error_message or ""]
             else:
-                row += ["", "", "", "", "", "", "", "", "", "", "", "", "not scored", ""]
+                # All score cells blank
+                row += [""] * (score1_width + 10)
 
             ws.append(row)
             dn = ws.max_row
@@ -330,8 +399,13 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
                 cell.font = data_font
                 cell.alignment = wrap_al
 
-            # Colour-code score % cells (openpyxl columns are 1-based)
-            for ci in [s1_col, s2_col, s3_col]:
+            # Colour-code score % cells (openpyxl columns are 1-based, so +1)
+            if is_implementation:
+                score_pct_cols = [s1_composite_col, s1_design_col, s1_impl_col, s2_col, s3_col]
+            else:
+                score_pct_cols = [s1_col, s2_col, s3_col]
+
+            for ci in score_pct_cols:
                 cell = ws.cell(row=dn, column=ci + 1)
                 if isinstance(cell.value, (int, float)):
                     cell.fill = _score_fill(cell.value)
@@ -341,13 +415,21 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
                     cell.alignment = center_al
 
     # ── Column widths ─────────────────────────────────────────────────────────
-    widths: list[int] = [22]
+    widths: list[int] = [22]                       # Framework
     for _ in range(max_anc):
-        widths += [10, 28]
-    widths += [14, 50, 65]
-    for _ in range(3):
-        widths += [9, 55, 55, 55]
-    widths += [12, 25]
+        widths += [10, 28]                         # ancestor code + name
+    widths += [14, 50, 65]                         # req code, req name, description
+    widths += [12, 28]                             # Status, Skip Reason
+
+    if is_implementation:
+        widths += [9]                                   # Score 1 Composite %
+        widths += [9, 55, 55, 55, 55]                   # Score 1 Design
+        widths += [9, 55, 55, 55, 55]                   # Score 1 Implementation
+    else:
+        widths += [9, 55, 55, 55, 55]                   # Score 1
+
+    widths += [9, 55, 55, 55, 55]                       # Score 2
+    widths += [9, 55, 55, 55, 55]                       # Score 3
 
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w

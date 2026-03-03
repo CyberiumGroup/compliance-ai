@@ -137,7 +137,7 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
   }
 
   const statCards = [
-    { ...statConfig[0], value: stats.policies, href: `/assessments/${id}/policies` },
+    { ...statConfig[0], value: stats.policies, href: `/assessments/${id}/documentation` },
     { ...statConfig[1], value: stats.interviews, href: `/assessments/${id}/interviews` },
     {
       ...statConfig[2],
@@ -151,7 +151,7 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
     {
       title: 'Upload Policies',
       description: 'PDF, DOCX, TXT, MD',
-      href: `/assessments/${id}/policies`,
+      href: `/assessments/${id}/documentation`,
       icon: FileText,
       gradient: 'from-accent-500 to-accent-600',
       bgGradient: 'from-accent-50 to-accent-100',

@@ -7,4 +7,5 @@ export * from './RequirementScoreListItem';
 export * from './RequirementScoreDetail';
 export * from './RequirementScoreHierarchyList';
 export * from './ScorePanel';
+export * from './Score1SplitPanel';
 export * from './PhaseOutputDrawer';

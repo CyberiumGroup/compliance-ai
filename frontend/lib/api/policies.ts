@@ -9,6 +9,7 @@ export async function uploadPolicy(
     description?: string;
     version?: string;
     owner?: string;
+    document_type?: 'policy' | 'evidence';
   } = {},
   userId?: string
 ): Promise<PolicyUploadResponse> {
@@ -22,9 +23,11 @@ export async function uploadPolicy(
 
 export async function listPolicies(
   assessmentId: string,
-  userId?: string
+  userId?: string,
+  documentType?: 'policy' | 'evidence'
 ): Promise<Policy[]> {
-  return apiRequest<Policy[]>(`/assessments/${assessmentId}/policies`, { userId });
+  const params = documentType ? `?document_type=${documentType}` : '';
+  return apiRequest<Policy[]>(`/assessments/${assessmentId}/policies${params}`, { userId });
 }
 
 export async function getPolicy(policyId: string, userId?: string): Promise<Policy> {

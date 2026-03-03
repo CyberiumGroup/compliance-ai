@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { RequirementScore } from '@/lib/types';
+import { Score1SplitPanel } from './Score1SplitPanel';
 import { ScorePanel } from './ScorePanel';
 import { PhaseOutputDrawer } from './PhaseOutputDrawer';
 import { cn } from '@/lib/utils';
@@ -10,9 +11,10 @@ import { cn } from '@/lib/utils';
 interface RequirementScoreDetailProps {
   score: RequirementScore;
   onRerun: (requirementId: string) => Promise<void>;
+  depthLevel?: string;
 }
 
-export function RequirementScoreDetail({ score, onRerun }: RequirementScoreDetailProps) {
+export function RequirementScoreDetail({ score, onRerun, depthLevel = 'design' }: RequirementScoreDetailProps) {
   const [rerunning, setRerunning] = useState(false);
 
   const handleRerun = async () => {
@@ -28,6 +30,8 @@ export function RequirementScoreDetail({ score, onRerun }: RequirementScoreDetai
   const isSkipped = score.status === 'skipped';
   const isCompleted = score.status === 'completed';
   const isFailed = score.status === 'failed';
+
+  const skipReason = score.skip_reason;
 
   return (
     <div className="space-y-4">
@@ -69,10 +73,17 @@ export function RequirementScoreDetail({ score, onRerun }: RequirementScoreDetai
 
       {isSkipped && (
         <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3">
-          <p className="text-sm font-medium text-red-700">Missing documentation</p>
+          <p className="text-sm font-medium text-red-700">
+            {skipReason === 'no_policy_documents'
+              ? 'No policy documentation'
+              : skipReason === 'no_documentation'
+              ? 'No documentation'
+              : 'Missing documentation'}
+          </p>
           <p className="text-xs text-red-500 mt-0.5">
-            No qualifying policy mappings found for this requirement. Upload and map relevant
-            policies to enable scoring.
+            {skipReason === 'no_documentation'
+              ? 'No qualifying policy or evidence documents found. Upload and map documents to enable scoring.'
+              : 'No qualifying policy mappings found. Upload and map relevant policies to enable scoring.'}
           </p>
         </div>
       )}
@@ -89,11 +100,13 @@ export function RequirementScoreDetail({ score, onRerun }: RequirementScoreDetai
       {/* Score panels */}
       {isCompleted && (
         <div className="space-y-3">
-          <ScorePanel
-            title="Score 1 — Met by Documentation"
-            subtitle="Control documentation coverage of requirement elements"
-            score={score.score1}
-            explanation={score.score1_explanation}
+          <Score1SplitPanel
+            scoreComposite={score.score1}
+            scoreDesign={score.score1_design}
+            scoreImplementation={score.score1_implementation}
+            explanationDesign={score.score1_design_explanation}
+            explanationImplementation={score.score1_implementation_explanation}
+            depthLevel={depthLevel}
           />
           <ScorePanel
             title="Score 2 — Risk-Based Adequacy"
@@ -113,6 +126,7 @@ export function RequirementScoreDetail({ score, onRerun }: RequirementScoreDetai
           <PhaseOutputDrawer
             phase1Output={score.phase1_output}
             phase2Output={score.phase2_output}
+            phase2bOutput={score.phase2b_output}
             phase4Output={score.phase4_output}
             phase5Output={score.phase5_output}
           />

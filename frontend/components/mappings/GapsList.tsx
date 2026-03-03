@@ -176,7 +176,7 @@ export function GapsList({ gapData, assessmentId }: GapsListProps) {
                 {/* Action Buttons */}
                 {assessmentId && (
                   <div className="mt-3 pt-3 border-t border-neutral-100 flex flex-wrap gap-2">
-                    <Link href={`/assessments/${assessmentId}/policies`}>
+                    <Link href={`/assessments/${assessmentId}/documentation`}>
                       <Button variant="ghost" size="sm">
                         <FileText className="w-3.5 h-3.5 mr-1" />
                         Upload Policy

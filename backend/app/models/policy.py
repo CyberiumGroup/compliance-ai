@@ -47,6 +47,7 @@ class Policy(Base):
     description: Mapped[str | None] = mapped_column(Text)
     version: Mapped[str | None] = mapped_column(String(50))
     owner: Mapped[str | None] = mapped_column(String(255))
+    document_type: Mapped[str] = mapped_column(String(20), nullable=False, default="policy")
     file_path: Mapped[str | None] = mapped_column(String(500))
     content_text: Mapped[str | None] = mapped_column(Text)
     summary: Mapped[str | None] = mapped_column(Text)

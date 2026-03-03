@@ -23,7 +23,7 @@ const tabs = [
   { name: 'Overview', path: '', icon: Home },
   { name: 'Context', path: '/context', icon: Building2 },
   { name: 'Scope', path: '/scope', icon: Layers },
-  { name: 'Policies', path: '/policies', icon: FileText },
+  { name: 'Documentation', path: '/documentation', icon: FileText },
   { name: 'Mappings', path: '/mappings', icon: Link2 },
   { name: 'Interviews', path: '/interviews', icon: MessageSquare },
   { name: 'Scores', path: '/scores', icon: BarChart3 },

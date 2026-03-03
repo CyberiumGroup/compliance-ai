@@ -27,8 +27,14 @@ export interface ScoreImprovement {
   action: string;
 }
 
+export interface SupportingDocument {
+  title: string;
+  relevant_details: string;
+}
+
 export interface ScoreExplanation {
   executive_summary: string;
+  supporting_documents?: SupportingDocument[];
   deficiencies?: ScoreExplanationItem[];
   gap_analysis?: ScoreExplanationItem[];
   peer_analysis?: ScoreExplanationItem[];
@@ -53,19 +59,24 @@ export interface RequirementScore {
   requirement_description: string | null;
   ancestors: ScoreAncestor[];
   score1: number | null;
+  score1_design: number | null;
+  score1_implementation: number | null;
   score2: number | null;
   score3: number | null;
   phase1_output: Record<string, unknown> | null;
   phase2_output: Record<string, unknown> | null;
+  phase2b_output: Record<string, unknown> | null;
   phase4_output: Record<string, unknown> | null;
   phase5_output: Record<string, unknown> | null;
   score1_explanation: ScoreExplanation | null;
+  score1_design_explanation: ScoreExplanation | null;
+  score1_implementation_explanation: ScoreExplanation | null;
   score2_explanation: ScoreExplanation | null;
   score3_explanation: ScoreExplanation | null;
   model_used: string | null;
   llm_calls_used: number | null;
   status: 'not_scored' | 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
-  skip_reason: 'missing_documentation' | null;
+  skip_reason: 'missing_documentation' | 'no_policy_documents' | 'no_documentation' | null;
   error_message: string | null;
   scored_at: string | null;
 }
