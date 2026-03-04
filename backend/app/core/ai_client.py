@@ -184,6 +184,45 @@ Summary:"""
 
         return response.choices[0].message.content.strip()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+    )
+    def generate_spreadsheet_summary(self, json_content: str, filename: str) -> str:
+        """Generate a concise summary of spreadsheet evidence data."""
+        try:
+            data = json.loads(json_content)
+            sheets = data.get("sheets", [])
+            sheet_desc = "; ".join(
+                f'"{s["name"]}" ({len(s["rows"])} rows, columns: {", ".join(s["columns"][:6])}'
+                f'{"…" if len(s["columns"]) > 6 else ""})'
+                for s in sheets
+            )
+        except Exception:
+            sheet_desc = "unknown structure"
+
+        excerpt = json_content[:4000]
+
+        prompt = f"""Summarize the following spreadsheet evidence file called "{filename}".
+Structure: {sheet_desc}
+
+Describe what type of implementation evidence this spreadsheet represents, what data it contains,
+and what compliance or security controls it might demonstrate.
+Be concise (2-3 sentences). Start directly with what the data shows.
+
+DATA (JSON, truncated):
+{excerpt}
+
+Summary:"""
+
+        response = self.client.chat.completions.create(
+            model=settings.ai_model,
+            max_tokens=200,
+            temperature=0.0,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.choices[0].message.content.strip()
+
 
 # Global AI client instance
 ai_client = AIClient()

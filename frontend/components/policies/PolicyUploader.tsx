@@ -49,14 +49,22 @@ export function PolicyUploader({ assessmentId, onUploadComplete, documentType = 
     }
   };
 
+  const isEvidence = documentType === 'evidence';
+  const acceptTypes = isEvidence
+    ? '.pdf,.docx,.doc,.txt,.md,.xlsx,.xls,.csv'
+    : '.pdf,.docx,.doc,.txt,.md';
+  const helperText = isEvidence
+    ? 'PDF, DOCX, TXT, Markdown, or Excel/CSV spreadsheets'
+    : 'PDF, DOCX, TXT, or Markdown files';
+
   return (
     <div className="space-y-4">
       <FileUpload
-        accept=".pdf,.docx,.doc,.txt,.md"
+        accept={acceptTypes}
         onFileSelect={handleFileSelect}
         uploading={uploading}
-        label={documentType === 'evidence' ? 'Upload Evidence Document' : 'Upload Policy Document'}
-        helperText="PDF, DOCX, TXT, or Markdown files"
+        label={isEvidence ? 'Upload Evidence Document' : 'Upload Policy Document'}
+        helperText={helperText}
       />
 
       {selectedFile && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { FileText, Trash2, CheckCircle, AlignLeft, Sparkles } from 'lucide-react';
+import { FileText, Trash2, CheckCircle, AlignLeft, Sparkles, Table } from 'lucide-react';
 import { Policy } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui';
 import { PolicyChunkViewer } from './PolicyChunkViewer';
@@ -75,6 +75,12 @@ export function PolicyList({ policies, assessmentId, onDelete }: PolicyListProps
                     <span className="px-2.5 py-1 text-xs font-medium bg-neutral-100 text-neutral-600 rounded-full flex items-center gap-1">
                       <AlignLeft className="h-3 w-3" />
                       Fixed chunks
+                    </span>
+                  )}
+                  {policy.chunk_strategy === 'tabular' && (
+                    <span className="px-2.5 py-1 text-xs font-medium bg-teal-50 text-teal-700 rounded-full flex items-center gap-1">
+                      <Table className="h-3 w-3" />
+                      Tabular chunks
                     </span>
                   )}
                 </div>

@@ -1,6 +1,7 @@
 """Policy endpoints."""
 
 import uuid
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
@@ -15,6 +16,7 @@ from app.schemas.policy import (
 )
 from app.dependencies.auth import get_current_user, require_user
 from app.services.ingestion.policy_ingestion import PolicyIngestionService
+from app.services.ingestion.spreadsheet_ingestion import SPREADSHEET_EXTENSIONS
 from app.core.config import settings
 
 router = APIRouter()
@@ -48,12 +50,18 @@ async def upload_policy(
 
     # Validate file extension
     filename = file.filename or "unknown"
-    extension = "." + filename.lower().split(".")[-1]
+    ext = Path(filename).suffix.lower()
 
-    if extension not in settings.allowed_policy_extensions:
+    if ext in SPREADSHEET_EXTENSIONS:
+        if document_type != "evidence":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Spreadsheet files (.xlsx, .xls, .csv) may only be uploaded as evidence documents.",
+            )
+    elif ext not in {e.lower() for e in settings.allowed_policy_extensions}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file type. Allowed: {settings.allowed_policy_extensions}",
+            detail=f"File type '{ext}' is not supported. Allowed: {', '.join(sorted(settings.allowed_policy_extensions))}",
         )
 
     # Check file size

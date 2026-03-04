@@ -8,7 +8,7 @@ export interface Policy {
   version: string | null;
   owner: string | null;
   document_type: 'policy' | 'evidence';
-  chunk_strategy: 'docling' | 'fixed' | null;
+  chunk_strategy: 'docling' | 'fixed' | 'tabular' | null;
   file_path: string | null;
   content_text: string | null;
   summary: string | null;
@@ -51,4 +51,5 @@ export interface PolicyMapping {
   policy_name: string | null;
   policy_description: string | null;
   policy_summary: string | null;
+  policy_document_type: 'policy' | 'evidence' | null;
 }

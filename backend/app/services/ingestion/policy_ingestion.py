@@ -12,6 +12,7 @@ from app.services.audit.audit_service import AuditService
 from app.services.ingestion.text_extraction import TextExtractionService
 from app.services.ingestion.docling_chunker import DoclingChunker
 from app.services.ingestion.chunk_cleaner import clean_chunks
+from app.services.ingestion.spreadsheet_ingestion import SpreadsheetIngestionService
 from app.services.mapping.chunker import HybridChunker
 from app.core.ai_client import ai_client
 from app.core.config import settings
@@ -53,36 +54,45 @@ class PolicyIngestionService:
         Returns:
             Dict with policy details and extraction status
         """
-        # Try docling first (PDF, DOCX, DOC, MD) — accurate structure-aware parsing.
-        # Docling is used only for text extraction; chunking is always done by
-        # HybridChunker so paragraph boundaries are respected.
-        docling_text = DoclingChunker.extract_text(file_content, filename)
-
-        if docling_text:
-            extracted_text = docling_text
-            chunk_strategy = "docling"
-            extraction_error = None
-        else:
-            # Fallback: plain text extraction
-            extracted_text, extraction_error = self.text_extraction.extract_from_bytes(
+        # ── Spreadsheet path (evidence-only) ───────────────────────────────────
+        if SpreadsheetIngestionService.is_supported(filename):
+            json_content, raw_chunks, extraction_error = SpreadsheetIngestionService.parse(
                 file_content, filename
             )
-            chunk_strategy = "fixed" if extracted_text and extracted_text.strip() else None
+            extracted_text = json_content
+            chunk_strategy = "tabular" if json_content else None
+        else:
+            # ── Document path: docling → fixed fallback ─────────────────────────
+            # Try docling first (PDF, DOCX, DOC, MD) — accurate structure-aware parsing.
+            # Docling is used only for text extraction; chunking is always done by
+            # HybridChunker so paragraph boundaries are respected.
+            docling_text = DoclingChunker.extract_text(file_content, filename)
 
-        # Chunk the extracted text.
-        # For docling-parsed text, section headers are prefixed with '#' so
-        # HybridChunker can detect them and split at heading boundaries (semantic mode).
-        # For plain-text fallback, force fixed-size mode (no heading detection).
-        raw_chunks = None
-        if extracted_text and extracted_text.strip():
-            min_sections = (
-                settings.chunk_min_sections if chunk_strategy == "docling" else 999
-            )
-            raw_chunks, _ = HybridChunker(
-                chunk_size_chars=settings.chunk_size_chars,
-                chunk_overlap_chars=settings.chunk_overlap_chars,
-                chunk_min_sections=min_sections,
-            ).chunk(extracted_text)
+            if docling_text:
+                extracted_text = docling_text
+                chunk_strategy = "docling"
+                extraction_error = None
+            else:
+                # Fallback: plain text extraction
+                extracted_text, extraction_error = self.text_extraction.extract_from_bytes(
+                    file_content, filename
+                )
+                chunk_strategy = "fixed" if extracted_text and extracted_text.strip() else None
+
+            # Chunk the extracted text.
+            # For docling-parsed text, section headers are prefixed with '#' so
+            # HybridChunker can detect them and split at heading boundaries (semantic mode).
+            # For plain-text fallback, force fixed-size mode (no heading detection).
+            raw_chunks = None
+            if extracted_text and extracted_text.strip():
+                min_sections = (
+                    settings.chunk_min_sections if chunk_strategy == "docling" else 999
+                )
+                raw_chunks, _ = HybridChunker(
+                    chunk_size_chars=settings.chunk_size_chars,
+                    chunk_overlap_chars=settings.chunk_overlap_chars,
+                    chunk_min_sections=min_sections,
+                ).chunk(extracted_text)
 
         # Generate name from filename if not provided
         if not name:
@@ -92,7 +102,10 @@ class PolicyIngestionService:
         summary = None
         if extracted_text:
             try:
-                summary = ai_client.generate_policy_summary(extracted_text, name)
+                if chunk_strategy == "tabular":
+                    summary = ai_client.generate_spreadsheet_summary(extracted_text, name)
+                else:
+                    summary = ai_client.generate_policy_summary(extracted_text, name)
             except Exception:
                 pass
 
@@ -117,7 +130,8 @@ class PolicyIngestionService:
         self.db.flush()
 
         # Cleaning stage: discard boilerplate sections, merge small chunks
-        if raw_chunks:
+        # Tabular chunks are pre-formatted markdown tables — skip cleaning
+        if raw_chunks and chunk_strategy != "tabular":
             raw_chunks = clean_chunks(raw_chunks)
 
         # Pre-store chunks (without embeddings — embedded lazily at mapping time)
