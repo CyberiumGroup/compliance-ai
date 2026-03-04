@@ -1,16 +1,18 @@
 'use client';
 
-import { FileText, Trash2, CheckCircle } from 'lucide-react';
+import { FileText, Trash2, CheckCircle, AlignLeft, Sparkles } from 'lucide-react';
 import { Policy } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui';
+import { PolicyChunkViewer } from './PolicyChunkViewer';
 import { cn } from '@/lib/utils';
 
 interface PolicyListProps {
   policies: Policy[];
+  assessmentId: string;
   onDelete?: (policyId: string) => void;
 }
 
-export function PolicyList({ policies, onDelete }: PolicyListProps) {
+export function PolicyList({ policies, assessmentId, onDelete }: PolicyListProps) {
   if (policies.length === 0) {
     return (
       <div className="text-center py-12">
@@ -63,7 +65,24 @@ export function PolicyList({ policies, onDelete }: PolicyListProps) {
                       Text extracted
                     </span>
                   )}
+                  {policy.chunk_strategy === 'docling' && (
+                    <span className="px-2.5 py-1 text-xs font-medium bg-violet-50 text-violet-700 rounded-full flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" />
+                      Docling chunks
+                    </span>
+                  )}
+                  {policy.chunk_strategy === 'fixed' && (
+                    <span className="px-2.5 py-1 text-xs font-medium bg-neutral-100 text-neutral-600 rounded-full flex items-center gap-1">
+                      <AlignLeft className="h-3 w-3" />
+                      Fixed chunks
+                    </span>
+                  )}
                 </div>
+                <PolicyChunkViewer
+                  assessmentId={assessmentId}
+                  policyId={policy.id}
+                  chunkStrategy={policy.chunk_strategy}
+                />
               </div>
               {onDelete && (
                 <button

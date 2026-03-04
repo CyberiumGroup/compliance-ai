@@ -1,16 +1,17 @@
 """Semantic relevance scoring service for policy-to-requirement mappings.
 
 Implements the algorithm described in docs/semantic-relevance-scoring.md:
-- Policy documents are split into overlapping chunks (~750 tokens each)
-- Each chunk is embedded using text-embedding-3-small
-- For each (policy, requirement) pair: doc_score_raw = max cosine similarity across chunks
+- Policy documents are chunked at upload time (docling or fixed-size fallback)
+- Each chunk is embedded using text-embedding-3-large (lazily at first mapping run)
+- For each (policy, requirement) pair: doc_score_raw = mean of top-K cosine similarities
+  (K controlled by settings.mapping_top_k, default 5)
 - relevance_percentage = ((doc_score_raw + 1) / 2) * 100
 - Only pairs at or above the configured threshold are stored as mappings
 
 The source_excerpt stored for each mapping is the full text of the highest-scoring chunk.
+The chunk_strategy used ('docling' or 'fixed') is stored on the Policy record.
 """
 
-import re
 import uuid
 from datetime import datetime
 from typing import Any
@@ -24,6 +25,7 @@ from app.services.audit.audit_service import AuditService
 from app.services.clustering.embedding_service import EmbeddingService
 from app.services.clustering.similarity_service import SimilarityService
 from app.services.frameworks.requirement_service import RequirementService
+from app.services.mapping.chunker import HybridChunker
 
 class SemanticScoringService:
     """Scores policies against framework requirements using semantic similarity."""
@@ -146,7 +148,10 @@ class SemanticScoringService:
         }
 
     def chunk_policy(self, policy: Policy) -> list[PolicyChunk]:
-        """Chunk and embed a policy document, replacing any existing chunks.
+        """Chunk and embed a policy document (legacy path for policies with no pre-stored chunks).
+
+        Used only for policies uploaded before docling integration — always produces
+        'fixed' strategy. New uploads pre-store chunks in policy_ingestion.py.
 
         Args:
             policy: Policy with content_text to chunk
@@ -160,9 +165,16 @@ class SemanticScoringService:
         if not policy.content_text or not policy.content_text.strip():
             return []
 
-        raw_chunks = self._chunk_text(policy.content_text)
+        chunker = HybridChunker(
+            chunk_size_chars=settings.chunk_size_chars,
+            chunk_overlap_chars=settings.chunk_overlap_chars,
+            chunk_min_sections=999,  # always fixed-size mode in legacy path
+        )
+        raw_chunks, strategy = chunker.chunk(policy.content_text)
         if not raw_chunks:
             return []
+
+        policy.chunk_strategy = strategy
 
         # Batch-embed all chunks in one API call
         texts = [c["text"] for c in raw_chunks]
@@ -191,7 +203,11 @@ class SemanticScoringService:
     # ------------------------------------------------------------------
 
     def _get_or_create_chunks(self, policy: Policy) -> list[PolicyChunk]:
-        """Return existing chunks for a policy, or create them if missing."""
+        """Return chunks for a policy, embedding any that are missing vectors.
+
+        - If pre-stored chunks exist (uploaded via docling or fixed), embed unembedded ones.
+        - If no chunks exist (legacy policy), fall back to chunk_policy().
+        """
         existing = (
             self.db.query(PolicyChunk)
             .filter(PolicyChunk.policy_id == policy.id)
@@ -199,91 +215,51 @@ class SemanticScoringService:
             .all()
         )
         if existing:
+            unembedded = [c for c in existing if not c.embedding_vector]
+            if unembedded:
+                embeddings = self.embedding_service.generate_embeddings_batch(
+                    [c.chunk_text for c in unembedded]
+                )
+                for chunk, embedding in zip(unembedded, embeddings):
+                    chunk.embedding_vector = embedding
+                    chunk.embedding_model_version = settings.embedding_model
+                self.db.flush()
             return existing
         return self.chunk_policy(policy)
-
-    def _chunk_text(self, text: str) -> list[dict]:
-        """Split text into overlapping chunks, preserving paragraph boundaries.
-
-        Target: ~300 tokens per chunk (using 4 chars/token approximation).
-        Overlap: ~12% of chunk size (~37 tokens).
-
-        Args:
-            text: Full document text
-
-        Returns:
-            List of dicts with 'text' and 'token_count' keys
-        """
-        chunk_size = settings.chunk_size_chars
-        overlap = settings.chunk_overlap_chars
-
-        # Split into paragraphs (prefer \n\n, fall back to \n)
-        paragraphs = [p.strip() for p in re.split(r'\n\n+', text) if p.strip()]
-        if not paragraphs:
-            paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
-
-        chunks = []
-        current_paras: list[str] = []
-        current_size = 0
-
-        for para in paragraphs:
-            para_size = len(para)
-
-            if current_size + para_size > chunk_size and current_paras:
-                # Emit current chunk
-                chunk_text = '\n\n'.join(current_paras)
-                chunks.append({
-                    "text": chunk_text,
-                    "token_count": max(1, len(chunk_text) // 4),
-                })
-
-                # Build overlap: keep trailing paragraphs up to overlap_chars
-                overlap_paras: list[str] = []
-                overlap_size = 0
-                for p in reversed(current_paras):
-                    if overlap_size + len(p) <= overlap:
-                        overlap_paras.insert(0, p)
-                        overlap_size += len(p)
-                    else:
-                        break
-
-                current_paras = overlap_paras
-                current_size = overlap_size
-
-            current_paras.append(para)
-            current_size += para_size
-
-        # Emit final chunk
-        if current_paras:
-            chunk_text = '\n\n'.join(current_paras)
-            chunks.append({
-                "text": chunk_text,
-                "token_count": max(1, len(chunk_text) // 4),
-            })
-
-        return chunks
 
     def _score_policy_against_requirement(
         self,
         chunks: list[PolicyChunk],
         req_embedding: list[float],
     ) -> tuple[PolicyChunk, float]:
-        """Return (best_chunk, max_cosine_similarity) across all chunks.
+        """Return (best_chunk, top_k_mean_cosine_similarity) across all chunks.
 
-        Per spec section 3.4: aggregation is maximum only.
+        Scores each chunk, then returns the mean of the top-K scores.
+        The best_chunk (highest individual score) is returned as the source excerpt.
+        K is controlled by settings.mapping_top_k (default 3).
+
+        If fewer than K chunks exist, uses all available chunks.
         """
-        best_chunk = chunks[0]
-        best_score = -1.0
+        scored: list[tuple[float, PolicyChunk]] = []
 
         for chunk in chunks:
             if not chunk.embedding_vector:
                 continue
             score = SimilarityService.cosine_similarity(req_embedding, chunk.embedding_vector)
-            if score > best_score:
-                best_score = score
-                best_chunk = chunk
+            scored.append((score, chunk))
 
-        return best_chunk, best_score
+        if not scored:
+            return chunks[0], -1.0
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        k = min(settings.mapping_top_k, len(scored))
+        top_k = scored[:k]
+
+        best_chunk = top_k[0][1]
+        doc_score = sum(s for s, _ in top_k) / k
+
+        return best_chunk, doc_score
 
     def _get_assessment_requirements(
         self,

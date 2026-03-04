@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # Chunking (for semantic relevance scoring)
     chunk_size_chars: int = 1200      # ~300 tokens (4 chars/token approx)
     chunk_overlap_chars: int = 150    # ~12% overlap
+    chunk_min_sections: int = 2       # minimum detected headings to use semantic chunking mode
+
+    # Aggregation (for semantic relevance scoring)
+    mapping_top_k: int = 5           # mean of top-K chunk similarities per (policy, requirement) pair
 
     # JWT Authentication
     jwt_secret_key: str = "change-me-in-production-use-a-secure-random-key"

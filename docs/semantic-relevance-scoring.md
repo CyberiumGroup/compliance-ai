@@ -28,10 +28,11 @@ The system shall not use generative LLM scoring for primary relevance computatio
 This specification covers:
 
 1. Document chunking
-2. Embedding generation and storage
-3. Cosine similarity computation
-4. Maximum similarity aggregation
-5. Conversion of cosine similarity into a human-readable percentage
+2. Chunk cleaning (exclusion of boilerplate sections)
+3. Embedding generation and storage
+4. Cosine similarity computation
+5. Maximum similarity aggregation
+6. Conversion of cosine similarity into a human-readable percentage
 
 Out of scope:
 
@@ -52,22 +53,58 @@ Out of scope:
 
 The system shall split each document into semantic chunks prior to embedding.
 
-## 3.1.2 Chunk Size
+## 3.1.2 Chunking Strategy
 
+The system uses a **hybrid chunking strategy** that selects between two modes per document:
+
+### Semantic mode (preferred)
+When the document contains at least `chunk_min_sections` (default: 2) detected section headings, the document is split at heading boundaries. Detected heading patterns:
+* Markdown headings: `## Title`
+* Numbered sections: `3.2 `, `4.1.1.`
+* ALLCAPS section titles: `ACCESS CONTROL POLICY`
+
+Each section becomes one chunk. If a section exceeds `chunk_size_chars`, its body is sub-chunked using the fixed-size paragraph accumulator, with the heading prepended to every sub-chunk to preserve section context.
+
+### Fixed-size mode (fallback)
+When fewer than `chunk_min_sections` headings are detected (e.g. plain-text or poorly-formatted PDF), the system falls back to fixed-size paragraph accumulation:
 * Target chunk size: ~300 tokens (~1200 characters, using 4 chars/token approximation)
 * Overlap: ~37 tokens (~150 characters, ~12% of chunk size)
-* Chunk boundaries should preserve paragraph structure where possible
+* Chunk boundaries preserve paragraph structure
 
-Rationale: Smaller chunks produce more focused embeddings. A 750-token chunk covering multiple policy topics dilutes the embedding vector, reducing discriminability between relevant and irrelevant chunks. A ~300-token chunk typically covers a single policy clause or paragraph, yielding a sharper semantic signal.
+### Strategy labelling
+The strategy used (`'semantic'` or `'fixed'`) is stored on the `Policy` record at chunk time and displayed in the Documentation page UI.
 
-## 3.1.3 Determinism
+Rationale: Semantic chunks produce coherent, topic-focused embeddings aligned with how compliance requirements are written. Fixed-size chunking is retained as a fallback to ensure correct behaviour for any document structure.
+
+## 3.1.3 Chunk Cleaning
+
+After chunking and before embedding, the system shall discard any chunk whose leading heading exactly matches (case-insensitive) an entry in the **excluded headings list**. These sections contain administrative boilerplate that adds noise to semantic similarity scores.
+
+**Excluded headings (hardcoded):**
+
+| Heading |
+|---|
+| `approval` |
+| `approvals` |
+| `history` |
+| `related documents` |
+
+**Leading heading detection:** a chunk's leading heading is its first line if that line is a single short string (≤ 120 characters, no embedded newline) followed by a blank line. This matches the output format of semantic-mode chunks, where the section heading is always prepended before the body. Fixed-size chunks without a detectable heading are never filtered.
+
+**Numbering stripping:** before comparison, any leading numbering sequence is stripped from the heading (e.g. `"3.2 History"` → `"history"`, `"1. Approval"` → `"approval"`). This ensures numbered section headings are correctly matched.
+
+Excluded chunks are not stored as `PolicyChunk` records and are never embedded.
+
+**Small chunk merging:** after exclusion filtering, any chunk with ≤ 50 tokens is merged into the following chunk (separated by a double newline). Accumulation continues until the merged result exceeds the threshold. A trailing small chunk with no following chunk is merged into the preceding one instead. The threshold is controlled by `MERGE_MIN_TOKENS` in `chunk_cleaner.py`.
+
+## 3.1.4 Determinism
 
 Given identical document input and configuration:
 
 * Chunk boundaries must be identical across runs
 * No randomness is permitted
 
-## 3.1.4 Stored Chunk Metadata
+## 3.1.5 Stored Chunk Metadata
 
 Each chunk must store:
 
@@ -149,23 +186,23 @@ No alternative similarity metrics are permitted unless explicitly configured.
 
 ---
 
-# 3.4 Document-Level Aggregation (Maximum Only)
+# 3.4 Document-Level Aggregation (Top-K Mean)
 
 Because documents contain multiple chunks, chunk-level similarities must be aggregated into a single document-level score.
 
-The system shall use **maximum cosine similarity only**.
+The system shall use **mean of the top-K cosine similarities**.
 
 ## 3.4.1 Aggregation Formula
 
-For document D with chunk similarities:
+For document D with chunk similarities sorted descending, taking the top K:
 
 ```
-doc_score_raw = max(similarity_chunk_1, similarity_chunk_2, ..., similarity_chunk_n)
+doc_score_raw = mean(top_K_similarities)
 ```
 
-This represents the highest semantic alignment between any chunk in the document and the requirement.
+K is controlled by `mapping_top_k` (default: 5). If the document has fewer than K chunks, all chunks are used.
 
-No averaging, weighting, or top-k strategies are permitted.
+This rewards documents that address the requirement consistently across multiple passages, while remaining robust against documents that mention a topic only once incidentally.
 
 ## 3.4.2 Source Excerpt
 
@@ -286,6 +323,8 @@ The following must be externally configurable:
 |---|---|---|
 | `chunk_size_chars` | 1200 | Target chunk size in characters (~300 tokens at 4 chars/token) |
 | `chunk_overlap_chars` | 150 | Overlap between adjacent chunks in characters (~37 tokens, ~12%) |
+| `chunk_min_sections` | 2 | Minimum detected headings required to use semantic chunking mode |
+| `mapping_top_k` | 5 | Number of top chunk similarities to average for the document score |
 | `embedding_model` | `text-embedding-3-small` | OpenAI embedding model for both chunks and requirements |
 | `mapping_relevance_threshold` | 70.0 | Minimum `relevance_percentage` to store a mapping |
 

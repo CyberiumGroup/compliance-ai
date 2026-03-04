@@ -175,7 +175,7 @@ export default function PoliciesPage({ params }: PoliciesPageProps) {
           {error ? (
             <ErrorMessage message={error} onRetry={fetchDocs} />
           ) : (
-            <PolicyList policies={currentDocs} onDelete={handleDelete} />
+            <PolicyList policies={currentDocs} assessmentId={id} onDelete={handleDelete} />
           )}
         </CardContent>
       </Card>

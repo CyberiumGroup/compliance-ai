@@ -7,10 +7,14 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.models.policy import Policy
+from app.models.policy import Policy, PolicyChunk
 from app.services.audit.audit_service import AuditService
 from app.services.ingestion.text_extraction import TextExtractionService
+from app.services.ingestion.docling_chunker import DoclingChunker
+from app.services.ingestion.chunk_cleaner import clean_chunks
+from app.services.mapping.chunker import HybridChunker
 from app.core.ai_client import ai_client
+from app.core.config import settings
 
 
 class PolicyIngestionService:
@@ -49,10 +53,36 @@ class PolicyIngestionService:
         Returns:
             Dict with policy details and extraction status
         """
-        # Extract text from document
-        extracted_text, extraction_error = self.text_extraction.extract_from_bytes(
-            file_content, filename
-        )
+        # Try docling first (PDF, DOCX, DOC, MD) — accurate structure-aware parsing.
+        # Docling is used only for text extraction; chunking is always done by
+        # HybridChunker so paragraph boundaries are respected.
+        docling_text = DoclingChunker.extract_text(file_content, filename)
+
+        if docling_text:
+            extracted_text = docling_text
+            chunk_strategy = "docling"
+            extraction_error = None
+        else:
+            # Fallback: plain text extraction
+            extracted_text, extraction_error = self.text_extraction.extract_from_bytes(
+                file_content, filename
+            )
+            chunk_strategy = "fixed" if extracted_text and extracted_text.strip() else None
+
+        # Chunk the extracted text.
+        # For docling-parsed text, section headers are prefixed with '#' so
+        # HybridChunker can detect them and split at heading boundaries (semantic mode).
+        # For plain-text fallback, force fixed-size mode (no heading detection).
+        raw_chunks = None
+        if extracted_text and extracted_text.strip():
+            min_sections = (
+                settings.chunk_min_sections if chunk_strategy == "docling" else 999
+            )
+            raw_chunks, _ = HybridChunker(
+                chunk_size_chars=settings.chunk_size_chars,
+                chunk_overlap_chars=settings.chunk_overlap_chars,
+                chunk_min_sections=min_sections,
+            ).chunk(extracted_text)
 
         # Generate name from filename if not provided
         if not name:
@@ -75,6 +105,7 @@ class PolicyIngestionService:
             version=version,
             owner=owner,
             document_type=document_type,
+            chunk_strategy=chunk_strategy,
             file_path=filename,
             content_text=extracted_text if extracted_text else None,
             summary=summary,
@@ -84,6 +115,24 @@ class PolicyIngestionService:
 
         self.db.add(policy)
         self.db.flush()
+
+        # Cleaning stage: discard boilerplate sections, merge small chunks
+        if raw_chunks:
+            raw_chunks = clean_chunks(raw_chunks)
+
+        # Pre-store chunks (without embeddings — embedded lazily at mapping time)
+        if raw_chunks:
+            for i, chunk_data in enumerate(raw_chunks):
+                self.db.add(PolicyChunk(
+                    id=uuid.uuid4(),
+                    policy_id=policy.id,
+                    chunk_index=i,
+                    chunk_text=chunk_data["text"],
+                    token_count=chunk_data["token_count"],
+                    embedding_vector=None,
+                    embedding_model_version=None,
+                    created_at=datetime.utcnow(),
+                ))
 
         # Audit log
         self.audit_service.log_create(

@@ -34,6 +34,7 @@ class PolicyResponse(PolicyBase):
     id: UUID
     assessment_id: UUID
     document_type: str = "policy"
+    chunk_strategy: str | None = None
     file_path: str | None = None
     content_text: str | None = None
     summary: str | None = None
@@ -48,7 +49,7 @@ class PolicyMappingBase(BaseModel):
     policy_id: UUID
     subcategory_id: UUID | None = None
     requirement_id: UUID | None = None
-    confidence_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    confidence_score: float | None = Field(default=None, ge=-1.0, le=1.0)
 
 
 class PolicyMappingCreate(PolicyMappingBase):

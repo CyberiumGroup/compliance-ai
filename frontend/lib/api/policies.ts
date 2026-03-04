@@ -40,3 +40,14 @@ export async function deletePolicy(policyId: string, userId?: string): Promise<v
     userId,
   });
 }
+
+export interface PolicyChunk {
+  chunk_index: number;
+  chunk_text: string;
+  token_count: number;
+  has_embedding: boolean;
+}
+
+export async function getPolicyChunks(assessmentId: string, policyId: string): Promise<PolicyChunk[]> {
+  return apiRequest<PolicyChunk[]>(`/assessments/${assessmentId}/policies/${policyId}/chunks`);
+}

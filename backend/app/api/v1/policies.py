@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models.policy import Policy
+from app.models.policy import Policy, PolicyChunk
 from app.models.user import User
 from app.schemas.policy import (
     PolicyResponse,
@@ -138,3 +138,28 @@ async def delete_policy(
 
     db.delete(policy)
     db.commit()
+
+
+@router.get("/assessments/{assessment_id}/policies/{policy_id}/chunks")
+async def get_policy_chunks(
+    assessment_id: uuid.UUID,
+    policy_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user),
+):
+    """Return pre-stored chunks for a policy (no embeddings included)."""
+    chunks = (
+        db.query(PolicyChunk)
+        .filter(PolicyChunk.policy_id == policy_id)
+        .order_by(PolicyChunk.chunk_index)
+        .all()
+    )
+    return [
+        {
+            "chunk_index": c.chunk_index,
+            "chunk_text": c.chunk_text,
+            "token_count": c.token_count,
+            "has_embedding": c.embedding_vector is not None,
+        }
+        for c in chunks
+    ]

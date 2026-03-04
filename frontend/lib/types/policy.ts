@@ -8,6 +8,7 @@ export interface Policy {
   version: string | null;
   owner: string | null;
   document_type: 'policy' | 'evidence';
+  chunk_strategy: 'docling' | 'fixed' | null;
   file_path: string | null;
   content_text: string | null;
   summary: string | null;
