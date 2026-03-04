@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.assessment import Assessment
 from app.models.policy import Policy, PolicyMapping
+from app.services.ingestion.spreadsheet_ingestion import SpreadsheetIngestionService
 from app.models.requirement_threshold import AssessmentRequirementThreshold
 from app.models.scoring_job import RequirementElement, RequirementScore, ScoringJob
 from app.models.unified_framework import AssessmentFrameworkScope, FrameworkRequirement
@@ -245,7 +246,7 @@ class LLMScoringEngine:
 
         # ── Phase 2a — Design evaluation (always runs if design_docs present) ──
         if design_docs:
-            control_docs_2a = self._build_control_docs(design_docs)
+            control_docs_2a = self._build_control_docs(design_docs, "policy")
             phase2a_prompt = self._build_phase2a_prompt(req, element_dicts, control_docs_2a)
             phase2a_output = await self._call_llm(phase2a_prompt)
             score1_design = self._calculate_score1(phase2a_output.get("element_evaluations", []))
@@ -269,7 +270,7 @@ class LLMScoringEngine:
 
         if depth == "implementation":
             if evidence_docs:
-                control_docs_2b = self._build_control_docs(evidence_docs)
+                control_docs_2b = self._build_control_docs(evidence_docs, "evidence")
                 design_element_evaluations = phase2a_output.get("element_evaluations", [])
                 phase2b_prompt = self._build_phase2b_prompt(
                     req,
@@ -382,7 +383,7 @@ class LLMScoringEngine:
         control_docs: list[dict],
     ) -> dict:
         status_vocab = DESIGN_STATUS_VOCAB
-        available_titles = [doc["policy_name"] for doc in control_docs]
+        available_titles = [doc["document_name"] for doc in control_docs]
         return {
             "task": (
                 "Evaluate the provided policy documentation against each element of the "
@@ -441,28 +442,44 @@ class LLMScoringEngine:
         has_design_context: bool,
     ) -> dict:
         status_vocab = IMPLEMENTATION_STATUS_VOCAB
-        available_titles = [doc["policy_name"] for doc in evidence_docs]
+        available_titles = [doc["document_name"] for doc in evidence_docs]
+        has_spreadsheet = any(doc.get("content_format") == "spreadsheet_json" for doc in evidence_docs)
 
         task = (
             "Evaluate the provided implementation evidence against each requirement element. "
-            "Implementation evidence includes concrete artifacts (configuration exports, test "
-            "results, audit logs, screenshots) that demonstrate a control is actively deployed. "
+            "Implementation evidence includes concrete artifacts (configuration exports, audit logs, "
+            "test results, screenshots, spreadsheets) that demonstrate a control is actively deployed "
+            "in practice — not just documented as intended. "
             f"Use ONLY these status values: {status_vocab}. "
+            "Apply 'No Evidence Found' whenever you cannot identify a concrete artifact confirming "
+            "deployment of that element, even if policy documentation describes it thoroughly. "
+            "Policies describe intent; evidence must demonstrate reality. "
             "In supporting_documents, select titles ONLY from the available_document_titles list — "
             "copy the title exactly. Only include a document if it contained relevant information."
         )
 
+        if has_spreadsheet:
+            task += (
+                " Some evidence documents are spreadsheets converted to JSON "
+                "(content_format: 'spreadsheet_json'). Each sheet contains columns and rows — "
+                "treat each row as an individual record. Assess whether the records collectively "
+                "demonstrate deployment across the relevant scope (all users, systems, or environments)."
+            )
+
         if has_design_context and design_element_evaluations:
             task += (
-                " The design_evaluation_context shows how policy documentation was assessed for "
-                "each element. Use this to judge whether the evidence confirms the documented "
-                "design is deployed."
+                " The design_evaluation_context shows what policy documentation claims about each "
+                "element (design_status) and any gaps the policy had (design_gap). "
+                "Treat this as the intended design baseline. Your job is to independently assess "
+                "whether the evidence confirms the design is actually deployed. "
+                "Be skeptical — policies commonly describe controls that are only partially or "
+                "not yet implemented in practice."
             )
         elif not has_design_context:
             task += (
                 " No policy documentation exists for this requirement. "
                 "Evaluate the evidence directly against each element. "
-                "Note any elements where design documentation would be needed."
+                "Note any elements where design documentation would also be needed."
             )
 
         prompt: dict[str, Any] = {
@@ -480,8 +497,8 @@ class LLMScoringEngine:
                     {
                         "id": "E1",
                         "status": f"one of: {', '.join(status_vocab)}",
-                        "evidence_reference": "quote from evidence or 'None found'",
-                        "deficiency_summary": "what is missing or 'null' if fully implemented",
+                        "evidence_reference": "specific artifact, record, or value found — or 'None found'",
+                        "deficiency_summary": "what is missing from actual deployment or 'null' if fully confirmed",
                     }
                 ],
                 "score1_explanation": {
@@ -499,7 +516,17 @@ class LLMScoringEngine:
         }
 
         if has_design_context and design_element_evaluations:
-            prompt["design_evaluation_context"] = design_element_evaluations
+            # Strip evidence_reference — passing raw policy quotes to Phase 2b anchors it
+            # on policy text rather than the actual evidence artifacts.
+            # Only pass the status claim and any design gap so Phase 2b can contrast.
+            prompt["design_evaluation_context"] = [
+                {
+                    "id": e.get("id"),
+                    "design_status": e.get("status"),
+                    "design_gap": e.get("deficiency_summary"),
+                }
+                for e in design_element_evaluations
+            ]
 
         return prompt
 
@@ -800,11 +827,13 @@ class LLMScoringEngine:
     ) -> list[PolicyMapping]:
         return self._get_qualifying_docs(requirement_id, assessment, "policy")
 
-    def _build_control_docs(self, qualifying_policies: list[PolicyMapping]) -> list[dict]:
-        """Build truncated control documentation snippets from qualifying policies.
+    def _build_control_docs(self, qualifying_policies: list[PolicyMapping], doc_type: str = "policy") -> list[dict]:
+        """Build control documentation snippets from qualifying policies or evidence.
 
-        Takes the first scoring_max_doc_chars characters of each policy.
-        Multiple mappings to the same policy are deduplicated.
+        Multiple mappings to the same document are deduplicated.
+        Spreadsheet evidence (xlsx/csv) is stored as JSON — it is parsed and sent
+        as a structured object so the LLM can reason about it as tabular data rather
+        than receiving an escaped JSON string inside a JSON string.
         """
         seen_policy_ids: set[uuid.UUID] = set()
         docs: list[dict] = []
@@ -812,10 +841,27 @@ class LLMScoringEngine:
             if not mapping.policy or mapping.policy_id in seen_policy_ids:
                 continue
             seen_policy_ids.add(mapping.policy_id)
-            docs.append({
-                "policy_name": mapping.policy.name,
-                "content": mapping.policy.content_text or "",
-            })
+
+            raw = mapping.policy.content_text or ""
+            is_spreadsheet = SpreadsheetIngestionService.is_supported(mapping.policy.name or "")
+
+            entry: dict = {
+                "document_name": mapping.policy.name,
+                "document_type": "policy_document" if doc_type == "policy" else "evidence_artifact",
+            }
+
+            if is_spreadsheet:
+                try:
+                    entry["content_format"] = "spreadsheet_json"
+                    entry["content"] = json.loads(raw)
+                except (json.JSONDecodeError, ValueError):
+                    entry["content_format"] = "text"
+                    entry["content"] = raw
+            else:
+                entry["content_format"] = "text"
+                entry["content"] = raw
+
+            docs.append(entry)
         return docs
 
     def _upsert_requirement_score(
