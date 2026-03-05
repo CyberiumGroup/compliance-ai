@@ -4,15 +4,17 @@ import { FileText, Trash2, CheckCircle, AlignLeft, Sparkles, Table } from 'lucid
 import { Policy } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui';
 import { PolicyChunkViewer } from './PolicyChunkViewer';
+import { PolicyFactViewer } from './PolicyFactViewer';
 import { cn } from '@/lib/utils';
 
 interface PolicyListProps {
   policies: Policy[];
   assessmentId: string;
   onDelete?: (policyId: string) => void;
+  userId?: string;
 }
 
-export function PolicyList({ policies, assessmentId, onDelete }: PolicyListProps) {
+export function PolicyList({ policies, assessmentId, onDelete, userId }: PolicyListProps) {
   if (policies.length === 0) {
     return (
       <div className="text-center py-12">
@@ -88,6 +90,12 @@ export function PolicyList({ policies, assessmentId, onDelete }: PolicyListProps
                   assessmentId={assessmentId}
                   policyId={policy.id}
                   chunkStrategy={policy.chunk_strategy}
+                />
+                <PolicyFactViewer
+                  assessmentId={assessmentId}
+                  policyId={policy.id}
+                  factsExtractedAt={policy.facts_extracted_at ?? null}
+                  userId={userId}
                 />
               </div>
               {onDelete && (

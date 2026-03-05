@@ -8,6 +8,9 @@ from sqlalchemy.types import JSON
 
 from app.db.base import Base
 
+# Forward reference — PolicyFact is defined in policy_fact.py
+# Import at module level is at the bottom of this file (circular-import guard)
+
 
 class PolicyChunk(Base):
     """A semantic chunk of a policy document, used for relevance scoring."""
@@ -52,6 +55,9 @@ class Policy(Base):
     file_path: Mapped[str | None] = mapped_column(String(500))
     content_text: Mapped[str | None] = mapped_column(Text)
     summary: Mapped[str | None] = mapped_column(Text)
+    # Timestamp set when fact extraction completes (null = not yet extracted).
+    # Used by the UI to show extraction status and staleness.
+    facts_extracted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )
@@ -62,6 +68,7 @@ class Policy(Base):
     assessment: Mapped["Assessment"] = relationship(back_populates="policies")
     mappings: Mapped[list["PolicyMapping"]] = relationship(back_populates="policy", cascade="all, delete-orphan")
     chunks: Mapped[list["PolicyChunk"]] = relationship(back_populates="policy", cascade="all, delete-orphan")
+    facts: Mapped[list["PolicyFact"]] = relationship(back_populates="policy", cascade="all, delete-orphan", order_by="PolicyFact.fact_index")
 
 
 class PolicyMapping(Base):

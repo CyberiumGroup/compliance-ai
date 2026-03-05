@@ -28,6 +28,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.assessment import Assessment
 from app.models.policy import Policy, PolicyMapping
+from app.models.policy_fact import PolicyFact
 from app.services.ingestion.spreadsheet_ingestion import SpreadsheetIngestionService
 from app.models.requirement_threshold import AssessmentRequirementThreshold
 from app.models.scoring_job import RequirementElement, RequirementScore, ScoringJob
@@ -245,8 +246,10 @@ class LLMScoringEngine:
         element_dicts = phase1_output["elements"]
 
         # ── Phase 2a — Design evaluation (always runs if design_docs present) ──
+        extraction_warnings: list[str] = []
         if design_docs:
-            control_docs_2a = self._build_control_docs(design_docs, "policy")
+            control_docs_2a, warn_2a = self._build_control_facts(design_docs, "policy")
+            extraction_warnings.extend(warn_2a)
             phase2a_prompt = self._build_phase2a_prompt(req, element_dicts, control_docs_2a)
             phase2a_output = await self._call_llm(phase2a_prompt)
             score1_design = self._calculate_score1(phase2a_output.get("element_evaluations", []))
@@ -270,7 +273,8 @@ class LLMScoringEngine:
 
         if depth == "implementation":
             if evidence_docs:
-                control_docs_2b = self._build_control_docs(evidence_docs, "evidence")
+                control_docs_2b, warn_2b = self._build_control_facts(evidence_docs, "evidence")
+                extraction_warnings.extend(warn_2b)
                 design_element_evaluations = phase2a_output.get("element_evaluations", [])
                 phase2b_prompt = self._build_phase2b_prompt(
                     req,
@@ -343,6 +347,12 @@ class LLMScoringEngine:
         if has_risk_profile:
             llm_calls += 2  # Phase 4 + Phase 5
 
+        # Attach extraction warnings to phase2 output so they surface in stored results
+        if extraction_warnings:
+            if not phase2a_output:
+                phase2a_output = {}
+            phase2a_output["extraction_warnings"] = extraction_warnings
+
         return {
             "score1": score1,
             "score1_design": score1_design,
@@ -386,15 +396,16 @@ class LLMScoringEngine:
         available_titles = [doc["document_name"] for doc in control_docs]
         return {
             "task": (
-                "Evaluate the provided policy documentation against each element of the "
-                "compliance requirement. Policy documents describe what an organisation "
-                "intends to do (design-level). "
-                "For each element, select the status that best describes what the "
-                f"documentation demonstrates. Use ONLY these status values: {status_vocab}. "
+                "Evaluate the provided policy control facts against each element of the "
+                "compliance requirement. These facts were extracted from policy/procedure "
+                "documents and describe what the organisation has defined, committed to, "
+                "or designed (design-level intent). "
+                "For each element, select the status that best describes what the facts "
+                f"demonstrate. Use ONLY these status values: {status_vocab}. "
                 "Then identify which documents were useful. For supporting_documents, "
                 "select titles ONLY from the available_document_titles list provided — "
                 "copy the title exactly as it appears, character for character. "
-                "Only include a document if it contained specific, relevant information; "
+                "Only include a document if its facts contained specific, relevant information; "
                 "omit documents that provided nothing relevant. "
                 "Finally, provide a concise explanation summarising the overall finding."
             ),
@@ -405,22 +416,22 @@ class LLMScoringEngine:
             },
             "elements": elements,
             "available_document_titles": available_titles,
-            "control_documentation": control_docs,
+            "policy_control_facts": control_docs,
             "output_format": {
                 "element_evaluations": [
                     {
                         "id": "E1",
                         "status": f"one of: {', '.join(status_vocab)}",
-                        "evidence_reference": "quote from docs or 'None found'",
+                        "evidence_reference": "cite the relevant fact statement(s) or 'None found'",
                         "deficiency_summary": "what is missing or 'null' if fully addressed",
                     }
                 ],
                 "score1_explanation": {
-                    "executive_summary": "2-3 sentences summarising overall documentation coverage of this requirement",
+                    "executive_summary": "2-3 sentences summarising overall design coverage of this requirement",
                     "supporting_documents": [
                         {
                             "title": "one of the titles from available_document_titles",
-                            "relevant_details": "specific information found that supports or partially addresses this requirement",
+                            "relevant_details": "specific facts found that support or partially address this requirement",
                         }
                     ],
                     "deficiencies": [{"element_id": "E1", "issue": "description of gap"}],
@@ -443,27 +454,35 @@ class LLMScoringEngine:
     ) -> dict:
         status_vocab = IMPLEMENTATION_STATUS_VOCAB
         available_titles = [doc["document_name"] for doc in evidence_docs]
-        has_spreadsheet = any(doc.get("content_format") == "spreadsheet_json" for doc in evidence_docs)
+        # Detect spreadsheet-sourced facts by checking if any doc's facts reference sheets/columns
+        has_spreadsheet = any(
+            any(
+                f.get("document_reference", {}).get("section", "")
+                for f in doc.get("facts", [])
+            )
+            and doc.get("document_type") == "evidence_artifact"
+            for doc in evidence_docs
+        )
 
         task = (
-            "Evaluate the provided implementation evidence against each requirement element. "
-            "Implementation evidence includes concrete artifacts (configuration exports, audit logs, "
-            "test results, screenshots, spreadsheets) that demonstrate a control is actively deployed "
-            "in practice — not just documented as intended. "
+            "Evaluate the provided evidence observation facts against each requirement element. "
+            "These facts were extracted from implementation evidence artifacts (configuration exports, "
+            "audit logs, test results, screenshots, spreadsheets) and describe what the organisation "
+            "demonstrably does in practice — not what a policy says they should do. "
             f"Use ONLY these status values: {status_vocab}. "
-            "Apply 'No Evidence Found' whenever you cannot identify a concrete artifact confirming "
-            "deployment of that element, even if policy documentation describes it thoroughly. "
-            "Policies describe intent; evidence must demonstrate reality. "
+            "Apply 'No Evidence Found' whenever the facts do not confirm a concrete artifact "
+            "demonstrating deployment of that element, even if policy control facts describe it thoroughly. "
+            "Policies describe intent; evidence observation facts must demonstrate reality. "
             "In supporting_documents, select titles ONLY from the available_document_titles list — "
-            "copy the title exactly. Only include a document if it contained relevant information."
+            "copy the title exactly. Only include a document if its facts contained relevant information."
         )
 
         if has_spreadsheet:
             task += (
-                " Some evidence documents are spreadsheets converted to JSON "
-                "(content_format: 'spreadsheet_json'). Each sheet contains columns and rows — "
-                "treat each row as an individual record. Assess whether the records collectively "
-                "demonstrate deployment across the relevant scope (all users, systems, or environments)."
+                " Some evidence facts were extracted from spreadsheets. "
+                "The key_attributes may include sheet and column references — "
+                "assess whether the observed records collectively demonstrate "
+                "deployment across the relevant scope (all users, systems, or environments)."
             )
 
         if has_design_context and design_element_evaluations:
@@ -491,7 +510,7 @@ class LLMScoringEngine:
             },
             "elements": elements,
             "available_document_titles": available_titles,
-            "evidence_documentation": evidence_docs,
+            "evidence_observation_facts": evidence_docs,
             "output_format": {
                 "element_evaluations": [
                     {
@@ -794,6 +813,7 @@ class LLMScoringEngine:
             )
             .first()
         )
+        threshold_source = "override" if threshold_override else "default"
         threshold = (
             threshold_override.threshold
             if threshold_override
@@ -816,8 +836,15 @@ class LLMScoringEngine:
             m for m in mappings
             if (m.relevance_percentage is not None and m.relevance_percentage >= threshold)
             and m.policy
-            and m.policy.content_text
         ]
+
+        logger.info(
+            "_get_qualifying_docs req=%s doc_type=%s threshold=%.1f (%s) | "
+            "candidates=%d qualifying=%d | docs: %s",
+            requirement_id, doc_type, threshold, threshold_source,
+            len(mappings), len(qualifying),
+            [f"{m.policy.name}({m.relevance_percentage:.0f}%)" for m in qualifying],
+        )
 
         return qualifying
 
@@ -826,6 +853,72 @@ class LLMScoringEngine:
         self, requirement_id: uuid.UUID, assessment: Assessment
     ) -> list[PolicyMapping]:
         return self._get_qualifying_docs(requirement_id, assessment, "policy")
+
+    def _build_control_facts(
+        self,
+        qualifying_docs: list[PolicyMapping],
+        doc_type: str,
+    ) -> tuple[list[dict], list[str]]:
+        """Build structured control facts from qualifying policy/evidence documents.
+
+        Fetches pre-extracted PolicyFact rows for each document. Documents where
+        extraction has not yet run are excluded from the facts context (with a warning).
+        Documents where extraction ran but found zero facts are included as empty lists
+        (the scoring LLM will see the document but with no facts, and will score
+        accordingly).
+
+        Returns:
+            (doc_facts_list, warnings)
+            - doc_facts_list: list of dicts suitable for passing to prompt builders
+            - warnings: list of human-readable warning strings
+        """
+        seen_policy_ids: set[uuid.UUID] = set()
+        docs: list[dict] = []
+        warnings: list[str] = []
+
+        for mapping in qualifying_docs:
+            if not mapping.policy or mapping.policy_id in seen_policy_ids:
+                continue
+            seen_policy_ids.add(mapping.policy_id)
+            policy = mapping.policy
+
+            if policy.facts_extracted_at is None:
+                warnings.append(
+                    f"Document '{policy.name}' has not had facts extracted yet — "
+                    "it was excluded from scoring context. Re-run fact extraction to include it."
+                )
+                continue
+
+            facts_rows = (
+                self.db.query(PolicyFact)
+                .filter(PolicyFact.policy_id == policy.id)
+                .order_by(PolicyFact.fact_index)
+                .all()
+            )
+
+            if not facts_rows:
+                warnings.append(
+                    f"Document '{policy.name}' had fact extraction run but produced zero facts — "
+                    "it will contribute no evidence to scoring."
+                )
+
+            facts_payload = [
+                {
+                    "statement": f.statement,
+                    "key_attributes": f.key_attributes,
+                    "confidence": f.confidence,
+                    "document_reference": f.document_reference,
+                }
+                for f in facts_rows
+            ]
+
+            docs.append({
+                "document_name": policy.name,
+                "document_type": "policy_document" if doc_type == "policy" else "evidence_artifact",
+                "facts": facts_payload,
+            })
+
+        return docs, warnings
 
     def _build_control_docs(self, qualifying_policies: list[PolicyMapping], doc_type: str = "policy") -> list[dict]:
         """Build control documentation snippets from qualifying policies or evidence.

@@ -1,5 +1,5 @@
 import { uploadFile, apiRequest } from './client';
-import { Policy, PolicyUploadResponse } from '../types';
+import { Policy, PolicyUploadResponse, PolicyFactsResponse } from '../types';
 
 export async function uploadPolicy(
   assessmentId: string,
@@ -50,4 +50,24 @@ export interface PolicyChunk {
 
 export async function getPolicyChunks(assessmentId: string, policyId: string): Promise<PolicyChunk[]> {
   return apiRequest<PolicyChunk[]>(`/assessments/${assessmentId}/policies/${policyId}/chunks`);
+}
+
+export async function getPolicyFacts(
+  assessmentId: string,
+  policyId: string,
+): Promise<PolicyFactsResponse> {
+  return apiRequest<PolicyFactsResponse>(
+    `/assessments/${assessmentId}/policies/${policyId}/facts`,
+  );
+}
+
+export async function regeneratePolicyFacts(
+  assessmentId: string,
+  policyId: string,
+  userId?: string,
+): Promise<{ queued: boolean }> {
+  return apiRequest<{ queued: boolean }>(
+    `/assessments/${assessmentId}/policies/${policyId}/facts/regenerate`,
+    { method: 'POST', userId },
+  );
 }

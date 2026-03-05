@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,6 +8,11 @@ from app.api.health import router as health_router
 from app.api.v1 import api_router
 from app.core.config import settings
 from app.db.session import SessionLocal
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s %(name)s: %(message)s",
+)
 
 
 @asynccontextmanager

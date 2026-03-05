@@ -12,8 +12,25 @@ export interface Policy {
   file_path: string | null;
   content_text: string | null;
   summary: string | null;
+  facts_extracted_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface PolicyFact {
+  id: UUID;
+  fact_index: number;
+  fact_type: 'policy_control' | 'evidence_observation';
+  statement: string;
+  key_attributes: Record<string, string | null> | null;
+  confidence: 'explicit' | 'implied' | null;
+  document_reference: { document_name: string; section: string | null } | null;
+  extraction_model: string | null;
+}
+
+export interface PolicyFactsResponse {
+  facts_extracted_at: string | null;
+  facts: PolicyFact[];
 }
 
 export interface PolicyUploadResponse {

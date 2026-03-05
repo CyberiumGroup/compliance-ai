@@ -38,6 +38,7 @@ class PolicyResponse(PolicyBase):
     file_path: str | None = None
     content_text: str | None = None
     summary: str | None = None
+    facts_extracted_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
