@@ -8,4 +8,5 @@ export * from './RequirementScoreDetail';
 export * from './RequirementScoreHierarchyList';
 export * from './ScorePanel';
 export * from './Score1SplitPanel';
+export * from './DocumentationScorePanel';
 export * from './PhaseOutputDrawer';

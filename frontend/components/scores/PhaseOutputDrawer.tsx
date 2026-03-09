@@ -4,26 +4,20 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp, Code2 } from 'lucide-react';
 
 interface PhaseOutputDrawerProps {
-  phase1Output: Record<string, unknown> | null;
   phase2Output: Record<string, unknown> | null;
-  phase2bOutput?: Record<string, unknown> | null;
   phase4Output: Record<string, unknown> | null;
   phase5Output: Record<string, unknown> | null;
 }
 
 export function PhaseOutputDrawer({
-  phase1Output,
   phase2Output,
-  phase2bOutput,
   phase4Output,
   phase5Output,
 }: PhaseOutputDrawerProps) {
   const [open, setOpen] = useState(false);
 
   const outputs = [
-    { label: 'Phase 1 — Element Decomposition', data: phase1Output },
-    { label: 'Phase 2a — Design Evaluation', data: phase2Output },
-    { label: 'Phase 2b — Implementation Evaluation', data: phase2bOutput },
+    { label: 'Phase 2 — Documentation Score', data: phase2Output },
     { label: 'Phase 4 — Mechanism Extraction', data: phase4Output },
     { label: 'Phase 5 — Mechanism Evaluations', data: phase5Output },
   ].filter(o => o.data);

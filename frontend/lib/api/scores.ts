@@ -1,5 +1,5 @@
 import { apiRequest, ApiError } from './client';
-import { ScoringJob, RequirementScore } from '../types';
+import { ScoringJob, RequirementScore, PolicyExtractionResult } from '../types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
@@ -81,6 +81,42 @@ export async function downloadScoringExcel(assessmentId: string): Promise<void> 
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
+}
+
+// ─── Policy Statement Extraction ──────────────────────────────────────────────
+
+export async function runPolicyExtraction(
+  assessmentId: string,
+  requirementId: string,
+  userId?: string
+): Promise<PolicyExtractionResult> {
+  return apiRequest<PolicyExtractionResult>(
+    `/assessments/${assessmentId}/scoring/requirements/${requirementId}/policy-extraction`,
+    { method: 'POST', userId }
+  );
+}
+
+export async function getPolicyStatements(
+  assessmentId: string,
+  requirementId: string,
+  userId?: string
+): Promise<PolicyExtractionResult> {
+  return apiRequest<PolicyExtractionResult>(
+    `/assessments/${assessmentId}/scoring/requirements/${requirementId}/policy-statements`,
+    { userId }
+  );
+}
+
+export async function deletePolicyStatement(
+  assessmentId: string,
+  requirementId: string,
+  statementId: string,
+  userId?: string
+): Promise<{ deleted: boolean }> {
+  return apiRequest<{ deleted: boolean }>(
+    `/assessments/${assessmentId}/scoring/requirements/${requirementId}/policy-statements/${statementId}`,
+    { method: 'DELETE', userId }
+  );
 }
 
 // ─── Compatibility shim — used by WorkflowStepper / assessment overview ───────

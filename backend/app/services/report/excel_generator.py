@@ -181,9 +181,6 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
     if not assessment:
         raise ValueError(f"Assessment {assessment_id} not found")
 
-    depth = assessment.depth_level or "design"
-    is_implementation = depth == "implementation"
-
     scope_rows = (
         db.query(AssessmentFrameworkScope)
         .filter(AssessmentFrameworkScope.assessment_id == assessment_id)
@@ -239,27 +236,11 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
 
     score_start = hier_width + 2  # 0-based index of first score % column
 
-    if is_implementation:
-        header += [
-            "Score 1 — Composite (%)",
-            "Score 1 — Design (%)", "Score 1 — Design: Summary",
-            "Score 1 — Design: Supporting Documents",
-            "Score 1 — Design: Deficiencies", "Score 1 — Design: Improvements",
-            "Score 1 — Implementation (%)", "Score 1 — Implementation: Summary",
-            "Score 1 — Implementation: Supporting Documents",
-            "Score 1 — Implementation: Deficiencies", "Score 1 — Implementation: Improvements",
-        ]
-        s1_composite_col = score_start        # 0-based
-        s1_design_col    = score_start + 1
-        s1_impl_col      = score_start + 6
-        score1_width = 11
-    else:
-        header += [
-            "Score 1 (%)", "Score 1: Summary", "Score 1: Supporting Documents",
-            "Score 1: Deficiencies", "Score 1: Improvements",
-        ]
-        s1_col = score_start   # 0-based
-        score1_width = 5
+    header += [
+        "Score 1 — Coverage", "Score 1: Explanation", "Score 1: Recommendations",
+    ]
+    s1_col = score_start   # 0-based
+    score1_width = 3
 
     s2_col = score_start + score1_width        # 0-based
     s3_col = s2_col + 5
@@ -351,33 +332,14 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
             # ── Score columns ──
             if score and score.status == "completed":
                 p5 = score.phase5_output or {}
-                p2 = score.phase2_output or {}
-
-                if is_implementation:
-                    s1d_expl = score.score1_design_explanation
-                    s1i_expl = score.score1_implementation_explanation
-                    s1d = _fmt_explanation(s1d_expl, ["supporting_documents", "deficiencies", "improvements"])
-                    s1i = _fmt_explanation(s1i_expl, ["supporting_documents", "deficiencies", "improvements"])
-                    row += [
-                        round(score.score1) if score.score1 is not None else None,
-                        round(score.score1_design) if score.score1_design is not None else None,
-                        s1d[0], s1d[1], s1d[2], s1d[3],
-                        round(score.score1_implementation) if score.score1_implementation is not None else None,
-                        s1i[0], s1i[1], s1i[2], s1i[3],
-                    ]
-                else:
-                    # Design depth: use design explanation, fall back to legacy explanation
-                    s1_expl = (
-                        score.score1_design_explanation
-                        or score.score1_explanation
-                        or p2.get("score1_explanation")
-                        or p5.get("score1_explanation")
-                    )
-                    s1 = _fmt_explanation(s1_expl, ["supporting_documents", "deficiencies", "improvements"])
-                    row += [
-                        round(score.score1) if score.score1 is not None else None,
-                        s1[0], s1[1], s1[2], s1[3],
-                    ]
+                s1_expl = score.score1_explanation or {}
+                coverage_label = s1_expl.get("coverage_label", "") if isinstance(s1_expl, dict) else ""
+                explanation_text = s1_expl.get("explanation", "") if isinstance(s1_expl, dict) else ""
+                recommendations = s1_expl.get("recommendations", []) if isinstance(s1_expl, dict) else []
+                rec_text = "; ".join(
+                    r.get("action", "") for r in recommendations if isinstance(r, dict) and r.get("action")
+                )
+                row += [coverage_label, explanation_text, rec_text]
 
                 s2_expl = score.score2_explanation or p5.get("score2_explanation")
                 s3_expl = score.score3_explanation or p5.get("score3_explanation")
@@ -400,11 +362,7 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
                 cell.alignment = wrap_al
 
             # Colour-code score % cells (openpyxl columns are 1-based, so +1)
-            if is_implementation:
-                score_pct_cols = [s1_composite_col, s1_design_col, s1_impl_col, s2_col, s3_col]
-            else:
-                score_pct_cols = [s1_col, s2_col, s3_col]
-
+            score_pct_cols = [s2_col, s3_col]
             for ci in score_pct_cols:
                 cell = ws.cell(row=dn, column=ci + 1)
                 if isinstance(cell.value, (int, float)):
@@ -421,12 +379,7 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
     widths += [14, 50, 65]                         # req code, req name, description
     widths += [12, 28]                             # Status, Skip Reason
 
-    if is_implementation:
-        widths += [9]                                   # Score 1 Composite %
-        widths += [9, 55, 55, 55, 55]                   # Score 1 Design
-        widths += [9, 55, 55, 55, 55]                   # Score 1 Implementation
-    else:
-        widths += [9, 55, 55, 55, 55]                   # Score 1
+    widths += [14, 70, 70]                              # Score 1 (coverage label, explanation, recommendations)
 
     widths += [9, 55, 55, 55, 55]                       # Score 2
     widths += [9, 55, 55, 55, 55]                       # Score 3

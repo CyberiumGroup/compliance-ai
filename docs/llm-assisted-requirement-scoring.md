@@ -30,6 +30,75 @@ Excluded from scope:
 
 ---
 
+# 1a. Policy Statement Extraction (Pre-Scoring Stage)
+
+Before the scoring phases, users may run a **Policy Statement Extraction** step for any requirement. This is an on-demand, user-triggered LLM call that extracts specific policy statements from mapped documents.
+
+## Purpose
+
+Extract concrete, specific policy statements (commitments, rules, procedures) from mapped policy documents that are directly relevant to the requirement. The extracted statements serve as structured input for future scoring phases.
+
+## Trigger
+
+User-initiated from the Scores page, per requirement. Extraction is independent of scoring — a user may run it at any time, in any order relative to scoring.
+
+## Qualifying Documents
+
+Policy-type documents only (`document_type = "policy"`). Same threshold logic as scoring:
+- `is_rejected = False`
+- `relevance_percentage >= threshold` (per-requirement override → assessment default → 80%)
+- Document has `content_text`
+
+Evidence documents are excluded from this stage.
+
+## LLM Inputs
+
+1. **Requirement** — code, name, description
+2. **Implementation examples** — optional list from framework metadata (e.g., NIST CSF `implementation_examples`); used to help the LLM identify genuinely relevant statements
+3. **Policy documents** — all qualifying mapped policy documents (title + content)
+
+## LLM Output
+
+A list of structured statement objects:
+
+```json
+{
+  "statements": [
+    {
+      "statement": "Full extracted policy statement text with all detail",
+      "document_title": "Exact document title from available_document_titles",
+      "document_section": "Section or clause name, or null"
+    }
+  ]
+}
+```
+
+There may be zero, one, or many statements. The LLM is instructed to search ALL provided documents.
+
+## Persistence
+
+Statements are saved per `(assessment_id, requirement_id)` in the `policy_statements` table. Re-running extraction deletes all existing statements for that pair and generates fresh ones.
+
+## User Controls
+
+- **Run Extraction** — triggers the LLM call
+- **Re-run Extraction** — clears existing statements and re-extracts
+- **Mark as Irrelevant** — deletes a specific statement from the saved set
+
+## UI Indicators
+
+- Green checkmark: statements were found
+- Red X: extraction ran but no relevant statements found
+- Status shown in collapsed accordion header for at-a-glance awareness
+
+## Implementation Examples (NIST CSF)
+
+NIST CSF 2.0 subcategories include `implementation_examples` loaded from the official NIST documentation. These are included in the extraction prompt when available. Other frameworks may add `implementation_examples` to requirement `extra_metadata` to enable the same behavior.
+
+---
+
+---
+
 # 2. Inputs
 
 Each assessment instance shall receive:
@@ -40,13 +109,13 @@ Two categories of documents are supported, stored in the `policies` table with a
 
 | `document_type` | Purpose |
 |---|---|
-| `policy` | Design-level documentation — policies, procedures, standards. Used in Phase 2a. |
-| `evidence` | Implementation evidence — configuration exports, audit logs, test results, screenshots. Used in Phase 2b (implementation depth only). |
+| `policy` | Design-level documentation — policies, procedures, standards. Used in Phase 2 (Documentation Score). Policy statements are extracted from these documents before scoring. |
+| `evidence` | Implementation evidence — configuration exports, audit logs, test results, screenshots. Used in Phase 2 at implementation depth to assess evidence support for each policy statement. |
 
 Depth determines which document types are evaluated:
 
-* Design — policy documents only (Phase 2a)
-* Design + Implementation — policy documents (Phase 2a) + evidence documents (Phase 2b)
+* Design — policy documents only (Phase 2 design variant)
+* Design + Implementation — policy documents + evidence documents (Phase 2 implementation variant)
 * Design + Implementation + Operating Effectiveness — same as implementation
 
 ---
@@ -85,33 +154,28 @@ For each requirement, the system must produce:
 
 ---
 
-## 3.1 Score 1 — Requirement Met by Documentation (0–100%)
+## 3.1 Score 1 — Requirement Met by Documentation
 
-Score 1 is a composite of two sub-scores:
+Score 1 is a single coverage label mapped to a numeric value:
 
-**Score 1a — Design** (`score1_design`): Evaluated from policy documents via Phase 2a.
-Always uses design-level status vocabulary (`Fully Addressed`, `Partially Addressed`, `Not Addressed`)
-regardless of assessment depth, because policies describe intent, not deployment.
+| Coverage Label | Score 1 Value |
+|---|---|
+| `Covered` | 100 |
+| `Partial` | 50 |
+| `Gap` | 0 |
 
-**Score 1b — Implementation** (`score1_implementation`): Evaluated from evidence documents via Phase 2b.
-Only computed at implementation depth. `null` means N/A (design depth). `0.0` means no evidence
-documents were mapped (penalised).
+The label is produced by Phase 2 (Documentation Score LLM call) based on extracted policy statements
+and (at implementation depth) supporting evidence for each statement.
 
-Status vocabulary for Phase 2b: `Fully Implemented`, `Partially Implemented`, `No Evidence Found`.
+Score 1 is skipped when:
 
-**Composite Score 1** (`score1`) = average of Score 1a and Score 1b (when both are present).
-At design depth, Score 1 = Score 1a.
-
-Edge cases:
-
-| Depth | Policy docs | Evidence docs | Score 1a | Score 1b | Composite |
-|---|---|---|---|---|---|
-| design | ✓ | — | calculated | null (N/A) | = Score 1a |
-| design | ✗ | — | skipped | null (N/A) | skipped |
-| implementation | ✓ | ✓ | calculated | calculated | average |
-| implementation | ✓ | ✗ | calculated | 0% + warning | average (penalised) |
-| implementation | ✗ | ✓ | 0% + warning | calculated | average (penalised) |
-| implementation | ✗ | ✗ | skipped | skipped | skipped |
+| Depth | Policy statements | Evidence docs | Result |
+|---|---|---|---|
+| design | 0 | — | skipped (`no_policy_statements`) |
+| design | > 0 | — | scored |
+| implementation | 0 | 0 | skipped (`no_documentation`) |
+| implementation | 0 | > 0 | scored (evidence-only variant) |
+| implementation | > 0 | any | scored |
 
 Each sub-score produces its own explanation:
 * `score1_design_explanation` — executive summary, supporting documents, deficiencies, improvements
@@ -252,94 +316,87 @@ These targets assume:
 
 ---
 
-# Phase 1 — Requirement Decomposition (1 LLM Call)
+# Policy Extraction Stage — Policy Statement Extraction (1 LLM Call, on-demand)
 
-LLM shall decompose the requirement into atomic evaluative elements.
+User-triggered. See Section 1a for full specification.
 
-Structured JSON output:
+Inputs: requirement, implementation examples (if available), qualifying policy documents.
+Output: list of `{ statement, document_title, document_section }` objects saved to `policy_statements` table.
+
+---
+
+# Phase 2 — Documentation Score (1 LLM Call)
+
+LLM evaluates extracted policy statements against the requirement and returns a single coverage label.
+Policy statements are sourced from the `policy_statements` table (see Section 1a for extraction).
+
+## Skip Logic
+
+* **Design depth**: skip if zero policy statements exist for this requirement (skip_reason: `no_policy_statements`)
+* **Implementation depth**: skip if zero policy statements AND zero qualifying evidence documents (skip_reason: `no_documentation`)
+
+## Coverage Label
+
+The LLM returns one of three labels:
+
+| Label | Score 1 Value | Meaning |
+|-------|--------------|---------|
+| `Covered` | 100 | All key aspects of the requirement are addressed in policy |
+| `Partial` | 50 | Some aspects are covered but gaps exist |
+| `Gap` | 0 | No meaningful policy coverage found |
+
+## Prompt Variants
+
+**Design depth** — Inputs: requirement, policy statements, implementation examples (if any).
+LLM evaluates whether the statements collectively satisfy the requirement.
+
+**Implementation depth with statements** — Inputs: requirement, policy statements, implementation examples,
+evidence documents. LLM additionally evaluates per-statement evidence support:
 
 ```json
 {
-  "elements": [
-    { "id": "E1", "description": "..." }
+  "coverage_label": "Covered|Partial|Gap",
+  "explanation": "...",
+  "recommendations": [{"type": "Policy|Evidence", "action": "..."}],
+  "policy_statement_evaluations": [
+    {
+      "statement_id": "S1",
+      "statement": "...",
+      "has_evidence": true,
+      "supporting_evidence": "..."
+    }
   ]
 }
 ```
 
-This output must be reused for Score 1.
+**Implementation depth without statements (evidence-only)** — Used when policy statements are absent but
+evidence documents exist. LLM evaluates evidence directly and notes the absence of policy documentation.
 
----
+## Rubrics
 
-# Phase 2a — Policy/Design Evaluation (1 LLM Call)
+**Design depth:**
+* `Covered` — Statements collectively address all key aspects of the requirement
+* `Partial` — Some aspects covered but meaningful gaps remain
+* `Gap` — No statements or statements do not address the requirement
 
-LLM classifies each requirement element against policy documents (design-level documentation).
-This phase always runs if policy documents are available, regardless of assessment depth.
+**Implementation depth:**
+* `Covered` — Complete policy coverage AND each policy statement has supporting evidence
+* `Partial` — Partial policy coverage OR some statements lack supporting evidence
+* `Gap` — No policy documentation at all (or all statements lack evidence)
 
-Allowed status values (always design-level vocabulary):
-
-* Fully Addressed
-* Partially Addressed
-* Not Addressed
-
-Structured JSON required with:
-
-* Status per element
-* Evidence reference
-* Deficiency summary
-* `score1_explanation` with executive summary, supporting documents, deficiencies, improvements
-
-The Phase 2a prompt provides an `available_document_titles` list with exact `policy_name` values.
-The LLM must select supporting document titles exclusively from this list (copied character-for-character).
-
-Output stored in: `phase2_output` (DB column), `score1_design_explanation`
-
----
-
-# Phase 2b — Implementation Evidence Evaluation (1 LLM Call, implementation depth only)
-
-LLM classifies each requirement element against evidence documents (implementation artifacts).
-This phase only runs at implementation depth. If no evidence documents are mapped, `score1_implementation = 0.0` with a warning explanation.
-
-Allowed status values (implementation vocabulary):
-
-* Fully Implemented
-* Partially Implemented
-* No Evidence Found
-
-The prompt optionally receives `design_evaluation_context` (Phase 2a element evaluations) to help
-the LLM judge whether the evidence confirms the documented design is deployed.
-
-Output stored in: `phase2b_output` (DB column), `score1_implementation_explanation`
-
----
-
-# Phase 2b Edge Case: No Design Context
-
-If no policy documents exist but evidence documents do, Phase 2b runs without `design_evaluation_context`.
-The prompt instructs the LLM to evaluate evidence directly and note where design documentation would be needed.
+Output stored in: `phase2_output` (DB column), `score1_explanation`
 
 ---
 
 # Phase 3 — Deterministic Score 1 Calculation
 
-System computes Score 1a (Design) from Phase 2a element evaluations and Score 1b (Implementation)
-from Phase 2b element evaluations using the same formula:
+System maps the coverage label from Phase 2 to a numeric score:
 
-Sub-score = (Sum(element_values) / Total_elements) × 100
+* `Covered` → 100.0
+* `Partial` → 50.0
+* `Gap` → 0.0
 
-Status → value mapping (design vocabulary):
-* Fully Addressed → 1.0
-* Partially Addressed → 0.5
-* Not Addressed → 0.0
-
-Status → value mapping (implementation vocabulary):
-* Fully Implemented → 1.0
-* Partially Implemented → 0.5
-* No Evidence Found → 0.0
-
-Composite Score 1 = (Score 1a + Score 1b) / 2 when both sub-scores are present.
-At design depth, Score 1 = Score 1a (Score 1b is null/N/A).
-
+Score 1 is a single value regardless of assessment depth. No sub-scores exist.
 LLM must not perform arithmetic.
 
 ---
@@ -385,30 +442,25 @@ Must also provide:
 Structured JSON required.
 
 **Compliance Picture (replacing raw documents):**
-Phase 5 receives a `company_compliance_picture` (structured findings distilled from Phases 2a/2b)
-instead of raw document text. This reduces token usage and improves accuracy by providing structured,
-element-level findings. The compliance picture contains:
+Phases 4 and 5 receive a `company_compliance_picture` (structured findings from Phase 2)
+instead of raw document text. This reduces token usage and improves accuracy by providing structured
+policy statement findings. The compliance picture contains:
 
 ```json
 {
-  "element_findings": [
+  "policy_statements": [
     {
-      "id": "E1",
-      "description": "...",
-      "design_status": "Fully Addressed",
-      "design_evidence_reference": "...",
-      "design_deficiency": null,
-      "implementation_status": "Partially Implemented",
-      "implementation_evidence_reference": "...",
-      "implementation_deficiency": "..."
+      "statement": "...",
+      "document_title": "...",
+      "has_evidence": true,
+      "supporting_evidence": "..."
     }
   ],
-  "design_coverage_summary": "2-3 sentence Phase 2a executive summary",
-  "implementation_coverage_summary": "2-3 sentence Phase 2b executive summary"
+  "coverage_summary": "2-3 sentence Phase 2 explanation"
 }
 ```
 
-Phase 4 also receives the compliance picture instead of raw documents.
+The compliance picture includes NO coverage label — it provides factual information only (statements and evidence support), leaving subjective interpretation to the LLM in Phase 5.
 
 ---
 
@@ -440,7 +492,18 @@ Same formula as Score2, applied to peer-based mechanisms only.
 
 # 6. Explanation Requirements
 
-For each of the three scores, LLM must produce:
+## Score 1 (Phase 2 output)
+
+The Phase 2 LLM call produces:
+
+1. `coverage_label` — one of `Covered`, `Partial`, `Gap`
+2. `explanation` — 1-3 sentence rationale for the label
+3. `recommendations` — list of `{ type: "Policy"|"Evidence", action: "..." }` items
+4. `policy_statement_evaluations` (implementation depth only) — per-statement evidence assessment
+
+## Scores 2 and 3 (Phase 5 output)
+
+For each of Scores 2 and 3, the LLM must produce:
 
 1. Executive summary (≤ 3 sentences)
 2. Structured deficiency list
@@ -450,13 +513,8 @@ For each of the three scores, LLM must produce:
    * Implementation level
    * Operating effectiveness level
 
-For Score 1 specifically, LLM must also produce:
-
-4. Supporting documents — an accurate list of which provided context documents contained relevant information, with a brief description of what was found in each. Titles must match the `available_document_titles` list exactly.
-
 Explanations must:
 
-* Reference specific missing elements
 * Avoid generic language
 * Reflect risk and industry context
 * Stay within token cap

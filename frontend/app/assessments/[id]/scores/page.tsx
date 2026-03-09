@@ -198,13 +198,9 @@ export default function ScoresPage({ params }: ScoresPageProps) {
           requirement_name: s.requirement_name,
           requirement_description: s.requirement_description,
           ancestors: s.ancestors,
-          score1: null, score1_design: null, score1_implementation: null,
-          score2: null, score3: null,
-          phase1_output: null, phase2_output: null, phase2b_output: null,
-          phase4_output: null, phase5_output: null,
-          score1_explanation: null, score1_design_explanation: null,
-          score1_implementation_explanation: null,
-          score2_explanation: null, score3_explanation: null,
+          score1: null, score2: null, score3: null,
+          phase2_output: null, phase4_output: null, phase5_output: null,
+          score1_explanation: null, score2_explanation: null, score3_explanation: null,
           model_used: null, llm_calls_used: null,
           status: 'not_scored' as const,
           skip_reason: null, error_message: null, scored_at: null,
@@ -501,6 +497,7 @@ export default function ScoresPage({ params }: ScoresPageProps) {
                 <CardContent className="pt-6">
                   <RequirementScoreDetail
                     score={selectedScore}
+                    assessmentId={id}
                     onRerun={handleRerunRequirement}
                     depthLevel={assessment?.depth_level ?? 'design'}
                   />

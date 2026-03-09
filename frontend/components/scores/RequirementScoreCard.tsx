@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, RefreshCw, SkipForward } from 'lucide-react';
 import { RequirementScore } from '@/lib/types';
+import { DocumentationScorePanel } from './DocumentationScorePanel';
 import { ScorePanel } from './ScorePanel';
 import { PhaseOutputDrawer } from './PhaseOutputDrawer';
 import { cn } from '@/lib/utils';
@@ -118,9 +119,7 @@ export function RequirementScoreCard({ score, onRerun }: RequirementScoreCardPro
       {expanded && isCompleted && (
         <div className="border-t border-neutral-100 px-4 pb-4 pt-3 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <ScorePanel
-              title="Score 1 — Met by Documentation"
-              subtitle="Control documentation coverage of requirement elements"
+            <DocumentationScorePanel
               score={score.score1}
               explanation={score.score1_explanation}
             />
@@ -141,7 +140,6 @@ export function RequirementScoreCard({ score, onRerun }: RequirementScoreCardPro
           </div>
 
           <PhaseOutputDrawer
-            phase1Output={score.phase1_output}
             phase2Output={score.phase2_output}
             phase4Output={score.phase4_output}
             phase5Output={score.phase5_output}

@@ -115,21 +115,13 @@ class RequirementScore(Base):
     score2: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     score3: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
-    # Score 1 sub-scores (split by document type)
-    score1_design: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    score1_implementation: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-
     # Full phase outputs (stored for transparency/debugging)
-    phase1_output: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    phase2_output: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # Phase 2a output
-    phase2b_output: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # Phase 2b output
+    phase2_output: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # Documentation score phase
     phase4_output: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     phase5_output: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     # Explanations
     score1_explanation: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    score1_design_explanation: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    score1_implementation_explanation: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     score2_explanation: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     score3_explanation: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 

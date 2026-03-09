@@ -99,7 +99,7 @@ export function RequirementMappingGroup({
           ) : (
             <span
               className="flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 ring-1 ring-red-200 px-2 py-0.5 rounded-full"
-              title="No policy documents meet the threshold — Phase 2a (design scoring) will be skipped."
+              title="No policy documents meet the threshold — Documentation scoring (Phase 2) will be skipped."
             >
               <AlertTriangle className="h-3 w-3" />
               No policy mapped
@@ -113,7 +113,7 @@ export function RequirementMappingGroup({
           ) : (
             <span
               className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 ring-1 ring-amber-200 px-2 py-0.5 rounded-full"
-              title="No evidence documents meet the threshold — Phase 2b (implementation scoring) will be skipped."
+              title="No evidence documents meet the threshold — implementation depth evidence evaluation will be skipped."
             >
               <AlertTriangle className="h-3 w-3" />
               No evidence

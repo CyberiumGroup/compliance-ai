@@ -1,5 +1,23 @@
 import { UUID } from './common';
 
+// ─── Policy Statement Extraction Types ────────────────────────────────────────
+
+export interface PolicyStatement {
+  id: UUID;
+  assessment_id: UUID;
+  requirement_id: UUID;
+  statement: string;
+  document_title: string;
+  document_section: string | null;
+  is_relevant: boolean;
+  created_at: string;
+}
+
+export interface PolicyExtractionResult {
+  statements: PolicyStatement[];
+  count: number;
+}
+
 // ─── LLM Scoring Types ────────────────────────────────────────────────────────
 
 export interface ScoringJob {
@@ -43,6 +61,34 @@ export interface ScoreExplanation {
   guidance?: ScoreImprovement[];
 }
 
+// ─── Documentation Score (Score 1) types ──────────────────────────────────────
+
+export interface DocumentationRecommendation {
+  type: string;
+  action: string;
+}
+
+export interface SupportingEvidenceItem {
+  document_title: string;
+  explanation: string;
+}
+
+export interface DocumentationStatementEvaluation {
+  statement_id: string;
+  statement: string;
+  document_title: string;
+  document_section?: string;
+  has_evidence: boolean;
+  supporting_evidence: SupportingEvidenceItem[];
+}
+
+export interface DocumentationScoreExplanation {
+  coverage_label: 'Covered' | 'Partial' | 'Gap';
+  explanation: string;
+  recommendations?: DocumentationRecommendation[];
+  policy_statement_evaluations?: DocumentationStatementEvaluation[];
+}
+
 export interface ScoreAncestor {
   id: string;
   code: string | null;
@@ -59,24 +105,18 @@ export interface RequirementScore {
   requirement_description: string | null;
   ancestors: ScoreAncestor[];
   score1: number | null;
-  score1_design: number | null;
-  score1_implementation: number | null;
   score2: number | null;
   score3: number | null;
-  phase1_output: Record<string, unknown> | null;
   phase2_output: Record<string, unknown> | null;
-  phase2b_output: Record<string, unknown> | null;
   phase4_output: Record<string, unknown> | null;
   phase5_output: Record<string, unknown> | null;
-  score1_explanation: ScoreExplanation | null;
-  score1_design_explanation: ScoreExplanation | null;
-  score1_implementation_explanation: ScoreExplanation | null;
+  score1_explanation: DocumentationScoreExplanation | null;
   score2_explanation: ScoreExplanation | null;
   score3_explanation: ScoreExplanation | null;
   model_used: string | null;
   llm_calls_used: number | null;
   status: 'not_scored' | 'pending' | 'running' | 'completed' | 'failed' | 'skipped';
-  skip_reason: 'missing_documentation' | 'no_policy_documents' | 'no_documentation' | null;
+  skip_reason: 'missing_documentation' | 'no_policy_documents' | 'no_documentation' | 'no_policy_statements' | null;
   error_message: string | null;
   scored_at: string | null;
 }

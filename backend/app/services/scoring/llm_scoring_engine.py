@@ -1,17 +1,17 @@
 """LLM-assisted requirement scoring engine.
 
-Implements the 7-phase scoring system:
-  Phase 1   — Requirement element decomposition (pre-seeded from static JSON, never via LLM)
-  Phase 2a  — Design evaluation against elements using policy documents (LLM call 1)
-  Phase 2b  — Implementation evaluation using evidence documents (LLM call 2, implementation depth only)
-  Phase 3   — Deterministic Score 1 calculation (composite of 2a + 2b)
-  Phase 4   — Expected mechanism extraction (LLM call, risk profile required)
-  Phase 5   — Mechanism evaluation + explanations (LLM call)
-  Phase 6   — Deterministic Score 2 (risk-based)
-  Phase 7   — Deterministic Score 3 (peer alignment)
+Implements the scoring system:
+  Policy Extraction  — User-triggered pre-scoring stage (PolicyExtractionService)
+  Phase 2  — Documentation Score: single LLM call evaluating policy statements
+             (+ evidence at implementation depth) → Covered / Partial / Gap
+  Phase 3  — Deterministic Score 1: Covered=100, Partial=50, Gap=0
+  Phase 4  — Expected mechanism extraction (LLM call, risk profile required)
+  Phase 5  — Mechanism evaluation + explanations (LLM call)
+  Phase 6  — Deterministic Score 2 (risk-based)
+  Phase 7  — Deterministic Score 3 (peer alignment)
 
-Produces three 0–100% scores per requirement:
-  score1 — Requirement Met by Documentation (composite of score1_design + score1_implementation)
+Produces per requirement:
+  score1 — Documentation Coverage (0 / 50 / 100)
   score2 — Risk-Based Best Practice Adequacy
   score3 — Peer Alignment
 """
@@ -28,29 +28,20 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.assessment import Assessment
 from app.models.policy import Policy, PolicyMapping
+from app.models.policy_statement import PolicyStatement
 from app.services.ingestion.spreadsheet_ingestion import SpreadsheetIngestionService
 from app.models.requirement_threshold import AssessmentRequirementThreshold
-from app.models.scoring_job import RequirementElement, RequirementScore, ScoringJob
+from app.models.scoring_job import RequirementScore, ScoringJob
 from app.models.unified_framework import AssessmentFrameworkScope, FrameworkRequirement
 
 logger = logging.getLogger(__name__)
 
-# ─── Status weight tables ─────────────────────────────────────────────────────
+# ─── Score tables ─────────────────────────────────────────────────────────────
 
-ELEMENT_STATUS_WEIGHTS: dict[str, float] = {
-    # Design vocabulary (Phase 2a)
-    "Fully Addressed": 1.0,
-    "Partially Addressed": 0.5,
-    "Not Addressed": 0.0,
-    # Implementation vocabulary (Phase 2b)
-    "Fully Implemented": 1.0,
-    "Partially Implemented": 0.5,
-    "No Evidence Found": 0.0,
-    # Legacy / operating effectiveness vocabulary (kept for backward compat)
-    "Fully Designed and Implemented": 1.0,
-    "Fully Designed, Implemented, and Operating Effectively": 1.0,
-    "Implemented but Not Operating Consistently": 0.5,
-    "Designed but Not Implemented": 0.25,
+COVERAGE_LABEL_SCORES: dict[str, float] = {
+    "Covered": 100.0,
+    "Partial": 50.0,
+    "Gap": 0.0,
 }
 
 MECHANISM_STATUS_VALUES: dict[str, float] = {
@@ -60,10 +51,6 @@ MECHANISM_STATUS_VALUES: dict[str, float] = {
 }
 
 RISK_WEIGHTS: dict[str, int] = {"High": 3, "Medium": 2, "Low": 1}
-
-# Phase 2a always uses design vocabulary regardless of assessment depth
-DESIGN_STATUS_VOCAB = ["Fully Addressed", "Partially Addressed", "Not Addressed"]
-IMPLEMENTATION_STATUS_VOCAB = ["Fully Implemented", "Partially Implemented", "No Evidence Found"]
 
 # NIST SP 800-60 information type human-readable labels
 INFORMATION_TYPE_LABELS: dict[str, str] = {
@@ -81,7 +68,6 @@ INFORMATION_TYPE_LABELS: dict[str, str] = {
 
 
 def _resolve_info_type_labels(raw: str | None) -> list[str]:
-    """Parse JSON information_types string and return human-readable labels."""
     if not raw:
         return []
     try:
@@ -142,7 +128,6 @@ class LLMScoringEngine:
 
             self.db.commit()
 
-        # Mark failed only if there were requirements and ALL of them failed
         all_failed = job.total_requirements > 0 and job.failed_requirements == job.total_requirements
         job.status = "failed" if all_failed else "completed"
         job.completed_at = datetime.utcnow()
@@ -175,56 +160,52 @@ class LLMScoringEngine:
         assessment: Assessment,
         job_id: uuid.UUID | None,
     ) -> dict[str, Any]:
-        """Determine skip/score path and persist the result."""
         depth = assessment.depth_level or "design"
         assessment_id = assessment.id
 
-        design_docs = self._get_qualifying_docs(req.id, assessment, "policy")
+        policy_statements = self._get_policy_statements(req.id, assessment_id)
         evidence_docs = (
             self._get_qualifying_docs(req.id, assessment, "evidence")
             if depth == "implementation"
             else []
         )
 
-        # Skip checks
-        if depth == "design" and not design_docs:
-            result = self._upsert_requirement_score(
+        # Skip logic
+        if depth == "design" and not policy_statements:
+            return self._upsert_requirement_score(
                 assessment_id=assessment_id,
                 requirement_id=req.id,
                 job_id=job_id,
                 status="skipped",
-                skip_reason="no_policy_documents",
+                skip_reason="no_policy_statements",
             )
-            return result
 
-        if depth == "implementation" and not design_docs and not evidence_docs:
-            result = self._upsert_requirement_score(
+        if depth == "implementation" and not policy_statements and not evidence_docs:
+            return self._upsert_requirement_score(
                 assessment_id=assessment_id,
                 requirement_id=req.id,
                 job_id=job_id,
                 status="skipped",
                 skip_reason="no_documentation",
             )
-            return result
 
-        score_data = await self._score_requirement(req, assessment, design_docs, evidence_docs)
-        result = self._upsert_requirement_score(
+        score_data = await self._score_requirement(req, assessment, policy_statements, evidence_docs)
+        return self._upsert_requirement_score(
             assessment_id=assessment_id,
             requirement_id=req.id,
             job_id=job_id,
             status="completed",
             **score_data,
         )
-        return result
 
     async def _score_requirement(
         self,
         req: FrameworkRequirement,
         assessment: Assessment,
-        design_docs: list[PolicyMapping],
+        policy_statements: list[PolicyStatement],
         evidence_docs: list[PolicyMapping],
     ) -> dict[str, Any]:
-        """Run the full LLM scoring flow for one requirement."""
+        """Run the full scoring flow for one requirement."""
         depth = assessment.depth_level or "design"
         info_types = _resolve_info_type_labels(assessment.information_types)
         has_risk_profile = bool(info_types)
@@ -234,77 +215,57 @@ class LLMScoringEngine:
             assessment.product_service_description,
         ])
 
-        # Load pre-seeded Phase 1 elements (never generated on-demand via LLM)
-        elements = self._load_elements(req.id)
-        if not elements:
-            raise ValueError(
-                f"No Phase 1 elements found for requirement {req.code!r}. "
-                "Load element data for this framework before running scoring."
-            )
-        phase1_output = {"elements": [{"id": e.element_id, "description": e.description} for e in elements]}
-        element_dicts = phase1_output["elements"]
+        impl_examples = self._get_implementation_examples(req)
 
-        # ── Phase 2a — Design evaluation (always runs if design_docs present) ──
-        if design_docs:
-            control_docs_2a = self._build_control_docs(design_docs, "policy")
-            phase2a_prompt = self._build_phase2a_prompt(req, element_dicts, control_docs_2a)
-            phase2a_output = await self._call_llm(phase2a_prompt)
-            score1_design = self._calculate_score1(phase2a_output.get("element_evaluations", []))
-            score1_design_explanation: dict | None = phase2a_output.get("score1_explanation")
-            p2_supporting_docs: list | None = (
-                score1_design_explanation.get("supporting_documents") if score1_design_explanation else None
-            )
-        else:
-            phase2a_output = {}
-            score1_design = 0.0
-            score1_design_explanation = {
-                "executive_summary": "No qualifying policy documentation was found for this requirement.",
-                "skip_reason": "no_policy_documents",
-            }
-            p2_supporting_docs = None
+        # ── Phase 2 — Documentation Score ──────────────────────────────────
+        built_evidence = self._build_control_docs(evidence_docs, "evidence") if evidence_docs else []
+        doc_prompt = self._build_documentation_prompt(
+            req, policy_statements, built_evidence, impl_examples, depth
+        )
+        phase2_output = await self._call_llm(doc_prompt)
 
-        # ── Phase 2b — Implementation evaluation (only at implementation depth) ──
-        phase2b_output: dict[str, Any] = {}
-        score1_implementation: float | None = None
-        score1_implementation_explanation: dict | None = None
+        coverage_label = phase2_output.get("coverage_label", "Gap")
+        if coverage_label not in COVERAGE_LABEL_SCORES:
+            coverage_label = "Gap"
 
-        if depth == "implementation":
-            if evidence_docs:
-                control_docs_2b = self._build_control_docs(evidence_docs, "evidence")
-                design_element_evaluations = phase2a_output.get("element_evaluations", [])
-                phase2b_prompt = self._build_phase2b_prompt(
-                    req,
-                    element_dicts,
-                    control_docs_2b,
-                    design_element_evaluations=design_element_evaluations,
-                    has_design_context=bool(design_docs),
-                )
-                phase2b_output = await self._call_llm(phase2b_prompt)
-                score1_implementation = self._calculate_score1(phase2b_output.get("element_evaluations", []))
-                score1_implementation_explanation = phase2b_output.get("score1_explanation")
-            else:
-                score1_implementation = 0.0
-                score1_implementation_explanation = {
-                    "executive_summary": (
-                        "No implementation evidence is associated with this requirement. "
-                        "Upload and map evidence documents to score implementation coverage."
-                    ),
-                    "skip_reason": "no_evidence_documents",
-                }
+        score1 = COVERAGE_LABEL_SCORES[coverage_label]
 
-        # ── Phase 3 — Composite Score 1 ──
-        if score1_implementation is not None:
-            score1 = round((score1_design + score1_implementation) / 2, 1)
-        else:
-            score1 = score1_design
+        # Build per-statement evaluations — always included so UI can expand and inspect
+        stmt_evals_by_id: dict[str, dict] = {
+            e["id"]: e
+            for e in phase2_output.get("policy_statement_evaluations", [])
+            if isinstance(e, dict) and e.get("id")
+        }
+        stmt_eval_list = []
+        for i, stmt in enumerate(policy_statements):
+            sid = f"S{i + 1}"
+            eval_entry = stmt_evals_by_id.get(sid, {})
+            supporting = eval_entry.get("supporting_evidence", []) if depth == "implementation" else []
+            if not isinstance(supporting, list):
+                supporting = []
+            stmt_eval_list.append({
+                "statement_id": sid,
+                "statement": stmt.statement,
+                "document_title": stmt.document_title,
+                **({"document_section": stmt.document_section} if stmt.document_section else {}),
+                "has_evidence": bool(supporting),
+                "supporting_evidence": supporting,
+            })
 
-        # Phase 2a score1_explanation is the primary Score 1 explanation (preserved unchanged)
-        score1_explanation: dict | None = score1_design_explanation
+        score1_explanation = {
+            "coverage_label": coverage_label,
+            "explanation": phase2_output.get("explanation", ""),
+            "recommendations": phase2_output.get("recommendations", []),
+        }
+        if stmt_eval_list:
+            score1_explanation["policy_statement_evaluations"] = stmt_eval_list
 
-        # ── Compliance picture — replaces raw docs in Phase 4/5 ──
-        compliance_picture = self._build_compliance_picture(element_dicts, phase2a_output, phase2b_output)
+        # ── Compliance picture for Phase 4/5 ───────────────────────────────
+        compliance_picture = self._build_compliance_picture(
+            policy_statements, phase2_output, depth
+        )
 
-        # ── Phase 4/5 (Score 2/3) ──
+        # ── Phase 4/5 (Score 2/3) ──────────────────────────────────────────
         phase4_output: dict[str, Any] = {}
         score2: float | None = None
         score3: float | None = None
@@ -313,14 +274,11 @@ class LLMScoringEngine:
         phase5_output: dict[str, Any] = {}
 
         if has_risk_profile:
-            phase4_prompt = self._build_phase4_prompt(
-                req, info_types, assessment, has_company_profile
-            )
+            phase4_prompt = self._build_phase4_prompt(req, info_types, assessment, has_company_profile)
             phase4_output = await self._call_llm(phase4_prompt)
 
             phase5_prompt = self._build_phase5_prompt(
                 req, depth, compliance_picture,
-                phase2a_output.get("element_evaluations", []),
                 phase4_output, score1, has_company_profile,
             )
             phase5_output = await self._call_llm(phase5_prompt)
@@ -337,26 +295,18 @@ class LLMScoringEngine:
             score2_explanation = phase5_output.get("score2_explanation")
             score3_explanation = phase5_output.get("score3_explanation")
 
-        llm_calls = 1  # Phase 2a
-        if depth == "implementation" and evidence_docs:
-            llm_calls += 1  # Phase 2b
+        llm_calls = 1  # Phase 2
         if has_risk_profile:
-            llm_calls += 2  # Phase 4 + Phase 5
+            llm_calls += 2  # Phase 4 + 5
 
         return {
             "score1": score1,
-            "score1_design": score1_design,
-            "score1_implementation": score1_implementation,
             "score2": score2,
             "score3": score3,
-            "phase1_output": phase1_output,
-            "phase2_output": phase2a_output if phase2a_output else None,
-            "phase2b_output": phase2b_output if phase2b_output else None,
+            "phase2_output": phase2_output if phase2_output else None,
             "phase4_output": phase4_output if phase4_output else None,
             "phase5_output": phase5_output if phase5_output else None,
             "score1_explanation": score1_explanation,
-            "score1_design_explanation": score1_design_explanation,
-            "score1_implementation_explanation": score1_implementation_explanation,
             "score2_explanation": score2_explanation,
             "score3_explanation": score3_explanation,
             "model_used": self.model,
@@ -364,234 +314,250 @@ class LLMScoringEngine:
             "scored_at": datetime.utcnow(),
         }
 
-    def _load_elements(self, requirement_id: uuid.UUID) -> list[RequirementElement]:
-        return (
-            self.db.query(RequirementElement)
-            .filter(RequirementElement.requirement_id == requirement_id)
-            .order_by(RequirementElement.element_id)
-            .all()
-        )
-
     # ─────────────────────────────────────────────────────────────────────────
-    # Phase 2a prompt builder — Design / policy evaluation
+    # Phase 2 — Documentation Score prompt builder
     # ─────────────────────────────────────────────────────────────────────────
 
-    def _build_phase2a_prompt(
+    def _build_documentation_prompt(
         self,
         req: FrameworkRequirement,
-        elements: list[dict],
-        control_docs: list[dict],
-    ) -> dict:
-        status_vocab = DESIGN_STATUS_VOCAB
-        available_titles = [doc["document_name"] for doc in control_docs]
-        return {
-            "task": (
-                "Evaluate the provided policy documentation against each element of the "
-                "compliance requirement. Policy documents describe what an organisation "
-                "intends to do (design-level). "
-                "For each element, select the status that best describes what the "
-                f"documentation demonstrates. Use ONLY these status values: {status_vocab}. "
-                "Then identify which documents were useful. For supporting_documents, "
-                "select titles ONLY from the available_document_titles list provided — "
-                "copy the title exactly as it appears, character for character. "
-                "Only include a document if it contained specific, relevant information; "
-                "omit documents that provided nothing relevant. "
-                "Finally, provide a concise explanation summarising the overall finding."
-            ),
-            "requirement": {
-                "code": req.code,
-                "name": req.name,
-                "description": req.description or "",
-            },
-            "elements": elements,
-            "available_document_titles": available_titles,
-            "control_documentation": control_docs,
-            "output_format": {
-                "element_evaluations": [
-                    {
-                        "id": "E1",
-                        "status": f"one of: {', '.join(status_vocab)}",
-                        "evidence_reference": "quote from docs or 'None found'",
-                        "deficiency_summary": "what is missing or 'null' if fully addressed",
-                    }
-                ],
-                "score1_explanation": {
-                    "executive_summary": "2-3 sentences summarising overall documentation coverage of this requirement",
-                    "supporting_documents": [
-                        {
-                            "title": "one of the titles from available_document_titles",
-                            "relevant_details": "specific information found that supports or partially addresses this requirement",
-                        }
-                    ],
-                    "deficiencies": [{"element_id": "E1", "issue": "description of gap"}],
-                    "improvements": [{"level": "Tactical|Strategic|Long-term", "action": "recommended action"}],
-                },
-            },
-        }
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Phase 2b prompt builder — Implementation / evidence evaluation
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def _build_phase2b_prompt(
-        self,
-        req: FrameworkRequirement,
-        elements: list[dict],
+        policy_statements: list[PolicyStatement],
         evidence_docs: list[dict],
-        design_element_evaluations: list[dict],
-        has_design_context: bool,
+        impl_examples: list[str],
+        depth: str,
     ) -> dict:
-        status_vocab = IMPLEMENTATION_STATUS_VOCAB
-        available_titles = [doc["document_name"] for doc in evidence_docs]
-        has_spreadsheet = any(doc.get("content_format") == "spreadsheet_json" for doc in evidence_docs)
+        has_statements = bool(policy_statements)
+        has_evidence = bool(evidence_docs)
+        is_implementation = depth == "implementation"
 
-        task = (
-            "Evaluate the provided implementation evidence against each requirement element. "
-            "Implementation evidence includes concrete artifacts (configuration exports, audit logs, "
-            "test results, screenshots, spreadsheets) that demonstrate a control is actively deployed "
-            "in practice — not just documented as intended. "
-            f"Use ONLY these status values: {status_vocab}. "
-            "Apply 'No Evidence Found' whenever you cannot identify a concrete artifact confirming "
-            "deployment of that element, even if policy documentation describes it thoroughly. "
-            "Policies describe intent; evidence must demonstrate reality. "
-            "In supporting_documents, select titles ONLY from the available_document_titles list — "
-            "copy the title exactly. Only include a document if it contained relevant information."
-        )
-
-        if has_spreadsheet:
-            task += (
-                " Some evidence documents are spreadsheets converted to JSON "
-                "(content_format: 'spreadsheet_json'). Each sheet contains columns and rows — "
-                "treat each row as an individual record. Assess whether the records collectively "
-                "demonstrate deployment across the relevant scope (all users, systems, or environments)."
-            )
-
-        if has_design_context and design_element_evaluations:
-            task += (
-                " The design_evaluation_context shows what policy documentation claims about each "
-                "element (design_status) and any gaps the policy had (design_gap). "
-                "Treat this as the intended design baseline. Your job is to independently assess "
-                "whether the evidence confirms the design is actually deployed. "
-                "Be skeptical — policies commonly describe controls that are only partially or "
-                "not yet implemented in practice."
-            )
-        elif not has_design_context:
-            task += (
-                " No policy documentation exists for this requirement. "
-                "Evaluate the evidence directly against each element. "
-                "Note any elements where design documentation would also be needed."
-            )
-
-        prompt: dict[str, Any] = {
-            "task": task,
-            "requirement": {
-                "code": req.code,
-                "name": req.name,
-                "description": req.description or "",
-            },
-            "elements": elements,
-            "available_document_titles": available_titles,
-            "evidence_documentation": evidence_docs,
-            "output_format": {
-                "element_evaluations": [
-                    {
-                        "id": "E1",
-                        "status": f"one of: {', '.join(status_vocab)}",
-                        "evidence_reference": "specific artifact, record, or value found — or 'None found'",
-                        "deficiency_summary": "what is missing from actual deployment or 'null' if fully confirmed",
-                    }
-                ],
-                "score1_explanation": {
-                    "executive_summary": "2-3 sentences summarising implementation evidence coverage",
-                    "supporting_documents": [
-                        {
-                            "title": "exact title from available_document_titles",
-                            "relevant_details": "specific relevant content found",
-                        }
-                    ],
-                    "deficiencies": [{"element_id": "E1", "issue": "description of gap"}],
-                    "improvements": [{"level": "Tactical|Strategic|Long-term", "action": "recommended action"}],
-                },
-            },
+        requirement_block = {
+            "code": req.code,
+            "name": req.name,
+            "description": req.description or "",
         }
 
-        if has_design_context and design_element_evaluations:
-            # Strip evidence_reference — passing raw policy quotes to Phase 2b anchors it
-            # on policy text rather than the actual evidence artifacts.
-            # Only pass the status claim and any design gap so Phase 2b can contrast.
-            prompt["design_evaluation_context"] = [
+        # Build statement list with sequential IDs for the LLM to reference back
+        statement_list = [
+            {
+                "id": f"S{i + 1}",
+                "statement": s.statement,
+                "document_title": s.document_title,
+                **({"document_section": s.document_section} if s.document_section else {}),
+            }
+            for i, s in enumerate(policy_statements)
+        ]
+
+        # ── Design depth ──────────────────────────────────────────────────
+        if not is_implementation:
+            task = (
+                "Evaluate the provided policy statements against the compliance requirement. "
+                "Determine whether the policy statements collectively and adequately cover "
+                "the requirement, then assign a coverage label using the rubric provided. "
+                "Give a specific explanation referencing the actual policy statements and "
+                "any gaps you identify. Provide concrete recommendations for improvement."
+            )
+            rubric = {
+                "Covered": (
+                    "The policy statements collectively and completely address all aspects "
+                    "of the requirement with sufficient specificity and clarity."
+                ),
+                "Partial": (
+                    "The policy statements address the requirement but are incomplete, vague, "
+                    "or only partially cover it — some aspects of the requirement are missing "
+                    "or inadequately addressed."
+                ),
+                "Gap": (
+                    "The policy statements do not meaningfully address the requirement, "
+                    "are entirely absent, or are so generic as to provide no real coverage."
+                ),
+            }
+            output_format: dict[str, Any] = {
+                "coverage_label": "Covered|Partial|Gap",
+                "explanation": (
+                    "Specific explanation of why this label was chosen, identifying exactly "
+                    "which aspects of the requirement are covered or missing."
+                ),
+                "recommendations": [
+                    {"type": "Policy", "action": "Specific policy improvement action"}
+                ],
+            }
+            prompt: dict[str, Any] = {
+                "task": task,
+                "requirement": requirement_block,
+                "policy_statements": statement_list,
+                "rubric": rubric,
+                "output_format": output_format,
+            }
+            if impl_examples:
+                prompt["implementation_examples"] = impl_examples
+
+            return prompt
+
+        # ── Implementation depth — with statements ────────────────────────
+        if has_statements:
+            task = (
+                "Evaluate the provided policy statements and implementation evidence against "
+                "the compliance requirement. "
+                "For each policy statement, identify which evidence documents (if any) "
+                "support it — provide the document title and a specific explanation of what "
+                "the evidence demonstrates for that statement. Leave supporting_evidence empty "
+                "if no evidence confirms that statement. "
+                "Evidence can support a policy statement in two ways: it can SHOW the policy "
+                "in action (e.g. a log, screenshot, or configuration export demonstrating the "
+                "control operating), OR it can TELL that the policy is in action (e.g. an "
+                "audit report, attestation, or internal review stating that the practice is "
+                "followed). Both forms count as supporting evidence. "
+                "Then assign an overall coverage label using the rubric and provide a specific "
+                "explanation and concrete recommendations."
+            )
+            if evidence_docs:
+                available_evidence_titles = [d["document_name"] for d in evidence_docs]
+                task += (
+                    " For document_title in supporting_evidence, use ONLY titles from the "
+                    "evidence documents provided, copied exactly character-for-character. "
+                    "Policy documents (the source of the policy statements) are NOT valid "
+                    "evidence references — only the separately provided evidence_documentation "
+                    "files may appear as supporting_evidence document_title values."
+                )
+            rubric = {
+                "Covered": (
+                    "The policy statements completely address all aspects of the requirement "
+                    "AND every policy statement has at least one piece of supporting evidence "
+                    "confirming it is actively implemented."
+                ),
+                "Partial": (
+                    "The policy statements partially cover the requirement and/or one or more "
+                    "statements lack supporting evidence confirming active implementation."
+                ),
+                "Gap": (
+                    "No policy statements address the requirement and no evidence documents "
+                    "cover it, OR the documentation and evidence together are entirely "
+                    "insufficient to demonstrate compliance."
+                ),
+            }
+            stmt_eval_schema = [
                 {
-                    "id": e.get("id"),
-                    "design_status": e.get("status"),
-                    "design_gap": e.get("deficiency_summary"),
+                    "id": "S1",
+                    "supporting_evidence": [
+                        {
+                            "document_title": "exact evidence document title",
+                            "explanation": "what this evidence demonstrates for this statement",
+                        }
+                    ],
                 }
-                for e in design_element_evaluations
             ]
+            output_format = {
+                "policy_statement_evaluations": stmt_eval_schema,
+                "coverage_label": "Covered|Partial|Gap",
+                "explanation": (
+                    "Specific explanation identifying which statements are backed by evidence "
+                    "and which are not, and any other coverage gaps."
+                ),
+                "recommendations": [
+                    {"type": "Policy|Evidence", "action": "Specific improvement action"}
+                ],
+            }
+            prompt = {
+                "task": task,
+                "requirement": requirement_block,
+                "policy_statements": statement_list,
+                "rubric": rubric,
+                "output_format": output_format,
+            }
+            if impl_examples:
+                prompt["implementation_examples"] = impl_examples
+            if evidence_docs:
+                prompt["available_evidence_titles"] = available_evidence_titles
+                prompt["evidence_documentation"] = evidence_docs
+
+            return prompt
+
+        # ── Implementation depth — no statements, evidence only ───────────
+        task = (
+            "No policy statements have been extracted for this requirement. "
+            "Evaluate the available implementation evidence against the compliance requirement "
+            "to determine how much of the requirement is addressed by evidence alone. "
+            "Note in your explanation that policy documentation is missing and that this "
+            "represents a gap regardless of evidence quality. "
+            "Provide an overall coverage label and specific recommendations for both "
+            "policy documentation and evidence."
+        )
+        rubric = {
+            "Covered": (
+                "Not achievable without policy statements — cannot be Covered when policy "
+                "documentation is missing."
+            ),
+            "Partial": (
+                "Implementation evidence addresses the requirement to some meaningful degree, "
+                "but policy documentation is absent."
+            ),
+            "Gap": (
+                "No evidence documents address the requirement, or the evidence is entirely "
+                "insufficient — and policy documentation is also missing."
+            ),
+        }
+        output_format = {
+            "coverage_label": "Covered|Partial|Gap",
+            "explanation": (
+                "Specific explanation of what evidence was found and what is missing. "
+                "Note that policy documentation is absent."
+            ),
+            "recommendations": [
+                {"type": "Policy|Evidence", "action": "Specific improvement action"}
+            ],
+        }
+        prompt = {
+            "task": task,
+            "requirement": requirement_block,
+            "rubric": rubric,
+            "output_format": output_format,
+        }
+        if impl_examples:
+            prompt["implementation_examples"] = impl_examples
+        if evidence_docs:
+            prompt["evidence_documentation"] = evidence_docs
 
         return prompt
 
     # ─────────────────────────────────────────────────────────────────────────
-    # Phase 3 — Deterministic Score 1
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def _calculate_score1(self, element_evaluations: list[dict]) -> float:
-        if not element_evaluations:
-            return 0.0
-        total = sum(
-            ELEMENT_STATUS_WEIGHTS.get(e.get("status", "Not Addressed"), 0.0)
-            for e in element_evaluations
-        )
-        return round(total / len(element_evaluations) * 100, 1)
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # Compliance picture — structured summary replacing raw docs in Phase 4/5
+    # Compliance picture for Phase 4/5
     # ─────────────────────────────────────────────────────────────────────────
 
     def _build_compliance_picture(
         self,
-        elements: list[dict],
-        phase2a_output: dict,
-        phase2b_output: dict,
+        policy_statements: list[PolicyStatement],
+        phase2_output: dict,
+        depth: str,
     ) -> dict:
-        """Build a structured compliance picture from Phase 2a/2b findings.
+        """Build structured compliance context for Phase 4/5 (Score 2/3).
 
-        This replaces raw document text in Phase 4/5 prompts, reducing token usage
-        while improving accuracy by providing structured findings.
+        Contains only objective factual information — no coverage label,
+        no subjective scores.
         """
-        design_evals = {e["id"]: e for e in phase2a_output.get("element_evaluations", [])}
-        impl_evals = {e["id"]: e for e in phase2b_output.get("element_evaluations", [])}
+        stmt_evals_by_id: dict[str, dict] = {
+            e["id"]: e
+            for e in phase2_output.get("policy_statement_evaluations", [])
+        }
 
-        findings = []
-        for el in elements:
-            el_id = el["id"]
-            de = design_evals.get(el_id, {})
-            f: dict[str, Any] = {
-                "id": el_id,
-                "description": el["description"],
-                "design_status": de.get("status", "Not Assessed"),
-                "design_evidence_reference": de.get("evidence_reference"),
-                "design_deficiency": de.get("deficiency_summary"),
+        statements_out = []
+        for i, stmt in enumerate(policy_statements):
+            sid = f"S{i + 1}"
+            eval_entry = stmt_evals_by_id.get(sid, {})
+            entry: dict[str, Any] = {
+                "statement": stmt.statement,
+                "document_title": stmt.document_title,
             }
-            if impl_evals:
-                ie = impl_evals.get(el_id, {})
-                f["implementation_status"] = ie.get("status", "Not Assessed")
-                f["implementation_evidence_reference"] = ie.get("evidence_reference")
-                f["implementation_deficiency"] = ie.get("deficiency_summary")
-            findings.append(f)
+            if depth == "implementation":
+                supporting = eval_entry.get("supporting_evidence", [])
+                entry["supporting_evidence"] = supporting
+                entry["evidence_supported"] = bool(supporting)
+            statements_out.append(entry)
 
-        picture: dict[str, Any] = {"element_findings": findings}
+        picture: dict[str, Any] = {"policy_statements": statements_out}
 
-        design_summary = (
-            phase2a_output.get("score1_explanation", {}) or {}
-        ).get("executive_summary")
-        if design_summary:
-            picture["design_coverage_summary"] = design_summary
-
-        impl_summary = (
-            phase2b_output.get("score1_explanation", {}) or {}
-        ).get("executive_summary")
-        if impl_summary:
-            picture["implementation_coverage_summary"] = impl_summary
+        explanation = phase2_output.get("explanation", "")
+        if explanation:
+            picture["coverage_summary"] = explanation
 
         return picture
 
@@ -620,9 +586,7 @@ class LLMScoringEngine:
                 "name": req.name,
                 "description": req.description or "",
             },
-            "risk_profile": {
-                "information_types": info_types,
-            },
+            "risk_profile": {"information_types": info_types},
         }
 
         if include_company_profile:
@@ -642,7 +606,6 @@ class LLMScoringEngine:
                 {"id": "P1", "description": "string", "criticality": "High|Medium|Low"}
             ]
         prompt["output_format"] = output_format
-
         return prompt
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -654,7 +617,6 @@ class LLMScoringEngine:
         req: FrameworkRequirement,
         depth: str,
         compliance_picture: dict,
-        element_evaluations: list[dict],
         phase4_output: dict,
         score1: float,
         include_peer: bool,
@@ -665,9 +627,9 @@ class LLMScoringEngine:
         prompt: dict[str, Any] = {
             "task": (
                 "Evaluate whether each expected mechanism is present based on the company's "
-                "compliance picture (structured findings from policy and evidence evaluation). "
+                "compliance picture (policy statements and their supporting evidence). "
                 "Then provide concise explanation summaries for each score. "
-                "status for mechanisms: 'Present and Robust', 'Present but Weak', or 'Missing'."
+                "Status for mechanisms: 'Present and Robust', 'Present but Weak', or 'Missing'."
             ),
             "requirement": {
                 "code": req.code,
@@ -676,7 +638,6 @@ class LLMScoringEngine:
             },
             "depth": depth,
             "company_compliance_picture": compliance_picture,
-            "element_evaluations": element_evaluations,
             "risk_based_mechanisms": risk_mechs,
             "score1": score1,
         }
@@ -741,7 +702,6 @@ class LLMScoringEngine:
     # ─────────────────────────────────────────────────────────────────────────
 
     def _get_assessable_requirements(self, assessment_id: uuid.UUID) -> list[FrameworkRequirement]:
-        """Get all in-scope assessable requirements for an assessment."""
         scope_rows = (
             self.db.query(AssessmentFrameworkScope)
             .filter(AssessmentFrameworkScope.assessment_id == assessment_id)
@@ -772,20 +732,27 @@ class LLMScoringEngine:
 
         return all_requirements
 
+    def _get_policy_statements(
+        self, requirement_id: uuid.UUID, assessment_id: uuid.UUID
+    ) -> list[PolicyStatement]:
+        """Fetch all saved policy statements for this requirement (user-curated set)."""
+        return (
+            self.db.query(PolicyStatement)
+            .filter(
+                PolicyStatement.assessment_id == assessment_id,
+                PolicyStatement.requirement_id == requirement_id,
+            )
+            .order_by(PolicyStatement.created_at)
+            .all()
+        )
+
     def _get_qualifying_docs(
         self,
         requirement_id: uuid.UUID,
         assessment: Assessment,
         doc_type: str,
     ) -> list[PolicyMapping]:
-        """Get policy mappings that qualify as documentation for scoring.
-
-        A mapping qualifies if:
-        - Policy.document_type matches doc_type ('policy' or 'evidence')
-        - is_rejected = False
-        - relevance_percentage >= threshold (per-req override → assessment default → 80)
-        - The linked policy has content_text
-        """
+        """Get evidence-type mappings that qualify for scoring (threshold + content check)."""
         threshold_override = (
             self.db.query(AssessmentRequirementThreshold)
             .filter(
@@ -812,32 +779,25 @@ class LLMScoringEngine:
             .all()
         )
 
-        qualifying = [
+        return [
             m for m in mappings
             if (m.relevance_percentage is not None and m.relevance_percentage >= threshold)
             and m.policy
             and m.policy.content_text
         ]
 
-        return qualifying
+    @staticmethod
+    def _get_implementation_examples(req: FrameworkRequirement) -> list[str]:
+        meta = req.extra_metadata or {}
+        examples = meta.get("implementation_examples") or []
+        if isinstance(examples, list):
+            return [str(e) for e in examples if e]
+        return []
 
-    # Backward-compat alias used by no internal code, but kept in case external callers exist
-    def _get_qualifying_policies(
-        self, requirement_id: uuid.UUID, assessment: Assessment
-    ) -> list[PolicyMapping]:
-        return self._get_qualifying_docs(requirement_id, assessment, "policy")
-
-    def _build_control_docs(self, qualifying_policies: list[PolicyMapping], doc_type: str = "policy") -> list[dict]:
-        """Build control documentation snippets from qualifying policies or evidence.
-
-        Multiple mappings to the same document are deduplicated.
-        Spreadsheet evidence (xlsx/csv) is stored as JSON — it is parsed and sent
-        as a structured object so the LLM can reason about it as tabular data rather
-        than receiving an escaped JSON string inside a JSON string.
-        """
+    def _build_control_docs(self, qualifying_mappings: list[PolicyMapping], doc_type: str = "policy") -> list[dict]:
         seen_policy_ids: set[uuid.UUID] = set()
         docs: list[dict] = []
-        for mapping in qualifying_policies:
+        for mapping in qualifying_mappings:
             if not mapping.policy or mapping.policy_id in seen_policy_ids:
                 continue
             seen_policy_ids.add(mapping.policy_id)
@@ -847,7 +807,7 @@ class LLMScoringEngine:
 
             entry: dict = {
                 "document_name": mapping.policy.name,
-                "document_type": "policy_document" if doc_type == "policy" else "evidence_artifact",
+                "document_type": "evidence_artifact",
             }
 
             if is_spreadsheet:
@@ -873,18 +833,12 @@ class LLMScoringEngine:
         skip_reason: str | None = None,
         error_message: str | None = None,
         score1: float | None = None,
-        score1_design: float | None = None,
-        score1_implementation: float | None = None,
         score2: float | None = None,
         score3: float | None = None,
-        phase1_output: dict | None = None,
         phase2_output: dict | None = None,
-        phase2b_output: dict | None = None,
         phase4_output: dict | None = None,
         phase5_output: dict | None = None,
         score1_explanation: dict | None = None,
-        score1_design_explanation: dict | None = None,
-        score1_implementation_explanation: dict | None = None,
         score2_explanation: dict | None = None,
         score3_explanation: dict | None = None,
         model_used: str | None = None,
@@ -915,18 +869,12 @@ class LLMScoringEngine:
         row.skip_reason = skip_reason
         row.error_message = error_message
         row.score1 = score1
-        row.score1_design = score1_design
-        row.score1_implementation = score1_implementation
         row.score2 = score2
         row.score3 = score3
-        row.phase1_output = phase1_output
         row.phase2_output = phase2_output
-        row.phase2b_output = phase2b_output
         row.phase4_output = phase4_output
         row.phase5_output = phase5_output
         row.score1_explanation = score1_explanation
-        row.score1_design_explanation = score1_design_explanation
-        row.score1_implementation_explanation = score1_implementation_explanation
         row.score2_explanation = score2_explanation
         row.score3_explanation = score3_explanation
         row.model_used = model_used or self.model
@@ -940,14 +888,11 @@ class LLMScoringEngine:
             "status": status,
             "skip_reason": skip_reason,
             "score1": score1,
-            "score1_design": score1_design,
-            "score1_implementation": score1_implementation,
             "score2": score2,
             "score3": score3,
         }
 
     async def _call_llm(self, prompt: dict) -> dict:
-        """Make a single structured JSON LLM call."""
         system_msg = (
             "You are a compliance assessment expert. "
             "Respond ONLY with valid JSON matching the output_format structure provided. "

@@ -16,11 +16,13 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models.assessment import Assessment
+from app.models.policy_statement import PolicyStatement
 from app.models.scoring_job import RequirementScore, ScoringJob
 from app.models.unified_framework import AssessmentFrameworkScope, FrameworkRequirement
 from app.models.user import User
 from app.dependencies.auth import get_current_user, require_user
 from app.services.scoring.llm_scoring_engine import LLMScoringEngine
+from app.services.scoring.policy_extraction_service import PolicyExtractionService
 from app.services.report.excel_generator import generate_scoring_export
 
 router = APIRouter()
@@ -80,18 +82,12 @@ def _req_to_unscored_dict(req: FrameworkRequirement, req_map: dict) -> dict:
         "requirement_description": req.description,
         "ancestors": ancestors,
         "score1": None,
-        "score1_design": None,
-        "score1_implementation": None,
         "score2": None,
         "score3": None,
-        "phase1_output": None,
         "phase2_output": None,
-        "phase2b_output": None,
         "phase4_output": None,
         "phase5_output": None,
         "score1_explanation": None,
-        "score1_design_explanation": None,
-        "score1_implementation_explanation": None,
         "score2_explanation": None,
         "score3_explanation": None,
         "model_used": None,
@@ -116,18 +112,12 @@ def _score_to_dict(score: RequirementScore, req_map: dict | None = None) -> dict
         "requirement_description": req.description if req else None,
         "ancestors": ancestors,
         "score1": score.score1,
-        "score1_design": score.score1_design,
-        "score1_implementation": score.score1_implementation,
         "score2": score.score2,
         "score3": score.score3,
-        "phase1_output": score.phase1_output,
         "phase2_output": score.phase2_output,
-        "phase2b_output": score.phase2b_output,
         "phase4_output": score.phase4_output,
         "phase5_output": score.phase5_output,
         "score1_explanation": score.score1_explanation,
-        "score1_design_explanation": score.score1_design_explanation,
-        "score1_implementation_explanation": score.score1_implementation_explanation,
         "score2_explanation": score.score2_explanation,
         "score3_explanation": score.score3_explanation,
         "model_used": score.model_used,
@@ -352,6 +342,70 @@ async def clear_requirement_scores(
     )
     db.commit()
     return {"deleted": deleted}
+
+
+# ─── Policy Statement Extraction ─────────────────────────────────────────────
+
+@router.post("/{assessment_id}/scoring/requirements/{requirement_id}/policy-extraction")
+async def run_policy_extraction(
+    assessment_id: uuid.UUID,
+    requirement_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user),
+):
+    """Extract policy statements for a requirement from its mapped policy documents.
+
+    Deletes any existing statements for this requirement and generates fresh ones.
+    Returns the list of extracted statements.
+    """
+    assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
+    if not assessment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
+
+    req = db.query(FrameworkRequirement).filter(FrameworkRequirement.id == requirement_id).first()
+    if not req:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requirement not found")
+
+    service = PolicyExtractionService(db)
+    statements = await service.extract_for_requirement(requirement_id, assessment_id)
+    return {"statements": statements, "count": len(statements)}
+
+
+@router.get("/{assessment_id}/scoring/requirements/{requirement_id}/policy-statements")
+async def get_policy_statements(
+    assessment_id: uuid.UUID,
+    requirement_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_current_user),
+):
+    """Return saved policy statements for a requirement (including irrelevant ones)."""
+    assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
+    if not assessment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
+
+    service = PolicyExtractionService(db)
+    statements = service.get_statements(requirement_id, assessment_id)
+    return {"statements": statements, "count": len(statements)}
+
+
+@router.delete("/{assessment_id}/scoring/requirements/{requirement_id}/policy-statements/{statement_id}")
+async def delete_policy_statement(
+    assessment_id: uuid.UUID,
+    requirement_id: uuid.UUID,
+    statement_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user),
+):
+    """Delete a policy statement (mark as irrelevant / remove from scoring)."""
+    assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
+    if not assessment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
+
+    service = PolicyExtractionService(db)
+    deleted = service.mark_irrelevant(statement_id, assessment_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Statement not found")
+    return {"deleted": True}
 
 
 @router.get("/{assessment_id}/scoring/export")
