@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Play } from 'lucide-react';
 import { RequirementScore } from '@/lib/types';
 import { DocumentationScorePanel } from './DocumentationScorePanel';
 import { ScorePanel } from './ScorePanel';
 import { PhaseOutputDrawer } from './PhaseOutputDrawer';
-import { PolicyExtractionPanel } from './PolicyExtractionPanel';
+import { PolicyExtractionPanel, usePolicyExtraction } from './PolicyExtractionPanel';
 import { cn } from '@/lib/utils';
 
 interface RequirementScoreDetailProps {
@@ -18,6 +18,16 @@ interface RequirementScoreDetailProps {
 
 export function RequirementScoreDetail({ score, assessmentId, onRerun, depthLevel = 'design' }: RequirementScoreDetailProps) {
   const [rerunning, setRerunning] = useState(false);
+
+  const {
+    statements,
+    loading: extractionLoading,
+    extracting,
+    hasExtracted,
+    error: extractionError,
+    handleExtract,
+    handleDelete,
+  } = usePolicyExtraction(assessmentId, score.requirement_id);
 
   const handleRerun = async () => {
     setRerunning(true);
@@ -53,13 +63,32 @@ export function RequirementScoreDetail({ score, assessmentId, onRerun, depthLeve
 
       {/* ── Policy Extraction section ────────────────────────────────── */}
       <div>
-        <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider mb-2">
-          Policy Extraction
-        </p>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
+            Policy Extraction
+          </p>
+          <button
+            onClick={handleExtract}
+            disabled={extracting || extractionLoading}
+            className="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-800 transition-colors px-3 py-1.5 rounded-lg border border-neutral-200 hover:border-neutral-300 bg-white disabled:opacity-50"
+          >
+            {extracting ? (
+              <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            ) : hasExtracted ? (
+              <RefreshCw className="h-3.5 w-3.5" />
+            ) : (
+              <Play className="h-3.5 w-3.5" />
+            )}
+            {extracting ? 'Extracting…' : hasExtracted ? 'Re-run extraction' : 'Run extraction'}
+          </button>
+        </div>
         <PolicyExtractionPanel
-          key={score.requirement_id}
-          assessmentId={assessmentId}
-          requirementId={score.requirement_id}
+          statements={statements}
+          loading={extractionLoading}
+          extracting={extracting}
+          hasExtracted={hasExtracted}
+          error={extractionError}
+          onDelete={handleDelete}
         />
       </div>
 
@@ -103,7 +132,7 @@ export function RequirementScoreDetail({ score, assessmentId, onRerun, depthLeve
               {skipReason === 'no_documentation'
                 ? 'No qualifying policy or evidence documents found. Upload and map documents to enable scoring.'
                 : skipReason === 'no_policy_statements'
-                ? 'No policy statements have been extracted for this requirement. Run policy extraction first.'
+                ? 'No policy statements have been extracted for this requirement. Run extraction above first.'
                 : 'No qualifying policy mappings found. Upload and map relevant policies to enable scoring.'}
             </p>
           </div>

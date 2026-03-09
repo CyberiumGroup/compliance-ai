@@ -30,6 +30,7 @@ from app.models.assessment import Assessment
 from app.models.policy import Policy, PolicyMapping
 from app.models.policy_statement import PolicyStatement
 from app.services.ingestion.spreadsheet_ingestion import SpreadsheetIngestionService
+from app.services.scoring.policy_extraction_service import PolicyExtractionService
 from app.models.requirement_threshold import AssessmentRequirementThreshold
 from app.models.scoring_job import RequirementScore, ScoringJob
 from app.models.unified_framework import AssessmentFrameworkScope, FrameworkRequirement
@@ -140,13 +141,17 @@ class LLMScoringEngine:
     async def score_single_requirement(
         self, requirement_id: uuid.UUID, assessment_id: uuid.UUID, job_id: uuid.UUID | None = None
     ) -> dict[str, Any]:
-        """Score a single requirement (used for re-run)."""
+        """Score a single requirement (internal re-run from detail view).
+
+        Does NOT auto-extract policy statements — the user controls extraction
+        manually from the detail view. Auto-extraction only runs in batch jobs.
+        """
         req = self.db.query(FrameworkRequirement).filter(FrameworkRequirement.id == requirement_id).first()
         assessment = self.db.query(Assessment).filter(Assessment.id == assessment_id).first()
         if not req or not assessment:
             raise ValueError("Requirement or assessment not found")
 
-        result = await self._score_and_save_requirement(req, assessment, job_id)
+        result = await self._score_and_save_requirement(req, assessment, job_id, auto_extract=False)
         self.db.commit()
         return result
 
@@ -159,11 +164,24 @@ class LLMScoringEngine:
         req: FrameworkRequirement,
         assessment: Assessment,
         job_id: uuid.UUID | None,
+        auto_extract: bool = True,
     ) -> dict[str, Any]:
         depth = assessment.depth_level or "design"
         assessment_id = assessment.id
 
         policy_statements = self._get_policy_statements(req.id, assessment_id)
+
+        # Auto-extract policy statements if none exist (batch jobs only)
+        if auto_extract and not policy_statements:
+            try:
+                extraction_service = PolicyExtractionService(self.db)
+                await extraction_service.extract_for_requirement(req.id, assessment_id)
+                policy_statements = self._get_policy_statements(req.id, assessment_id)
+            except Exception as exc:
+                logger.warning(
+                    "Auto policy extraction failed for req=%s: %s", req.id, exc
+                )
+
         evidence_docs = (
             self._get_qualifying_docs(req.id, assessment, "evidence")
             if depth == "implementation"
@@ -259,6 +277,9 @@ class LLMScoringEngine:
         }
         if stmt_eval_list:
             score1_explanation["policy_statement_evaluations"] = stmt_eval_list
+        referenced_evidence = phase2_output.get("referenced_evidence", [])
+        if referenced_evidence and isinstance(referenced_evidence, list):
+            score1_explanation["referenced_evidence"] = referenced_evidence
 
         # ── Compliance picture for Phase 4/5 ───────────────────────────────
         compliance_picture = self._build_compliance_picture(
@@ -336,13 +357,12 @@ class LLMScoringEngine:
             "description": req.description or "",
         }
 
-        # Build statement list with sequential IDs for the LLM to reference back
+        # Build statement list with sequential IDs — source document info intentionally
+        # omitted so the LLM cannot conflate policy document titles with evidence references
         statement_list = [
             {
                 "id": f"S{i + 1}",
                 "statement": s.statement,
-                "document_title": s.document_title,
-                **({"document_section": s.document_section} if s.document_section else {}),
             }
             for i, s in enumerate(policy_statements)
         ]
@@ -397,18 +417,23 @@ class LLMScoringEngine:
         if has_statements:
             task = (
                 "Evaluate the provided policy statements and implementation evidence against "
-                "the compliance requirement. "
-                "For each policy statement, identify which evidence documents (if any) "
-                "support it — provide the document title and a specific explanation of what "
-                "the evidence demonstrates for that statement. Leave supporting_evidence empty "
-                "if no evidence confirms that statement. "
-                "Evidence can support a policy statement in two ways: it can SHOW the policy "
-                "in action (e.g. a log, screenshot, or configuration export demonstrating the "
-                "control operating), OR it can TELL that the policy is in action (e.g. an "
-                "audit report, attestation, or internal review stating that the practice is "
-                "followed). Both forms count as supporting evidence. "
-                "Then assign an overall coverage label using the rubric and provide a specific "
-                "explanation and concrete recommendations."
+                "the compliance requirement using TWO separate dimensions:\n\n"
+                "DIMENSION 1 — Policy Coverage: Assess whether the policy statements "
+                "collectively and completely address all aspects of the requirement. "
+                "Consider whether every key element of the requirement is addressed with "
+                "sufficient specificity — not just mentioned in passing. Identify any aspects "
+                "of the requirement that are absent or inadequately covered by the statements.\n\n"
+                "DIMENSION 2 — Evidence Support: For each policy statement, identify which "
+                "of the provided evidence_documentation (if any) confirm that the policy is actively implemented. "
+                "Evidence can SHOW the policy in action (e.g. a log, screenshot, or "
+                "configuration export) OR TELL that it is in action (e.g. an audit report, "
+                "attestation, or internal review stating the practice is followed). "
+                "Leave supporting_evidence empty if no evidence confirms that statement.\n\n"
+                "The overall coverage label must reflect BOTH dimensions — a requirement is "
+                "only Covered if the policy statements are comprehensive AND the evidence "
+                "confirms implementation. Weaknesses in either dimension should lower the label. "
+                "Provide a specific explanation addressing both dimensions and concrete "
+                "recommendations."
             )
             if evidence_docs:
                 available_evidence_titles = [d["document_name"] for d in evidence_docs]
@@ -421,18 +446,23 @@ class LLMScoringEngine:
                 )
             rubric = {
                 "Covered": (
-                    "The policy statements completely address all aspects of the requirement "
-                    "AND every policy statement has at least one piece of supporting evidence "
-                    "confirming it is actively implemented."
+                    "The policy statements completely and specifically address ALL aspects of "
+                    "the requirement (Dimension 1 fully satisfied) AND every policy statement "
+                    "has at least one piece of supporting evidence confirming it is actively "
+                    "implemented (Dimension 2 fully satisfied). Both dimensions must be met."
                 ),
                 "Partial": (
-                    "The policy statements partially cover the requirement and/or one or more "
-                    "statements lack supporting evidence confirming active implementation."
+                    "Either: the policy statements only partially address the requirement — "
+                    "some aspects are missing, vague, or insufficiently specific (Dimension 1 "
+                    "weakness) — OR one or more statements lack supporting evidence confirming "
+                    "active implementation (Dimension 2 weakness) — OR both dimensions have "
+                    "weaknesses. A single gap in either dimension is sufficient for Partial."
                 ),
                 "Gap": (
-                    "No policy statements address the requirement and no evidence documents "
-                    "cover it, OR the documentation and evidence together are entirely "
-                    "insufficient to demonstrate compliance."
+                    "The policy statements do not meaningfully address the requirement "
+                    "(Dimension 1 failed) AND no evidence documents confirm implementation "
+                    "(Dimension 2 failed), OR the combined documentation and evidence are "
+                    "entirely insufficient to demonstrate any meaningful compliance."
                 ),
             }
             stmt_eval_schema = [
@@ -442,6 +472,8 @@ class LLMScoringEngine:
                         {
                             "document_title": "exact evidence document title",
                             "explanation": "what this evidence demonstrates for this statement",
+                            "quote": "direct verbatim excerpt copied from the document that supports this statement, or null if the document format does not lend itself to quoting",
+                            "location": "the specific location within the document where the quote appears — e.g. section heading, page number, row number, table name, or spreadsheet tab. This must identify WHERE the quote is from, not a general description of the document.",
                         }
                     ],
                 }
@@ -450,8 +482,9 @@ class LLMScoringEngine:
                 "policy_statement_evaluations": stmt_eval_schema,
                 "coverage_label": "Covered|Partial|Gap",
                 "explanation": (
-                    "Specific explanation identifying which statements are backed by evidence "
-                    "and which are not, and any other coverage gaps."
+                    "Specific explanation addressing both dimensions: (1) which aspects of the "
+                    "requirement the policy statements cover or fail to cover, and (2) which "
+                    "statements are or are not backed by evidence."
                 ),
                 "recommendations": [
                     {"type": "Policy|Evidence", "action": "Specific improvement action"}
@@ -477,6 +510,10 @@ class LLMScoringEngine:
             "No policy statements have been extracted for this requirement. "
             "Evaluate the available implementation evidence against the compliance requirement "
             "to determine how much of the requirement is addressed by evidence alone. "
+            "For each evidence document that provides meaningful support for the requirement, "
+            "include it in referenced_evidence with a direct verbatim quote from the document "
+            "and the specific location within the document where that quote appears "
+            "(e.g. section heading, page number, row number, table name, or spreadsheet tab). "
             "Note in your explanation that policy documentation is missing and that this "
             "represents a gap regardless of evidence quality. "
             "Provide an overall coverage label and specific recommendations for both "
@@ -496,7 +533,16 @@ class LLMScoringEngine:
                 "insufficient — and policy documentation is also missing."
             ),
         }
+        referenced_evidence_schema = [
+            {
+                "document_title": "exact evidence document title",
+                "explanation": "what this evidence demonstrates for the requirement",
+                "quote": "direct verbatim excerpt copied from the document, or null if the document format does not lend itself to quoting",
+                "location": "the specific location within the document where the quote appears — e.g. section heading, page number, row number, table name, or spreadsheet tab. This must identify WHERE the quote is from.",
+            }
+        ]
         output_format = {
+            "referenced_evidence": referenced_evidence_schema,
             "coverage_label": "Covered|Partial|Gap",
             "explanation": (
                 "Specific explanation of what evidence was found and what is missing. "

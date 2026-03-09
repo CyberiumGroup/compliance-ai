@@ -71,6 +71,8 @@ export interface DocumentationRecommendation {
 export interface SupportingEvidenceItem {
   document_title: string;
   explanation: string;
+  quote: string | null;
+  location: string | null;
 }
 
 export interface DocumentationStatementEvaluation {
@@ -87,6 +89,7 @@ export interface DocumentationScoreExplanation {
   explanation: string;
   recommendations?: DocumentationRecommendation[];
   policy_statement_evaluations?: DocumentationStatementEvaluation[];
+  referenced_evidence?: SupportingEvidenceItem[];
 }
 
 export interface ScoreAncestor {

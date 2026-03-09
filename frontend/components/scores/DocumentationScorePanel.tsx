@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, CheckCircle2, FileText, AlertCircle } from 'lucide-react';
-import { DocumentationScoreExplanation } from '@/lib/types';
+import { ChevronDown, ChevronUp, CheckCircle2, FileText, AlertCircle, Quote } from 'lucide-react';
+import { DocumentationScoreExplanation, SupportingEvidenceItem } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-// ─── Coverage ring (no percentage text — shows label inside) ──────────────────
+// ─── Coverage ring ─────────────────────────────────────────────────────────────
 
 function CoverageRing({ label }: { label: 'Covered' | 'Partial' | 'Gap' | null }) {
   const score = label === 'Covered' ? 100 : label === 'Partial' ? 50 : label === 'Gap' ? 0 : null;
@@ -30,16 +30,9 @@ function CoverageRing({ label }: { label: 'Covered' | 'Partial' | 'Gap' | null }
       <svg width="72" height="72" className="absolute inset-0">
         <circle cx="36" cy="36" r={radius} fill="none" stroke={trackColor} strokeWidth="6" />
         {score > 0 && (
-          <circle
-            cx="36"
-            cy="36"
-            r={radius}
-            fill="none"
-            stroke={color}
-            strokeWidth="6"
+          <circle cx="36" cy="36" r={radius} fill="none" stroke={color} strokeWidth="6"
             strokeDasharray={`${filled} ${circumference - filled}`}
-            strokeLinecap="round"
-            transform="rotate(-90 36 36)"
+            strokeLinecap="round" transform="rotate(-90 36 36)"
           />
         )}
       </svg>
@@ -47,6 +40,32 @@ function CoverageRing({ label }: { label: 'Covered' | 'Partial' | 'Gap' | null }
         <span className="text-[10px] font-bold leading-tight text-center px-0.5" style={{ color: labelColor }}>
           {label}
         </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── EvidenceItem — shared rendering for a single supporting evidence entry ────
+
+function EvidenceItem({ ev }: { ev: SupportingEvidenceItem }) {
+  return (
+    <div className="flex items-start gap-1.5">
+      <CheckCircle2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0 mt-0.5" />
+      <div className="min-w-0 space-y-1">
+        <p className="text-xs font-medium text-neutral-600 flex items-center gap-1">
+          <FileText className="h-3 w-3 flex-shrink-0" />
+          {ev.document_title}
+          {ev.location && (
+            <span className="text-neutral-400 font-normal">· {ev.location}</span>
+          )}
+        </p>
+        <p className="text-xs text-green-700 leading-relaxed">{ev.explanation}</p>
+        {ev.quote && (
+          <blockquote className="mt-1 pl-2 border-l-2 border-green-200 text-xs text-neutral-500 italic leading-relaxed">
+            <Quote className="h-2.5 w-2.5 inline mr-1 text-neutral-400" />
+            {ev.quote}
+          </blockquote>
+        )}
       </div>
     </div>
   );
@@ -67,8 +86,9 @@ export function DocumentationScorePanel({ score, explanation, depthLevel = 'desi
   const explanationText = explanation?.explanation;
   const recommendations = explanation?.recommendations ?? [];
   const statementEvals = explanation?.policy_statement_evaluations ?? [];
+  const referencedEvidence = explanation?.referenced_evidence ?? [];
 
-  const hasDetails = statementEvals.length > 0 || recommendations.length > 0;
+  const hasDetails = statementEvals.length > 0 || referencedEvidence.length > 0 || recommendations.length > 0;
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
@@ -132,31 +152,27 @@ export function DocumentationScorePanel({ score, explanation, depthLevel = 'desi
               <ul className="space-y-2">
                 {statementEvals.map((eval_, i) => (
                   <li key={i} className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
-                    {/* Statement text */}
-                    <p className="text-xs text-neutral-800 leading-relaxed">{eval_.statement}</p>
+                    {/* Statement ID + text */}
+                    <div className="flex items-start gap-2">
+                      <span className="flex-shrink-0 font-mono text-[10px] font-semibold text-neutral-400 bg-neutral-200 px-1.5 py-0.5 rounded mt-0.5">
+                        {eval_.statement_id}
+                      </span>
+                      <p className="text-xs text-neutral-800 leading-relaxed">{eval_.statement}</p>
+                    </div>
 
                     {/* Source document */}
-                    <p className="mt-1.5 text-xs text-neutral-400">
+                    <p className="mt-1.5 ml-7 text-xs text-neutral-400">
                       <span className="font-medium text-neutral-500">{eval_.document_title}</span>
                       {eval_.document_section && <> &middot; {eval_.document_section}</>}
                     </p>
 
                     {/* Evidence (implementation depth) */}
                     {depthLevel === 'implementation' && (
-                      <div className="mt-2 pt-2 border-t border-neutral-200">
+                      <div className="mt-2 ml-7 pt-2 border-t border-neutral-200">
                         {eval_.has_evidence && eval_.supporting_evidence.length > 0 ? (
-                          <ul className="space-y-1.5">
+                          <ul className="space-y-2">
                             {eval_.supporting_evidence.map((ev, j) => (
-                              <li key={j} className="flex items-start gap-1.5">
-                                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 flex-shrink-0 mt-0.5" />
-                                <div className="min-w-0">
-                                  <p className="text-xs font-medium text-neutral-600 flex items-center gap-1">
-                                    <FileText className="h-3 w-3 flex-shrink-0" />
-                                    {ev.document_title}
-                                  </p>
-                                  <p className="text-xs text-green-700 mt-0.5 leading-relaxed">{ev.explanation}</p>
-                                </div>
-                              </li>
+                              <li key={j}><EvidenceItem ev={ev} /></li>
                             ))}
                           </ul>
                         ) : (
@@ -167,6 +183,20 @@ export function DocumentationScorePanel({ score, explanation, depthLevel = 'desi
                         )}
                       </div>
                     )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Evidence-only referenced evidence (no policy statements) */}
+          {referencedEvidence.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-neutral-700 mb-2">Referenced Evidence</p>
+              <ul className="space-y-2">
+                {referencedEvidence.map((ev, i) => (
+                  <li key={i} className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+                    <EvidenceItem ev={ev} />
                   </li>
                 ))}
               </ul>
