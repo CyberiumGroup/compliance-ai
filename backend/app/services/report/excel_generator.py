@@ -3,19 +3,10 @@
 Generates a single-sheet workbook with one row per assessable requirement,
 grouped by framework with section-header rows separating each group.
 
-Column layout (design depth):
+Column layout:
   [Framework] [L1 Code] [L1 Name] ... [Req Code] [Req Name] [Description]
-  [Status] [Skip Reason]
-  [Score 1 (%)] [S1 Summary] [S1 Supporting Documents] [S1 Deficiencies] [S1 Improvements]
-  [Score 2 (%)] [S2 Summary] [S2 Supporting Documents] [S2 Gap Analysis] [S2 Recommendations]
-  [Score 3 (%)] [S3 Summary] [S3 Supporting Documents] [S3 Peer Analysis] [S3 Guidance]
-
-Column layout (implementation depth — Score 1 split into sub-scores):
-  [Framework] [L1 Code] [L1 Name] ... [Req Code] [Req Name] [Description]
-  [Status] [Skip Reason]
-  [Score 1 — Composite (%)]
-  [Score 1 — Design (%)] [Design Summary] [Design Supporting Documents] [Design Deficiencies] [Design Improvements]
-  [Score 1 — Implementation (%)] [Impl Summary] [Impl Supporting Documents] [Impl Deficiencies] [Impl Improvements]
+  [Status]
+  [Score 1 — Coverage] [S1 Explanation] [S1 Recommendations] [S1 Policy Statements] [S1 Evidence References]
   [Score 2 (%)] [S2 Summary] [S2 Supporting Documents] [S2 Gap Analysis] [S2 Recommendations]
   [Score 3 (%)] [S3 Summary] [S3 Supporting Documents] [S3 Peer Analysis] [S3 Guidance]
 """
@@ -225,22 +216,20 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
     rl = _req_label()
     header += [f"{rl} Code", f"{rl} Name", "Description"]
 
-    # Status / Skip Reason come before score columns
-    header += ["Status", "Skip Reason"]
+    header += ["Status"]
 
     # 0-based index of the first column after the hierarchy prefix
-    # framework(1) + ancestors(2*N) + req code/name/desc(3) + status/skip(2)
+    # framework(1) + ancestors(2*N) + req code/name/desc(3) + status(1)
     hier_width = 1 + max_anc * 2 + 3   # cols before status
-    # status_col = hier_width (0-based)
-    # score section starts at hier_width + 2
 
-    score_start = hier_width + 2  # 0-based index of first score % column
+    score_start = hier_width + 1  # 0-based index of first score % column
 
     header += [
-        "Score 1 — Coverage", "Score 1: Explanation", "Score 1: Recommendations",
+        "Score 1 — Coverage", "Score 1: Policy Statements", "Score 1: Explanation",
+        "Score 1: Recommendations", "Score 1: Evidence References",
     ]
     s1_col = score_start   # 0-based
-    score1_width = 3
+    score1_width = 5
 
     s2_col = score_start + score1_width        # 0-based
     s3_col = s2_col + 5
@@ -319,15 +308,15 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
                     row += ["", ""]
             row += [req.code or "", req.name or "", req.description or ""]
 
-            # ── Status / Skip Reason (always filled) ──
+            # ── Status ──
             if score and score.status == "completed":
-                row += ["completed", ""]
+                row += ["completed"]
             elif score and score.status == "skipped":
-                row += ["skipped", score.skip_reason or ""]
+                row += ["skipped"]
             elif score and score.status == "failed":
-                row += ["failed", score.error_message or ""]
+                row += ["failed"]
             else:
-                row += ["not scored", ""]
+                row += ["not scored"]
 
             # ── Score columns ──
             if score and score.status == "completed":
@@ -339,7 +328,42 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
                 rec_text = "; ".join(
                     r.get("action", "") for r in recommendations if isinstance(r, dict) and r.get("action")
                 )
-                row += [coverage_label, explanation_text, rec_text]
+
+                # Policy statements: "[S1] statement text (Source: doc title — section)" per line
+                stmt_evals = s1_expl.get("policy_statement_evaluations", []) if isinstance(s1_expl, dict) else []
+                stmt_lines = []
+                for e in stmt_evals:
+                    if not isinstance(e, dict) or not e.get("statement_id") or not e.get("statement"):
+                        continue
+                    sid = e["statement_id"]
+                    stmt = e["statement"]
+                    doc_title = e.get("document_title", "")
+                    doc_section = e.get("document_section", "")
+                    source_parts = " — ".join(p for p in [doc_title, doc_section] if p)
+                    source_suffix = f"  ({source_parts})" if source_parts else ""
+                    stmt_lines.append(f"[{sid}]  {stmt}{source_suffix}")
+                stmt_text = "\n\n".join(stmt_lines)
+
+                # Evidence references: deduplicated document titles from supporting_evidence + referenced_evidence
+                evidence_titles: list[str] = []
+                seen: set[str] = set()
+                for e in stmt_evals:
+                    if not isinstance(e, dict):
+                        continue
+                    for ev in e.get("supporting_evidence", []):
+                        title = ev.get("document_title", "") if isinstance(ev, dict) else ""
+                        if title and title not in seen:
+                            seen.add(title)
+                            evidence_titles.append(title)
+                ref_evidence = s1_expl.get("referenced_evidence", []) if isinstance(s1_expl, dict) else []
+                for ev in ref_evidence:
+                    title = ev.get("document_title", "") if isinstance(ev, dict) else ""
+                    if title and title not in seen:
+                        seen.add(title)
+                        evidence_titles.append(title)
+                evidence_text = "\n".join(f"\u2022 {t}" for t in evidence_titles)
+
+                row += [coverage_label, stmt_text, explanation_text, rec_text, evidence_text]
 
                 s2_expl = score.score2_explanation or p5.get("score2_explanation")
                 s3_expl = score.score3_explanation or p5.get("score3_explanation")
@@ -375,11 +399,11 @@ def generate_scoring_export(db: Session, assessment_id: uuid.UUID) -> bytes:
     # ── Column widths ─────────────────────────────────────────────────────────
     widths: list[int] = [22]                       # Framework
     for _ in range(max_anc):
-        widths += [10, 28]                         # ancestor code + name
-    widths += [14, 50, 65]                         # req code, req name, description
-    widths += [12, 28]                             # Status, Skip Reason
+        widths += [10, 20]                         # ancestor code + name
+    widths += [14, 30, 65]                         # req code, req name, description
+    widths += [12]                                 # Status
 
-    widths += [14, 70, 70]                              # Score 1 (coverage label, explanation, recommendations)
+    widths += [14, 80, 70, 70, 55]                       # Score 1 (coverage label, statements, explanation, recommendations, evidence)
 
     widths += [9, 55, 55, 55, 55]                       # Score 2
     widths += [9, 55, 55, 55, 55]                       # Score 3

@@ -227,7 +227,7 @@ export default function ScoresPage({ params }: ScoresPageProps) {
     setExportingExcel(true);
     setExportError(null);
     try {
-      await downloadScoringExcel(id);
+      await downloadScoringExcel(id, assessment?.name);
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Export failed');
     } finally {

@@ -61,7 +61,7 @@ export async function clearRequirementScores(
  * Download scoring results as an Excel file.
  * Uses raw fetch (not apiRequest) since we need binary blob handling.
  */
-export async function downloadScoringExcel(assessmentId: string): Promise<void> {
+export async function downloadScoringExcel(assessmentId: string, assessmentName?: string): Promise<void> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('compliance-ai-access-token') : null;
   const headers: HeadersInit = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -72,11 +72,16 @@ export async function downloadScoringExcel(assessmentId: string): Promise<void> 
     throw new ApiError(res.status, err.detail || `Export failed: ${res.status}`);
   }
 
+  const safeName = assessmentName
+    ? assessmentName.replace(/[^a-zA-Z0-9 \-_()]/g, '_').trim()
+    : null;
+  const filename = safeName ? `${safeName} - Compliance Scores.xlsx` : `compliance-scores-${assessmentId}.xlsx`;
+
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `compliance-scores-${assessmentId}.xlsx`;
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
