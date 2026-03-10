@@ -39,6 +39,8 @@ logger = logging.getLogger(__name__)
 
 # ─── Score tables ─────────────────────────────────────────────────────────────
 
+SPREADSHEET_CONTENT_FORMAT = "spreadsheet_json"
+
 COVERAGE_LABEL_SCORES: dict[str, float] = {
     "Covered": 100.0,
     "Partial": 50.0,
@@ -76,6 +78,67 @@ def _resolve_info_type_labels(raw: str | None) -> list[str]:
     except (json.JSONDecodeError, TypeError):
         return []
     return [INFORMATION_TYPE_LABELS.get(t, t) for t in ids if t]
+
+
+# ─── Evidence document ID helpers ────────────────────────────────────────────
+
+
+def _build_doc_id_mapping(docs: list[dict]) -> tuple[dict[str, str], list[dict], bool]:
+    """Replace document_name with neutral DOC_N IDs in a single pass.
+
+    Returns (id_to_name, transformed_docs, has_spreadsheet) where:
+    - transformed_docs is a copy of docs with each document_name replaced by its
+      DOC_N identifier, preventing the LLM from confusing similarly-named documents.
+    - For spreadsheet documents, the DOC_N ID is also injected as a '_source_id'
+      field at the top level of the content JSON AND into every individual row dict,
+      so attribution is unambiguous regardless of which row the LLM is reading.
+    - has_spreadsheet flags whether any spreadsheet documents are present so the
+      caller can add a targeted prompt note.
+    """
+    id_to_name: dict[str, str] = {}
+    transformed: list[dict] = []
+    has_spreadsheet = False
+    for i, doc in enumerate(docs):
+        doc_id = f"DOC_{i + 1}"
+        id_to_name[doc_id] = doc["document_name"]
+        new_doc = {**doc, "document_name": doc_id}
+        if doc.get("content_format") == SPREADSHEET_CONTENT_FORMAT and isinstance(doc.get("content"), dict):
+            has_spreadsheet = True
+            content = doc["content"]
+            new_sheets = [
+                {
+                    **sheet,
+                    "rows": [
+                        {"_source_id": doc_id, **row}
+                        for row in sheet.get("rows", [])
+                    ],
+                }
+                if isinstance(sheet, dict) else sheet
+                for sheet in content.get("sheets", [])
+            ]
+            new_doc["content"] = {"_source_id": doc_id, **content, "sheets": new_sheets}
+        transformed.append(new_doc)
+    return id_to_name, transformed, has_spreadsheet
+
+
+def _remap_evidence_ids(output: dict, id_to_name: dict[str, str]) -> None:
+    """Replace DOC_N identifiers back to real document names in the LLM response, in-place.
+
+    Any evidence entry whose document_title is not a recognised DOC_N key is
+    silently dropped — this covers both hallucinated IDs and cases where the LLM
+    ignored the instruction and used a real (or invented) document name directly.
+    """
+    for eval_entry in output.get("policy_statement_evaluations", []):
+        eval_entry["supporting_evidence"] = [
+            {**ev, "document_title": id_to_name[ev["document_title"]]}
+            for ev in eval_entry.get("supporting_evidence", [])
+            if ev.get("document_title") in id_to_name
+        ]
+    output["referenced_evidence"] = [
+        {**ev, "document_title": id_to_name[ev["document_title"]]}
+        for ev in output.get("referenced_evidence", [])
+        if ev.get("document_title") in id_to_name
+    ]
 
 
 # ─── Main engine ──────────────────────────────────────────────────────────────
@@ -237,10 +300,14 @@ class LLMScoringEngine:
 
         # ── Phase 2 — Documentation Score ──────────────────────────────────
         built_evidence = self._build_control_docs(evidence_docs, "evidence") if evidence_docs else []
+        id_to_name, evidence_with_ids, has_spreadsheet = _build_doc_id_mapping(built_evidence)
         doc_prompt = self._build_documentation_prompt(
-            req, policy_statements, built_evidence, impl_examples, depth
+            req, policy_statements, evidence_with_ids, impl_examples, depth, has_spreadsheet
         )
+        logger.info(doc_prompt)
         phase2_output = await self._call_llm(doc_prompt)
+        logger.info(phase2_output)
+        _remap_evidence_ids(phase2_output, id_to_name)
 
         coverage_label = phase2_output.get("coverage_label", "Gap")
         if coverage_label not in COVERAGE_LABEL_SCORES:
@@ -346,6 +413,7 @@ class LLMScoringEngine:
         evidence_docs: list[dict],
         impl_examples: list[str],
         depth: str,
+        has_spreadsheet: bool = False,
     ) -> dict:
         has_statements = bool(policy_statements)
         has_evidence = bool(evidence_docs)
@@ -436,14 +504,24 @@ class LLMScoringEngine:
                 "recommendations."
             )
             if evidence_docs:
-                available_evidence_titles = [d["document_name"] for d in evidence_docs]
+                available_evidence_ids = [d["document_name"] for d in evidence_docs]
                 task += (
-                    " For document_title in supporting_evidence, use ONLY titles from the "
-                    "evidence documents provided, copied exactly character-for-character. "
-                    "Policy documents (the source of the policy statements) are NOT valid "
+                    " Each evidence document is identified by a neutral ID (DOC_1, DOC_2, etc.). "
+                    "For document_title in supporting_evidence, use ONLY the exact DOC_N identifier "
+                    "of the evidence document you are referencing — copied character-for-character "
+                    "from the available_evidence_ids list. Do not invent IDs or use real document "
+                    "names. Policy documents (the source of the policy statements) are NOT valid "
                     "evidence references — only the separately provided evidence_documentation "
                     "files may appear as supporting_evidence document_title values."
                 )
+                if has_spreadsheet:
+                    task += (
+                        " For spreadsheet evidence documents, every row in the content JSON "
+                        "includes a '_source_id' field containing the DOC_N identifier of the "
+                        "document it belongs to. Always use this '_source_id' value as the "
+                        "document_title when referencing a specific row or value from tabular data — "
+                        "do not guess or infer the document from context."
+                    )
             rubric = {
                 "Covered": (
                     "The policy statements completely and specifically address ALL aspects of "
@@ -470,7 +548,7 @@ class LLMScoringEngine:
                     "id": "S1",
                     "supporting_evidence": [
                         {
-                            "document_title": "exact evidence document title",
+                            "document_title": "exact DOC_N identifier from available_evidence_ids",
                             "explanation": "what this evidence demonstrates for this statement",
                             "quote": "direct verbatim excerpt copied from the document that supports this statement, or null if the document format does not lend itself to quoting",
                             "location": "the specific location within the document where the quote appears — e.g. section heading, page number, row number, table name, or spreadsheet tab. This must identify WHERE the quote is from, not a general description of the document.",
@@ -500,7 +578,7 @@ class LLMScoringEngine:
             if impl_examples:
                 prompt["implementation_examples"] = impl_examples
             if evidence_docs:
-                prompt["available_evidence_titles"] = available_evidence_titles
+                prompt["available_evidence_ids"] = available_evidence_ids
                 prompt["evidence_documentation"] = evidence_docs
 
             return prompt
@@ -510,6 +588,9 @@ class LLMScoringEngine:
             "No policy statements have been extracted for this requirement. "
             "Evaluate the available implementation evidence against the compliance requirement "
             "to determine how much of the requirement is addressed by evidence alone. "
+            "Each evidence document is identified by a neutral ID (DOC_1, DOC_2, etc.). "
+            "For document_title in referenced_evidence, use ONLY the exact DOC_N identifier "
+            "from the available_evidence_ids list — do not invent IDs or use real document names. "
             "For each evidence document that provides meaningful support for the requirement, "
             "include it in referenced_evidence with a direct verbatim quote from the document "
             "and the specific location within the document where that quote appears "
@@ -519,6 +600,13 @@ class LLMScoringEngine:
             "Provide an overall coverage label and specific recommendations for both "
             "policy documentation and evidence."
         )
+        if has_spreadsheet:
+            task += (
+                " For spreadsheet evidence documents, the content JSON includes a '_source_id' "
+                "field at the top level identifying which document the data belongs to. Use this "
+                "field to confirm the correct DOC_N identifier when attributing quotes or "
+                "references from tabular data."
+            )
         rubric = {
             "Covered": (
                 "Not achievable without policy statements — cannot be Covered when policy "
@@ -535,7 +623,7 @@ class LLMScoringEngine:
         }
         referenced_evidence_schema = [
             {
-                "document_title": "exact evidence document title",
+                "document_title": "exact DOC_N identifier from available_evidence_ids",
                 "explanation": "what this evidence demonstrates for the requirement",
                 "quote": "direct verbatim excerpt copied from the document, or null if the document format does not lend itself to quoting",
                 "location": "the specific location within the document where the quote appears — e.g. section heading, page number, row number, table name, or spreadsheet tab. This must identify WHERE the quote is from.",
@@ -561,6 +649,7 @@ class LLMScoringEngine:
         if impl_examples:
             prompt["implementation_examples"] = impl_examples
         if evidence_docs:
+            prompt["available_evidence_ids"] = [d["document_name"] for d in evidence_docs]
             prompt["evidence_documentation"] = evidence_docs
 
         return prompt
@@ -858,7 +947,7 @@ class LLMScoringEngine:
 
             if is_spreadsheet:
                 try:
-                    entry["content_format"] = "spreadsheet_json"
+                    entry["content_format"] = SPREADSHEET_CONTENT_FORMAT
                     entry["content"] = json.loads(raw)
                 except (json.JSONDecodeError, ValueError):
                     entry["content_format"] = "text"
@@ -941,8 +1030,10 @@ class LLMScoringEngine:
     async def _call_llm(self, prompt: dict) -> dict:
         system_msg = (
             "You are a compliance assessment expert. "
-            "Respond ONLY with valid JSON matching the output_format structure provided. "
-            "Do not include any explanation outside the JSON."
+            "The user message contains a task with input context. "
+            "Respond ONLY with a JSON object containing exactly the keys defined in 'output_format' — "
+            "nothing more, nothing less. Do not echo back any input fields such as task, requirement, "
+            "policy_statements, evidence_documentation, implementation_examples, or rubric."
         )
         user_msg = json.dumps(prompt, ensure_ascii=False)
 

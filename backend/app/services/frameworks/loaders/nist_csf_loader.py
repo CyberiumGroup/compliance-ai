@@ -66,7 +66,7 @@ class NistCsfLoader(BaseFrameworkLoader):
         """Load the CSF 2.0 JSON data file."""
         data_dir = Path(__file__).parent.parent.parent.parent / "data"
         file_path = data_dir / "csf_2_0.json"
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             return json.load(f)
 
     def _parse_function(self, func_data: dict) -> RequirementData:

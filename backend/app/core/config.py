@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     scoring_model: str = "gpt-4o-mini"
     scoring_model_enhanced: str = "gpt-4o"
     scoring_max_output_tokens: int = 1200
+    extraction_max_output_tokens: int = 1200
 
     # Chunking (for semantic relevance scoring)
     chunk_size_chars: int = 1200      # ~300 tokens (4 chars/token approx)
@@ -45,6 +46,9 @@ class Settings(BaseSettings):
 
     # Aggregation (for semantic relevance scoring)
     mapping_top_k: int = 5           # mean of top-K chunk similarities per (policy, requirement) pair
+
+    # Policy extraction
+    extraction_top_k_chunks: int = 3  # top-K chunks per document sent to the LLM during policy extraction
 
     # JWT Authentication
     jwt_secret_key: str = "change-me-in-production-use-a-secure-random-key"

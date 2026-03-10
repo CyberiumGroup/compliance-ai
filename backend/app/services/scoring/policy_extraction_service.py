@@ -14,6 +14,7 @@ LLM output: list of extracted statements, each with document title and section.
 
 import json
 import logging
+import math
 import uuid
 from datetime import datetime
 
@@ -22,12 +23,19 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.assessment import Assessment
-from app.models.policy import Policy, PolicyMapping
+from app.models.policy import Policy, PolicyChunk, PolicyMapping
 from app.models.policy_statement import PolicyStatement
 from app.models.requirement_threshold import AssessmentRequirementThreshold
 from app.models.unified_framework import FrameworkRequirement
 
 logger = logging.getLogger(__name__)
+
+
+def _cosine_sim(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    mag_a = math.sqrt(sum(x * x for x in a))
+    mag_b = math.sqrt(sum(x * x for x in b))
+    return dot / (mag_a * mag_b) if mag_a and mag_b else 0.0
 
 
 class PolicyExtractionService:
@@ -62,7 +70,7 @@ class PolicyExtractionService:
         )
         if not req or not assessment:
             raise ValueError("Requirement or assessment not found")
-
+        
         # Delete existing statements for this pair
         self.db.query(PolicyStatement).filter(
             PolicyStatement.assessment_id == assessment_id,
@@ -73,12 +81,20 @@ class PolicyExtractionService:
         # Fetch qualifying policy documents (policy type only, not evidence)
         qualifying = self._get_qualifying_policy_docs(req.id, assessment)
 
+        logger.info(
+            "Policy extraction for requirement %s (%s): %d qualifying document(s): [%s]",
+            req.code or req.id,
+            req.name or "",
+            len(qualifying),
+            ", ".join(m.policy.name for m in qualifying if m.policy),
+        )
+
         if not qualifying:
             self.db.commit()
             return []
 
         # Build prompt
-        policy_docs = self._build_doc_list(qualifying)
+        policy_docs = self._build_doc_list(qualifying, req)
         impl_examples = self._get_implementation_examples(req)
         prompt = self._build_prompt(req, policy_docs, impl_examples)
 
@@ -184,22 +200,74 @@ class PolicyExtractionService:
             m for m in mappings
             if (m.relevance_percentage is not None and m.relevance_percentage >= threshold)
             and m.policy
-            and m.policy.content_text
         ]
 
-    def _build_doc_list(self, mappings: list[PolicyMapping]) -> list[dict]:
-        """Deduplicate by policy_id and build document dicts for the prompt."""
+    def _build_doc_list(
+        self,
+        mappings: list[PolicyMapping],
+        req: FrameworkRequirement,
+    ) -> list[dict]:
+        """Deduplicate by policy_id and build document dicts using top-K chunks.
+
+        For each qualifying policy, scores its chunks against the requirement
+        embedding and takes the top settings.extraction_top_k_chunks most relevant.
+        Falls back to full content_text if no chunk embeddings are available.
+        """
+        top_k = settings.extraction_top_k_chunks
+        req_embedding: list[float] | None = req.embedding
         seen: set[uuid.UUID] = set()
         docs = []
         for mapping in mappings:
             if not mapping.policy or mapping.policy_id in seen:
                 continue
             seen.add(mapping.policy_id)
-            docs.append({
-                "document_title": mapping.policy.name,
-                "content": mapping.policy.content_text,
-            })
+
+            content: str | None = None
+            if req_embedding:
+                top_chunks = self._top_k_chunks(mapping.policy, req_embedding, top_k)
+                if top_chunks:
+                    content = "\n\n".join(top_chunks)
+                    logger.info(
+                        "  %s: using %d top chunk(s) from %d available",
+                        mapping.policy.name,
+                        len(top_chunks),
+                        len(mapping.policy.chunks),
+                    )
+
+            if content is None:
+                logger.info("  %s: falling back to full content_text", mapping.policy.name)
+                content = mapping.policy.content_text
+
+            if not content:
+                logger.warning("  %s: no usable content, skipping", mapping.policy.name)
+                continue
+
+            docs.append({"document_title": mapping.policy.name, "content": content})
         return docs
+
+    def _top_k_chunks(
+        self,
+        policy: Policy,
+        req_embedding: list[float],
+        k: int,
+    ) -> list[str]:
+        """Return text of the top-K chunks ranked by cosine similarity to the requirement."""
+        chunks = (
+            self.db.query(PolicyChunk)
+            .filter(
+                PolicyChunk.policy_id == policy.id,
+                PolicyChunk.embedding_vector.isnot(None),
+            )
+            .all()
+        )
+        if not chunks:
+            return []
+        scored = [
+            (_cosine_sim(c.embedding_vector, req_embedding), c.chunk_text)
+            for c in chunks
+        ]
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [text for _, text in scored[:k]]
 
     @staticmethod
     def _get_implementation_examples(req: FrameworkRequirement) -> list[str]:
@@ -221,6 +289,8 @@ class PolicyExtractionService:
         task = (
             "Extract every specific policy statement from the provided documents that is "
             "directly relevant to the given compliance requirement. "
+            "Each policy_document contains either the full document text or the most "
+            "relevant excerpts from that document. "
             "A policy statement is a concrete, specific commitment, rule, or procedure — "
             "not a vague general statement. "
             "There may be zero, one, or many relevant statements across all documents. "
@@ -279,8 +349,8 @@ class PolicyExtractionService:
 
         response = await self.client.chat.completions.create(
             model=self.model,
-            temperature=0,
-            max_tokens=self.max_output_tokens,
+            temperature=0.2,
+            max_tokens=settings.extraction_max_output_tokens,
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": system_msg},
@@ -288,17 +358,17 @@ class PolicyExtractionService:
             ],
         )
 
-        content = response.choices[0].message.content or "{}"
+        choice = response.choices[0]
+        if choice.finish_reason == "length":
+            logger.warning("Policy extraction response truncated (finish_reason=length) — increase extraction_max_output_tokens")
+
+        content = choice.message.content or "{}"
         try:
             parsed = json.loads(content)
             return parsed.get("statements", [])
         except json.JSONDecodeError:
             logger.warning("Policy extraction LLM returned non-JSON: %s", content[:200])
             return []
-
-    @property
-    def max_output_tokens(self) -> int:
-        return getattr(settings, "scoring_max_output_tokens", 2000)
 
     @staticmethod
     def _row_to_dict(row: PolicyStatement) -> dict:
