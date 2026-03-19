@@ -129,7 +129,7 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
     {
       ...statConfig[1],
       value: stats.overallScore !== null ? stats.overallScore.toFixed(1) : '-',
-      href: `/assessments/${id}/scores`,
+      href: `/assessments/${id}/evaluation`,
       suffix: stats.overallScore !== null ? '/4.0' : '',
     },
   ];
@@ -146,7 +146,7 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
     {
       title: 'Generate Mappings',
       description: 'AI-powered analysis',
-      href: `/assessments/${id}/mappings`,
+      href: `/assessments/${id}/verification`,
       icon: Link2,
       gradient: 'from-purple-500 to-purple-600',
       bgGradient: 'from-purple-50 to-purple-100',

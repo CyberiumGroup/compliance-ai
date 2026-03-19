@@ -93,18 +93,18 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
           },
           {
             id: 'mappings',
-            label: 'Mappings',
+            label: 'Verification',
             description: 'Map evidence to requirements',
             icon: Link2,
-            href: `/assessments/${assessmentId}/mappings`,
+            href: `/assessments/${assessmentId}/verification`,
             status: getStatus(hasApprovedMappings, hasMappings),
           },
           {
             id: 'scoring',
-            label: 'Scoring',
+            label: 'Evaluation',
             description: 'Calculate maturity scores',
             icon: BarChart3,
-            href: `/assessments/${assessmentId}/scores`,
+            href: `/assessments/${assessmentId}/evaluation`,
             status: getStatus(hasScores, false),
           },
           {
