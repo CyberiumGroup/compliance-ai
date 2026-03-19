@@ -1,5 +1,7 @@
 import { UUID } from './common';
 
+export type EvidenceSection = 'policy' | 'process' | 'control' | 'interview' | 'proof';
+
 export interface Policy {
   id: UUID;
   assessment_id: UUID;
@@ -8,6 +10,8 @@ export interface Policy {
   version: string | null;
   owner: string | null;
   document_type: 'policy' | 'evidence';
+  section: EvidenceSection | null;
+  file_format: string | null;
   chunk_strategy: 'docling' | 'fixed' | 'tabular' | null;
   file_path: string | null;
   content_text: string | null;

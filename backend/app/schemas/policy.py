@@ -34,6 +34,8 @@ class PolicyResponse(PolicyBase):
     id: UUID
     assessment_id: UUID
     document_type: str = "policy"
+    section: str | None = None
+    file_format: str | None = None
     chunk_strategy: str | None = None
     file_path: str | None = None
     content_text: str | None = None

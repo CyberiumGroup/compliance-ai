@@ -9,7 +9,7 @@ export async function uploadPolicy(
     description?: string;
     version?: string;
     owner?: string;
-    document_type?: 'policy' | 'evidence';
+    section?: string;
   } = {},
   userId?: string
 ): Promise<PolicyUploadResponse> {

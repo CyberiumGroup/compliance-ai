@@ -37,6 +37,8 @@ class PolicyIngestionService:
         version: str | None = None,
         owner: str | None = None,
         document_type: str = "policy",
+        section: str | None = None,
+        file_format: str | None = None,
     ) -> dict[str, Any]:
         """
         Ingest a policy from a document file.
@@ -118,6 +120,8 @@ class PolicyIngestionService:
             version=version,
             owner=owner,
             document_type=document_type,
+            section=section,
+            file_format=file_format,
             chunk_strategy=chunk_strategy,
             file_path=filename,
             content_text=extracted_text if extracted_text else None,

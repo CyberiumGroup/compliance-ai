@@ -1,30 +1,71 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { FileText, Upload, CheckCircle, AlertCircle, Shield } from 'lucide-react';
+import {
+  FileText, Shield, Table2, MessageSquare, CheckCircle, AlertCircle, Upload,
+} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui';
 import { LoadingSpinner, ErrorMessage } from '@/components/ui';
 import { PolicyUploader, PolicyList } from '@/components/policies';
 import { listPolicies, deletePolicy } from '@/lib/api';
 import { useUserId } from '@/lib/hooks/useUserId';
-import { Policy, PolicyUploadResponse } from '@/lib/types';
+import { Policy, PolicyUploadResponse, EvidenceSection } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-interface PoliciesPageProps {
+interface EvidencePageProps {
   params: Promise<{ id: string }>;
 }
 
-type TabType = 'policy' | 'evidence';
+interface SectionConfig {
+  id: EvidenceSection;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  formats: string;
+}
 
-const TABS: { id: TabType; label: string; icon: React.ReactNode }[] = [
-  { id: 'policy', label: 'Policies', icon: <FileText className="h-4 w-4" /> },
-  { id: 'evidence', label: 'Implementation Evidence', icon: <Shield className="h-4 w-4" /> },
+const SECTIONS: SectionConfig[] = [
+  {
+    id: 'policy',
+    label: 'Policies',
+    description: 'Formal policy documents that establish rules, standards, and requirements.',
+    icon: <FileText className="h-4 w-4" />,
+    formats: 'PDF, DOCX, TXT, MD',
+  },
+  {
+    id: 'process',
+    label: 'Processes',
+    description: 'Documented procedures and process guides describing how activities are carried out.',
+    icon: <FileText className="h-4 w-4" />,
+    formats: 'PDF, DOCX, TXT, MD',
+  },
+  {
+    id: 'control',
+    label: 'Controls',
+    description: 'Control registers or matrices, typically in spreadsheet format.',
+    icon: <Table2 className="h-4 w-4" />,
+    formats: 'CSV, XLSX',
+  },
+  {
+    id: 'interview',
+    label: 'Interviews',
+    description: 'Interview notes, transcripts, or responses collected during the assessment.',
+    icon: <MessageSquare className="h-4 w-4" />,
+    formats: 'DOCX, TXT, MD',
+  },
+  {
+    id: 'proof',
+    label: 'Proof',
+    description: 'Implementation evidence such as screenshots, logs, configuration exports, or audit reports.',
+    icon: <Shield className="h-4 w-4" />,
+    formats: 'PDF, DOCX, TXT, MD, XLSX, CSV',
+  },
 ];
 
-export default function PoliciesPage({ params }: PoliciesPageProps) {
+export default function EvidencePage({ params }: EvidencePageProps) {
   const { id } = use(params);
   const userId = useUserId();
-  const [activeTab, setActiveTab] = useState<TabType>('policy');
+  const [activeSection, setActiveSection] = useState<EvidenceSection>('policy');
   const [allDocs, setAllDocs] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +74,6 @@ export default function PoliciesPage({ params }: PoliciesPageProps) {
   const fetchDocs = async () => {
     if (!userId) return;
     try {
-      // Fetch all docs in a single call; split by document_type on the frontend.
       const data = await listPolicies(id, userId);
       setAllDocs(data);
     } catch (err) {
@@ -44,13 +84,11 @@ export default function PoliciesPage({ params }: PoliciesPageProps) {
   };
 
   useEffect(() => {
-    if (userId) {
-      fetchDocs();
-    }
+    if (userId) fetchDocs();
   }, [id, userId]);
 
-  const handleTabChange = (tab: TabType) => {
-    setActiveTab(tab);
+  const handleSectionChange = (section: EvidenceSection) => {
+    setActiveSection(section);
     setUploadResult(null);
   };
 
@@ -63,11 +101,22 @@ export default function PoliciesPage({ params }: PoliciesPageProps) {
     if (!userId) return;
     try {
       await deletePolicy(policyId, userId);
-      setAllDocs(prev => prev.filter((p) => p.id !== policyId));
+      setAllDocs(prev => prev.filter(p => p.id !== policyId));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete document');
     }
   };
+
+  const docsForSection = (section: EvidenceSection) => {
+    const tagged = allDocs.filter(p => p.section === section);
+    // Legacy docs with no section: surface under 'policy' or 'proof'
+    if (section === 'policy') return [...tagged, ...allDocs.filter(p => !p.section && p.document_type === 'policy')];
+    if (section === 'proof')  return [...tagged, ...allDocs.filter(p => !p.section && p.document_type === 'evidence')];
+    return tagged;
+  };
+
+  const currentSection = SECTIONS.find(s => s.id === activeSection)!;
+  const currentDocs = docsForSection(activeSection);
 
   if (loading) {
     return (
@@ -77,59 +126,49 @@ export default function PoliciesPage({ params }: PoliciesPageProps) {
     );
   }
 
-  // Split by document_type; treat missing/null as 'policy' (pre-migration docs)
-  const policies = allDocs.filter(p => !p.document_type || p.document_type === 'policy');
-  const evidence = allDocs.filter(p => p.document_type === 'evidence');
-  const currentDocs = activeTab === 'policy' ? policies : evidence;
-
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Tab navigation */}
-      <div className="flex gap-1 p-1 bg-neutral-100 rounded-xl w-fit">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => handleTabChange(tab.id)}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
-              activeTab === tab.id
-                ? 'bg-white text-neutral-900 shadow-sm'
-                : 'text-neutral-500 hover:text-neutral-700'
-            )}
-          >
-            {tab.icon}
-            {tab.label}
-            <span className={cn(
-              'ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold',
-              activeTab === tab.id
-                ? 'bg-primary-100 text-primary-700'
-                : 'bg-neutral-200 text-neutral-500'
-            )}>
-              {tab.id === 'policy' ? policies.length : evidence.length}
-            </span>
-          </button>
-        ))}
+      <div className="flex gap-1 p-1 bg-neutral-100 rounded-xl w-fit flex-wrap">
+        {SECTIONS.map((section) => {
+          const count = docsForSection(section.id).length;
+          const isActive = activeSection === section.id;
+          return (
+            <button
+              key={section.id}
+              onClick={() => handleSectionChange(section.id)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                isActive ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
+              )}
+            >
+              {section.icon}
+              {section.label}
+              <span className={cn(
+                'ml-1 px-1.5 py-0.5 rounded text-[10px] font-semibold',
+                isActive ? 'bg-primary-100 text-primary-700' : 'bg-neutral-200 text-neutral-500'
+              )}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Upload card */}
       <Card animated>
         <CardHeader variant="gradient">
           <CardTitle icon={<Upload className="h-5 w-5" />}>
-            {activeTab === 'evidence' ? 'Upload Implementation Evidence' : 'Upload Policy Document'}
+            Upload — {currentSection.label}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {activeTab === 'evidence' && (
-            <p className="text-sm text-neutral-500 mb-4">
-              Upload implementation evidence such as configuration exports, audit logs, test results,
-              or screenshots that demonstrate controls are actively deployed.
-            </p>
-          )}
+          <p className="text-sm text-neutral-500 mb-4">{currentSection.description}</p>
 
           <PolicyUploader
             assessmentId={id}
+            section={activeSection}
             onUploadComplete={handleUploadComplete}
-            documentType={activeTab}
           />
 
           {uploadResult && (
@@ -140,9 +179,7 @@ export default function PoliciesPage({ params }: PoliciesPageProps) {
               </h4>
               <div className="mt-3 space-y-2 text-sm">
                 <p className="text-neutral-700">
-                  <span className="font-medium">
-                    {activeTab === 'evidence' ? 'Evidence' : 'Policy'}:
-                  </span>{' '}
+                  <span className="font-medium">{currentSection.label}:</span>{' '}
                   {uploadResult.policy.name}
                 </p>
                 {uploadResult.text_extracted ? (
@@ -153,7 +190,7 @@ export default function PoliciesPage({ params }: PoliciesPageProps) {
                 ) : (
                   <p className="text-amber-600 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4" />
-                    Text extraction failed: {uploadResult.extraction_error}
+                    Extraction issue: {uploadResult.extraction_error}
                   </p>
                 )}
               </div>
@@ -165,10 +202,8 @@ export default function PoliciesPage({ params }: PoliciesPageProps) {
       {/* Documents list */}
       <Card animated>
         <CardHeader variant="gradient">
-          <CardTitle icon={activeTab === 'evidence' ? <Shield className="h-5 w-5" /> : <FileText className="h-5 w-5" />}>
-            {activeTab === 'evidence'
-              ? `Implementation Evidence (${evidence.length})`
-              : `Policies (${policies.length})`}
+          <CardTitle icon={currentSection.icon}>
+            {currentSection.label} ({currentDocs.length})
           </CardTitle>
         </CardHeader>
         <CardContent>

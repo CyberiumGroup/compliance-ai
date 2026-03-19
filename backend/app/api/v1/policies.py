@@ -22,6 +22,24 @@ from app.core.config import settings
 router = APIRouter()
 
 
+# Valid sections and their allowed extensions / derived document_type
+_SECTION_DOCUMENT_TYPE: dict[str, str] = {
+    "policy": "policy",
+    "process": "policy",
+    "control": "evidence",
+    "interview": "evidence",
+    "proof": "evidence",
+}
+
+_SECTION_ALLOWED_EXTENSIONS: dict[str, set[str]] = {
+    "policy":    {".pdf", ".docx", ".doc", ".txt", ".md"},
+    "process":   {".pdf", ".docx", ".doc", ".txt", ".md"},
+    "control":   {".csv", ".xlsx", ".xls"},
+    "interview": {".docx", ".doc", ".txt", ".md"},
+    "proof":     {".pdf", ".docx", ".doc", ".txt", ".md", ".xlsx", ".xls", ".csv"},
+}
+
+
 @router.post(
     "/assessments/{assessment_id}/policies/upload",
     response_model=PolicyUploadResponse,
@@ -33,35 +51,33 @@ async def upload_policy(
     description: Optional[str] = Form(None),
     version: Optional[str] = Form(None),
     owner: Optional[str] = Form(None),
-    document_type: str = Form("policy"),
+    section: str = Form("policy"),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_user),
 ):
-    """Upload a policy document (PDF, DOCX, TXT, MD).
+    """Upload an evidence document.
 
-    document_type: 'policy' (design-level documentation, default) or
-                   'evidence' (implementation evidence / audit artefacts).
+    section: one of 'policy', 'process', 'control', 'interview', 'proof'.
+    Each section restricts accepted file formats and determines document_type
+    (policy/process → 'policy'; control/interview/proof → 'evidence').
     """
-    if document_type not in ("policy", "evidence"):
+    if section not in _SECTION_DOCUMENT_TYPE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="document_type must be 'policy' or 'evidence'",
+            detail=f"section must be one of: {', '.join(_SECTION_DOCUMENT_TYPE)}",
         )
 
-    # Validate file extension
+    document_type = _SECTION_DOCUMENT_TYPE[section]
+    allowed_exts = _SECTION_ALLOWED_EXTENSIONS[section]
+
     filename = file.filename or "unknown"
     ext = Path(filename).suffix.lower()
+    file_format = ext.lstrip(".") if ext else None
 
-    if ext in SPREADSHEET_EXTENSIONS:
-        if document_type != "evidence":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Spreadsheet files (.xlsx, .xls, .csv) may only be uploaded as evidence documents.",
-            )
-    elif ext not in {e.lower() for e in settings.allowed_policy_extensions}:
+    if ext not in allowed_exts:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File type '{ext}' is not supported. Allowed: {', '.join(sorted(settings.allowed_policy_extensions))}",
+            detail=f"File type '{ext}' is not allowed for section '{section}'. Allowed: {', '.join(sorted(allowed_exts))}",
         )
 
     # Check file size
@@ -84,6 +100,8 @@ async def upload_policy(
         version=version,
         owner=owner,
         document_type=document_type,
+        section=section,
+        file_format=file_format,
     )
 
     return PolicyUploadResponse(
