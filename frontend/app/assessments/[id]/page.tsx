@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {
   FileText,
   Link2,
-  MessageSquare,
   BarChart3,
   ArrowUpRight,
   TrendingUp,
@@ -13,7 +12,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { LoadingSpinner } from '@/components/ui';
-import { getAssessment, listPolicies, listSessions, getScoreSummary, getAssessmentScope, listFrameworks } from '@/lib/api';
+import { getAssessment, listPolicies, getScoreSummary, getAssessmentScope, listFrameworks } from '@/lib/api';
 import { useUserId } from '@/lib/hooks/useUserId';
 import { Assessment, AssessmentScope, Framework } from '@/lib/types';
 import { WorkflowStepper } from '@/components/assessment/WorkflowStepper';
@@ -25,7 +24,6 @@ interface OverviewPageProps {
 
 interface Stats {
   policies: number;
-  interviews: number;
   overallScore: number | null;
 }
 
@@ -45,13 +43,6 @@ const statConfig = [
     textColor: 'text-accent-600'
   },
   {
-    name: 'Interviews',
-    icon: MessageSquare,
-    gradient: 'from-purple-500 to-purple-600',
-    bgGradient: 'from-purple-50 to-purple-100',
-    textColor: 'text-purple-600'
-  },
-  {
     name: 'Maturity Score',
     icon: BarChart3,
     gradient: 'from-amber-500 to-amber-600',
@@ -66,7 +57,6 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [stats, setStats] = useState<Stats>({
     policies: 0,
-    interviews: 0,
     overallScore: null,
   });
   const [frameworksInScope, setFrameworksInScope] = useState<FrameworkInfo[]>([]);
@@ -77,10 +67,9 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
 
     const fetchData = async () => {
       try {
-        const [assessmentData, policies, sessions] = await Promise.all([
+        const [assessmentData, policies] = await Promise.all([
           getAssessment(id, userId),
           listPolicies(id, userId).catch(() => []),
-          listSessions(id, userId).catch(() => []),
         ]);
 
         setAssessment(assessmentData);
@@ -115,7 +104,6 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
 
         setStats({
           policies: policies.length,
-          interviews: sessions.length,
           overallScore,
         });
       } catch (err) {
@@ -138,9 +126,8 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
 
   const statCards = [
     { ...statConfig[0], value: stats.policies, href: `/assessments/${id}/documentation` },
-    { ...statConfig[1], value: stats.interviews, href: `/assessments/${id}/interviews` },
     {
-      ...statConfig[2],
+      ...statConfig[1],
       value: stats.overallScore !== null ? stats.overallScore.toFixed(1) : '-',
       href: `/assessments/${id}/scores`,
       suffix: stats.overallScore !== null ? '/4.0' : '',
@@ -163,14 +150,6 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
       icon: Link2,
       gradient: 'from-purple-500 to-purple-600',
       bgGradient: 'from-purple-50 to-purple-100',
-    },
-    {
-      title: 'Start Interview',
-      description: 'Guided questionnaire',
-      href: `/assessments/${id}/interviews`,
-      icon: MessageSquare,
-      gradient: 'from-orange-500 to-orange-600',
-      bgGradient: 'from-orange-50 to-orange-100',
     },
   ];
 

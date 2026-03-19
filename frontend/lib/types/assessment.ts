@@ -3,11 +3,6 @@ import { UUID } from './common';
 export type AssessmentStatus = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED';
 export type AssessmentDepth = 'design' | 'implementation' | 'operating_effectiveness';
 
-export interface AIPromptOverrides {
-  mapping_prompt_suffix?: string | null;
-  analysis_prompt_suffix?: string | null;
-}
-
 export interface Assessment {
   id: UUID;
   name: string;
@@ -15,7 +10,6 @@ export interface Assessment {
   organization_name: string;
   status: AssessmentStatus;
   depth_level: AssessmentDepth;
-  ai_prompt_overrides: AIPromptOverrides | null;
   policy_mapping_threshold: number | null;
   industry: string | null;
   business_description: string | null;
@@ -31,7 +25,6 @@ export interface AssessmentCreate {
   description?: string;
   organization_name: string;
   depth_level?: AssessmentDepth;
-  ai_prompt_overrides?: AIPromptOverrides;
 }
 
 export interface AssessmentUpdate {
@@ -40,7 +33,6 @@ export interface AssessmentUpdate {
   organization_name?: string;
   status?: AssessmentStatus;
   depth_level?: AssessmentDepth;
-  ai_prompt_overrides?: AIPromptOverrides;
   policy_mapping_threshold?: number | null;
   industry?: string | null;
   business_description?: string | null;

@@ -89,34 +89,48 @@ def _build_doc_id_mapping(docs: list[dict]) -> tuple[dict[str, str], list[dict],
     Returns (id_to_name, transformed_docs, has_spreadsheet) where:
     - transformed_docs is a copy of docs with each document_name replaced by its
       DOC_N identifier, preventing the LLM from confusing similarly-named documents.
-    - For spreadsheet documents, the DOC_N ID is also injected as a '_source_id'
+    - For spreadsheet documents, the DOC_N ID is also injected as a 'document_title'
       field at the top level of the content JSON AND into every individual row dict,
-      so attribution is unambiguous regardless of which row the LLM is reading.
+      so the field name matches exactly what the LLM must output, making attribution
+      unambiguous regardless of which row the LLM is reading.
     - has_spreadsheet flags whether any spreadsheet documents are present so the
       caller can add a targeted prompt note.
     """
     id_to_name: dict[str, str] = {}
     transformed: list[dict] = []
     has_spreadsheet = False
+    logger.info("_build_doc_id_mapping: %d doc(s)", len(docs))
     for i, doc in enumerate(docs):
         doc_id = f"DOC_{i + 1}"
         id_to_name[doc_id] = doc["document_name"]
         new_doc = {**doc, "document_name": doc_id}
-        if doc.get("content_format") == SPREADSHEET_CONTENT_FORMAT and isinstance(doc.get("content"), dict):
-            has_spreadsheet = True
-            content = doc["content"]
-            new_sheets = [
-                {
-                    **sheet,
-                    "rows": [
-                        {"_source_id": doc_id, **row}
-                        for row in sheet.get("rows", [])
-                    ],
-                }
-                if isinstance(sheet, dict) else sheet
-                for sheet in content.get("sheets", [])
-            ]
-            new_doc["content"] = {"_source_id": doc_id, **content, "sheets": new_sheets}
+        logger.info("  %s -> %s (content_format=%s, content_type=%s)", doc["document_name"], doc_id, doc.get("content_format"), type(doc.get("content")).__name__)
+        if doc.get("content_format") == SPREADSHEET_CONTENT_FORMAT:
+            content = doc.get("content")
+            if not isinstance(content, dict):
+                logger.warning(
+                    "Spreadsheet doc %s has unexpected content type %s — skipping document_title injection",
+                    doc_id, type(content).__name__,
+                )
+            else:
+                has_spreadsheet = True
+                sheets = content.get("sheets", [])
+                logger.info(
+                    "Injecting document_title=%s into %d sheet(s) for %s",
+                    doc_id, len(sheets), id_to_name.get(doc_id, doc_id),
+                )
+                new_sheets = [
+                    {
+                        **sheet,
+                        "rows": [
+                            {"document_title": doc_id, **row}
+                            for row in sheet.get("rows", [])
+                        ],
+                    }
+                    if isinstance(sheet, dict) else sheet
+                    for sheet in sheets
+                ]
+                new_doc["content"] = {"document_title": doc_id, **content, "sheets": new_sheets}
         transformed.append(new_doc)
     return id_to_name, transformed, has_spreadsheet
 
@@ -304,11 +318,11 @@ class LLMScoringEngine:
         doc_prompt = self._build_documentation_prompt(
             req, policy_statements, evidence_with_ids, impl_examples, depth, has_spreadsheet
         )
-        logger.info(doc_prompt)
+        #logger.info(doc_prompt)
         phase2_output = await self._call_llm(doc_prompt)
-        logger.info(phase2_output)
+        
         _remap_evidence_ids(phase2_output, id_to_name)
-
+        
         coverage_label = phase2_output.get("coverage_label", "Gap")
         if coverage_label not in COVERAGE_LABEL_SCORES:
             coverage_label = "Gap"
@@ -517,9 +531,8 @@ class LLMScoringEngine:
                 if has_spreadsheet:
                     task += (
                         " For spreadsheet evidence documents, every row in the content JSON "
-                        "includes a '_source_id' field containing the DOC_N identifier of the "
-                        "document it belongs to. Always use this '_source_id' value as the "
-                        "document_title when referencing a specific row or value from tabular data — "
+                        "already contains a 'document_title' field with the correct DOC_N identifier. "
+                        "Always copy this value directly as the document_title in your response — "
                         "do not guess or infer the document from context."
                     )
             rubric = {
@@ -602,10 +615,10 @@ class LLMScoringEngine:
         )
         if has_spreadsheet:
             task += (
-                " For spreadsheet evidence documents, the content JSON includes a '_source_id' "
-                "field at the top level identifying which document the data belongs to. Use this "
-                "field to confirm the correct DOC_N identifier when attributing quotes or "
-                "references from tabular data."
+                " For spreadsheet evidence documents, every row in the content JSON "
+                "already contains a 'document_title' field with the correct DOC_N identifier. "
+                "Always copy this value directly as the document_title in your response — "
+                "do not guess or infer the document from context."
             )
         rubric = {
             "Covered": (
@@ -938,7 +951,10 @@ class LLMScoringEngine:
             seen_policy_ids.add(mapping.policy_id)
 
             raw = mapping.policy.content_text or ""
-            is_spreadsheet = SpreadsheetIngestionService.is_supported(mapping.policy.name or "")
+            # Use file_path for extension detection — policy.name has the extension stripped at ingestion
+            is_spreadsheet = SpreadsheetIngestionService.is_supported(
+                mapping.policy.file_path or mapping.policy.name or ""
+            )
 
             entry: dict = {
                 "document_name": mapping.policy.name,
@@ -949,10 +965,12 @@ class LLMScoringEngine:
                 try:
                     entry["content_format"] = SPREADSHEET_CONTENT_FORMAT
                     entry["content"] = json.loads(raw)
-                except (json.JSONDecodeError, ValueError):
+                except (json.JSONDecodeError, ValueError) as e:
+                    logger.warning("Spreadsheet JSON parse failed for %s: %s", mapping.policy.name, e)
                     entry["content_format"] = "text"
                     entry["content"] = raw
             else:
+                logger.info("_build_control_docs: %s — is_spreadsheet=False (name=%s)", mapping.policy.name, mapping.policy.name)
                 entry["content_format"] = "text"
                 entry["content"] = raw
 

@@ -7,9 +7,7 @@ import {
   Building2,
   FileText,
   Link2,
-  MessageSquare,
   BarChart3,
-  AlertTriangle,
   FileDown,
   Layers,
 } from 'lucide-react';
@@ -25,9 +23,7 @@ const tabs = [
   { name: 'Scope', path: '/scope', icon: Layers },
   { name: 'Documentation', path: '/documentation', icon: FileText },
   { name: 'Mappings', path: '/mappings', icon: Link2 },
-  { name: 'Interviews', path: '/interviews', icon: MessageSquare },
   { name: 'Scores', path: '/scores', icon: BarChart3 },
-  { name: 'Deviations', path: '/deviations', icon: AlertTriangle },
   { name: 'Reports', path: '/reports', icon: FileDown },
 ];
 

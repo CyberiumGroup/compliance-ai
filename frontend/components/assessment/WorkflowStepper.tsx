@@ -6,9 +6,7 @@ import {
   Layers,
   Upload,
   Link2,
-  MessageSquare,
   BarChart3,
-  ClipboardCheck,
   FileText,
   CheckCircle,
   Circle,
@@ -19,7 +17,6 @@ import {
   getAssessmentScope,
   listPolicies,
   listPolicyMappings,
-  listSessions,
   getScoreSummary,
   listReports,
 } from '@/lib/api';
@@ -48,12 +45,11 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
   useEffect(() => {
     const checkProgress = async () => {
       try {
-        const [scope, policies, policyMappings, sessions, reports] =
+        const [scope, policies, policyMappings, reports] =
           await Promise.all([
             getAssessmentScope(assessmentId).catch(() => []),
             listPolicies(assessmentId, userId).catch(() => []),
             listPolicyMappings(assessmentId, userId).catch(() => []),
-            listSessions(assessmentId, userId).catch(() => []),
             listReports(assessmentId, userId).catch(() => ({ items: [] })),
           ]);
 
@@ -69,11 +65,6 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
         const hasMappings = policyMappings.length > 0;
         const approvedMappings = policyMappings.filter((m) => m.is_approved);
         const hasApprovedMappings = approvedMappings.length > 0;
-        const hasInterviews = sessions.length > 0;
-        const completedInterviews = sessions.filter(
-          (s) => s.status === 'completed'
-        );
-        const hasCompletedInterviews = completedInterviews.length > 0;
         const hasScores = scoreSummary !== null;
         const hasReports = reports.items.length > 0;
 
@@ -109,27 +100,11 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
             status: getStatus(hasApprovedMappings, hasMappings),
           },
           {
-            id: 'interviews',
-            label: 'Interviews',
-            description: 'Conduct assessment interviews',
-            icon: MessageSquare,
-            href: `/assessments/${assessmentId}/interviews`,
-            status: getStatus(hasCompletedInterviews, hasInterviews),
-          },
-          {
             id: 'scoring',
             label: 'Scoring',
             description: 'Calculate maturity scores',
             icon: BarChart3,
             href: `/assessments/${assessmentId}/scores`,
-            status: getStatus(hasScores, false),
-          },
-          {
-            id: 'review',
-            label: 'Review',
-            description: 'Review deviations & gaps',
-            icon: ClipboardCheck,
-            href: `/assessments/${assessmentId}/deviations`,
             status: getStatus(hasScores, false),
           },
           {
