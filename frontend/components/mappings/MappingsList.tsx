@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronRight, CheckCircle2, Info, Save } from 'lucide-react';
+import { ChevronDown, ChevronRight, Info } from 'lucide-react';
 import { PolicyMapping, EvidenceSection } from '@/lib/types';
 import { RequirementMappingGroup } from './RequirementMappingGroup';
 import { cn } from '@/lib/utils';
 import { apiRequest } from '@/lib/api/client';
 
-const DEFAULT_GLOBAL_THRESHOLD = 80;
+const DEFAULT_THRESHOLD = 70;
 
 // ─── Section tabs config ───────────────────────────────────────────────────────
 
@@ -157,7 +157,8 @@ interface NodeSectionProps {
   collapseKey: string;
   collapsedNodes: Set<string>;
   onToggleNode: (key: string) => void;
-  defaultThreshold: number;
+  reqThresholds: Map<string, number>;
+  activeSection: EvidenceSection;
   onThresholdChange: (code: string, threshold: number) => void;
   onReject: (mappingId: string) => Promise<void>;
   onUnreject: (mappingId: string) => Promise<void>;
@@ -165,7 +166,7 @@ interface NodeSectionProps {
 
 function NodeSection({
   node, depth, collapseKey, collapsedNodes, onToggleNode,
-  defaultThreshold, onThresholdChange, onReject, onUnreject,
+  reqThresholds, activeSection, onThresholdChange, onReject, onUnreject,
 }: NodeSectionProps) {
   const isCollapsed = collapsedNodes.has(collapseKey);
   const indentLeft = 24 + depth * 20;
@@ -204,7 +205,8 @@ function NodeSection({
               collapseKey={`${collapseKey}||${child.code}`}
               collapsedNodes={collapsedNodes}
               onToggleNode={onToggleNode}
-              defaultThreshold={defaultThreshold}
+              reqThresholds={reqThresholds}
+              activeSection={activeSection}
               onThresholdChange={onThresholdChange}
               onReject={onReject}
               onUnreject={onUnreject}
@@ -221,7 +223,7 @@ function NodeSection({
                   requirementGuidance={req.requirementGuidance}
                   requirementParentCode={req.requirementParentCode}
                   mappings={req.mappings}
-                  defaultThreshold={defaultThreshold}
+                  defaultThreshold={reqThresholds.get(`${req.requirementCode}:${activeSection}`) ?? DEFAULT_THRESHOLD}
                   onThresholdChange={(t) => onThresholdChange(req.requirementCode, t)}
                   onReject={onReject}
                   onUnreject={onUnreject}
@@ -240,8 +242,6 @@ function NodeSection({
 interface MappingsListProps {
   policyMappings: PolicyMapping[];
   assessmentId: string;
-  initialThreshold?: number;
-  onSaveThreshold: (threshold: number) => Promise<void>;
   onRejectPolicy: (mappingId: string) => Promise<void>;
   onUnrejectPolicy: (mappingId: string) => Promise<void>;
 }
@@ -249,19 +249,14 @@ interface MappingsListProps {
 export function MappingsList({
   policyMappings,
   assessmentId,
-  initialThreshold,
-  onSaveThreshold,
   onRejectPolicy,
   onUnrejectPolicy,
 }: MappingsListProps) {
   const [activeSection, setActiveSection] = useState<EvidenceSection>('policy');
   const [collapsedFw, setCollapsedFw] = useState<Set<string>>(new Set());
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
-  const [globalThreshold, setGlobalThreshold] = useState(initialThreshold ?? DEFAULT_GLOBAL_THRESHOLD);
+  // Keys are "requirementCode:section"
   const [reqThresholds, setReqThresholds] = useState<Map<string, number>>(new Map());
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reqDebounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   const codeToRequirementId = useMemo(() => {
@@ -276,24 +271,24 @@ export function MappingsList({
     if (!assessmentId) return;
     apiRequest<Record<string, number>>(`/assessments/${assessmentId}/requirement-thresholds`)
       .then(data => {
+        // Keys from API are "requirementId:section"; convert to "requirementCode:section"
         const idToCode = new Map<string, string>();
         for (const pm of policyMappings) {
           if (pm.requirement_id && pm.requirement_code) idToCode.set(pm.requirement_id, pm.requirement_code);
         }
         const codeKeyed = new Map<string, number>();
-        for (const [reqId, threshold] of Object.entries(data)) {
+        for (const [key, threshold] of Object.entries(data)) {
+          const colonIdx = key.lastIndexOf(':');
+          const reqId = key.slice(0, colonIdx);
+          const section = key.slice(colonIdx + 1);
           const code = idToCode.get(reqId);
-          if (code) codeKeyed.set(code, threshold);
+          if (code) codeKeyed.set(`${code}:${section}`, threshold);
         }
         if (codeKeyed.size > 0) setReqThresholds(codeKeyed);
       })
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assessmentId]);
-
-  useEffect(() => {
-    if (initialThreshold != null) setGlobalThreshold(initialThreshold);
-  }, [initialThreshold]);
 
   // Count mappings per section for the tab badges
   const sectionCounts = useMemo(() =>
@@ -310,19 +305,20 @@ export function MappingsList({
   const frameworks = useMemo(() => buildGroups(sectionMappings), [sectionMappings]);
 
   const handleReqThresholdChange = (code: string, t: number) => {
-    setReqThresholds(prev => new Map(prev).set(code, t));
-    const existing = reqDebounceRef.current.get(code);
+    const key = `${code}:${activeSection}`;
+    setReqThresholds(prev => new Map(prev).set(key, t));
+    const existing = reqDebounceRef.current.get(key);
     if (existing) clearTimeout(existing);
     const timer = setTimeout(() => {
       const requirementId = codeToRequirementId.get(code);
       if (!requirementId) return;
       apiRequest(`/assessments/${assessmentId}/requirement-thresholds/${requirementId}`, {
         method: 'PUT',
-        body: { threshold: t },
+        body: { threshold: t, section: activeSection },
       }).catch(() => {});
-      reqDebounceRef.current.delete(code);
+      reqDebounceRef.current.delete(key);
     }, 300);
-    reqDebounceRef.current.set(code, timer);
+    reqDebounceRef.current.set(key, timer);
   };
 
   const traversalStats = useMemo(() => {
@@ -331,25 +327,12 @@ export function MappingsList({
     const baseline = uniqueReqs * uniqueDocs;
     const relevant = sectionMappings.filter(m => {
       if (m.is_rejected) return false;
-      const t = reqThresholds.get(m.requirement_code ?? '') ?? globalThreshold;
+      const t = reqThresholds.get(`${m.requirement_code}:${activeSection}`) ?? DEFAULT_THRESHOLD;
       return computeScore(m) >= t;
     }).length;
     const reduction = baseline > 0 ? Math.round((1 - relevant / baseline) * 100) : 0;
     return { uniqueReqs, uniqueDocs, baseline, relevant, reduction };
-  }, [sectionMappings, globalThreshold, reqThresholds]);
-
-  const handleSave = async () => {
-    setSaving(true);
-    setSaved(false);
-    try {
-      await onSaveThreshold(globalThreshold);
-      setSaved(true);
-      if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
-      savedTimerRef.current = setTimeout(() => setSaved(false), 2500);
-    } finally {
-      setSaving(false);
-    }
-  };
+  }, [sectionMappings, activeSection, reqThresholds]);
 
   const toggleFw = (name: string) =>
     setCollapsedFw(prev => { const s = new Set(prev); s.has(name) ? s.delete(name) : s.add(name); return s; });
@@ -409,52 +392,20 @@ export function MappingsList({
         })}
       </div>
 
-      {/* Legend + threshold row */}
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div className="flex items-center gap-3 text-xs text-neutral-500 flex-wrap">
-          <span className="font-medium text-neutral-600">Relevance score:</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-green-500" /> ≥80% high</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-amber-500" /> 60–79% moderate</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-red-400" /> &lt;60% low</span>
-          <div className="relative group">
-            <Info className="h-3.5 w-3.5 text-neutral-400 cursor-help" />
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 w-72 px-3 py-2 bg-neutral-800 text-white text-xs rounded-lg shadow-xl leading-relaxed pointer-events-none">
-              <p className="font-medium mb-1">How the relevance score is calculated</p>
-              <p>Each document is split into ~300-token chunks. The score is the highest cosine similarity between any chunk and the requirement text, normalized to 0–100%.</p>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-neutral-800" />
-            </div>
+      {/* Legend */}
+      <div className="flex items-center gap-3 text-xs text-neutral-500 flex-wrap">
+        <span className="font-medium text-neutral-600">Relevance score:</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-green-500" /> ≥80% high</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-amber-500" /> 60–79% moderate</span>
+        <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-red-400" /> &lt;60% low</span>
+        <div className="relative group">
+          <Info className="h-3.5 w-3.5 text-neutral-400 cursor-help" />
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 w-72 px-3 py-2 bg-neutral-800 text-white text-xs rounded-lg shadow-xl leading-relaxed pointer-events-none">
+            <p className="font-medium mb-1">How the relevance score is calculated</p>
+            <p>Each document is split into ~300-token chunks. The score is the highest cosine similarity between any chunk and the requirement text, normalized to 0–100%.</p>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-neutral-800" />
           </div>
         </div>
-      </div>
-
-      {/* Threshold row */}
-      <div className="flex items-center gap-2 text-xs text-neutral-600">
-        <span className="whitespace-nowrap font-medium">Default threshold</span>
-        <input
-          type="range" min={0} max={100} step={1} value={globalThreshold}
-          onChange={e => { setGlobalThreshold(Number(e.target.value)); setSaved(false); setReqThresholds(new Map()); }}
-          className="w-32 accent-primary-500 cursor-pointer"
-        />
-        <span className="w-8 text-right tabular-nums font-semibold">{globalThreshold}%</span>
-        <button
-          onClick={handleSave}
-          disabled={saving || saved}
-          className={cn(
-            'flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium transition-all',
-            saved ? 'border-green-300 bg-green-50 text-green-700' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300',
-            (saving || saved) && 'cursor-default'
-          )}
-        >
-          {saved ? <><CheckCircle2 className="h-3 w-3" />Saved</> : <><Save className="h-3 w-3" />{saving ? 'Saving…' : 'Save default threshold'}</>}
-        </button>
-        {globalThreshold !== (initialThreshold ?? DEFAULT_GLOBAL_THRESHOLD) && (
-          <button
-            onClick={() => { setGlobalThreshold(initialThreshold ?? DEFAULT_GLOBAL_THRESHOLD); setSaved(false); setReqThresholds(new Map()); }}
-            className="text-neutral-400 hover:text-neutral-600 transition-colors"
-          >
-            Reset
-          </button>
-        )}
       </div>
 
       {/* Traversal reduction stats */}
@@ -521,7 +472,8 @@ export function MappingsList({
                       collapseKey={`${fw.frameworkName}||${child.code}`}
                       collapsedNodes={collapsedNodes}
                       onToggleNode={toggleNode}
-                      defaultThreshold={globalThreshold}
+                      reqThresholds={reqThresholds}
+                      activeSection={activeSection}
                       onThresholdChange={handleReqThresholdChange}
                       onReject={onRejectPolicy}
                       onUnreject={onUnrejectPolicy}
@@ -538,7 +490,7 @@ export function MappingsList({
                           requirementGuidance={req.requirementGuidance}
                           requirementParentCode={req.requirementParentCode}
                           mappings={req.mappings}
-                          defaultThreshold={globalThreshold}
+                          defaultThreshold={reqThresholds.get(`${req.requirementCode}:${activeSection}`) ?? DEFAULT_THRESHOLD}
                           onThresholdChange={(t) => handleReqThresholdChange(req.requirementCode, t)}
                           onReject={onRejectPolicy}
                           onUnreject={onUnrejectPolicy}

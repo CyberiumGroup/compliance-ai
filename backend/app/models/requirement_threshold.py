@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, Float, ForeignKey, UniqueConstraint, CheckConstraint
+from sqlalchemy import DateTime, Float, ForeignKey, String, UniqueConstraint, CheckConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -38,13 +38,14 @@ class AssessmentRequirementThreshold(Base):
         ForeignKey("framework_requirements.id", ondelete="CASCADE"),
         nullable=False,
     )
+    section: Mapped[str] = mapped_column(String(20), nullable=False, default="policy")
     threshold: Mapped[float] = mapped_column(Float, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
 
     __table_args__ = (
-        UniqueConstraint("assessment_id", "requirement_id", name="uq_assessment_requirement_threshold"),
+        UniqueConstraint("assessment_id", "requirement_id", "section", name="uq_assessment_requirement_threshold_section"),
         CheckConstraint("threshold >= 0 AND threshold <= 100", name="threshold_range_check"),
     )
 

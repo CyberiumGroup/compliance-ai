@@ -199,6 +199,7 @@ async def delete_assessment(
 
 class RequirementThresholdUpsert(BaseModel):
     threshold: float = Field(..., ge=0.0, le=100.0)
+    section: str = Field(..., min_length=1, max_length=20)
 
 
 @router.put("/{assessment_id}/requirement-thresholds/{requirement_id}")
@@ -209,7 +210,7 @@ async def upsert_requirement_threshold(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_user),
 ):
-    """Upsert a per-requirement relevance threshold for an assessment."""
+    """Upsert a per-requirement, per-section relevance threshold for an assessment."""
     assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
     if not assessment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
@@ -219,6 +220,7 @@ async def upsert_requirement_threshold(
         .filter(
             AssessmentRequirementThreshold.assessment_id == assessment_id,
             AssessmentRequirementThreshold.requirement_id == requirement_id,
+            AssessmentRequirementThreshold.section == body.section,
         )
         .first()
     )
@@ -231,13 +233,19 @@ async def upsert_requirement_threshold(
             id=uuid.uuid4(),
             assessment_id=assessment_id,
             requirement_id=requirement_id,
+            section=body.section,
             threshold=body.threshold,
             updated_at=datetime.utcnow(),
         )
         db.add(record)
 
     db.commit()
-    return {"assessment_id": str(assessment_id), "requirement_id": str(requirement_id), "threshold": body.threshold}
+    return {
+        "assessment_id": str(assessment_id),
+        "requirement_id": str(requirement_id),
+        "section": body.section,
+        "threshold": body.threshold,
+    }
 
 
 @router.get("/{assessment_id}/requirement-thresholds")
@@ -246,7 +254,7 @@ async def get_requirement_thresholds(
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_current_user),
 ):
-    """Get all per-requirement thresholds for an assessment as a {requirement_id: threshold} map."""
+    """Get all per-requirement thresholds as a flat {"requirement_id:section": threshold} map."""
     assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
     if not assessment:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assessment not found")
@@ -256,7 +264,7 @@ async def get_requirement_thresholds(
         .filter(AssessmentRequirementThreshold.assessment_id == assessment_id)
         .all()
     )
-    return {str(row.requirement_id): row.threshold for row in rows}
+    return {f"{row.requirement_id}:{row.section}": row.threshold for row in rows}
 
 
 @router.get("/{assessment_id}/transitions")
