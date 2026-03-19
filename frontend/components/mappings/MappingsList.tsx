@@ -1,17 +1,34 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Info, Save } from 'lucide-react';
-import { PolicyMapping } from '@/lib/types';
+import { ChevronDown, ChevronRight, CheckCircle2, Info, Save } from 'lucide-react';
+import { PolicyMapping, EvidenceSection } from '@/lib/types';
 import { RequirementMappingGroup } from './RequirementMappingGroup';
 import { cn } from '@/lib/utils';
 import { apiRequest } from '@/lib/api/client';
 
 const DEFAULT_GLOBAL_THRESHOLD = 80;
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Section tabs config ───────────────────────────────────────────────────────
 
-type FilterMode = 'all' | 'missing-policy' | 'missing-evidence';
+const SECTION_TABS: { id: EvidenceSection; label: string }[] = [
+  { id: 'policy',    label: 'Policies'   },
+  { id: 'process',   label: 'Processes'  },
+  { id: 'control',   label: 'Controls'   },
+  { id: 'interview', label: 'Interviews' },
+  { id: 'proof',     label: 'Proof'      },
+];
+
+/** Returns true if a mapping belongs to the given section (with legacy fallback). */
+function matchesSection(m: PolicyMapping, section: EvidenceSection): boolean {
+  if (m.policy_section) return m.policy_section === section;
+  // Legacy docs with no section: 'policy' type → policy tab, 'evidence' type → proof tab
+  if (section === 'policy') return m.policy_document_type === 'policy';
+  if (section === 'proof')  return m.policy_document_type === 'evidence';
+  return false;
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type Ancestor = { code: string; name: string | null; display_order?: number };
 
@@ -22,8 +39,6 @@ interface ReqGroupData {
   requirementGuidance: string | null;
   requirementParentCode: string | null;
   mappings: PolicyMapping[];
-  hasPolicyDocs: boolean;
-  hasEvidenceDocs: boolean;
   ancestors: Ancestor[];
 }
 
@@ -32,16 +47,12 @@ interface HierarchyNode {
   name: string | null;
   children: HierarchyNode[];
   directRequirements: ReqGroupData[];
-  missingPolicyCount: number;
-  missingEvidenceCount: number;
 }
 
 interface FrameworkData {
   frameworkName: string;
-  children: HierarchyNode[];          // requirements grouped by ancestor tree
-  directRequirements: ReqGroupData[]; // requirements with no ancestors
-  missingPolicyCount: number;
-  missingEvidenceCount: number;
+  children: HierarchyNode[];
+  directRequirements: ReqGroupData[];
 }
 
 // ─── Data helpers ─────────────────────────────────────────────────────────────
@@ -50,21 +61,10 @@ function computeScore(m: PolicyMapping): number {
   return m.relevance_percentage ?? (m.confidence_score != null ? (m.confidence_score + 1) / 2 * 100 : 0);
 }
 
-function checkHasDocsByType(
-  mappings: PolicyMapping[],
-  threshold: number,
-  docType: 'policy' | 'evidence'
-): boolean {
-  return mappings
-    .filter(m => !m.is_rejected && m.policy_document_type === docType)
-    .some(m => computeScore(m) >= threshold);
-}
-
 function flattenNodeReqs(nodes: HierarchyNode[]): ReqGroupData[] {
   return nodes.flatMap(n => [...n.directRequirements, ...flattenNodeReqs(n.children)]);
 }
 
-/** Recursively group requirements by ancestor at the given depth. */
 function groupByAncestor(requirements: ReqGroupData[], depth: number): HierarchyNode[] {
   const toGroup = requirements.filter(r => r.ancestors.length > depth);
   if (toGroup.length === 0) return [];
@@ -85,21 +85,16 @@ function groupByAncestor(requirements: ReqGroupData[], depth: number): Hierarchy
     .map(({ ancestor, reqs }) => {
       const directRequirements = reqs.filter(r => r.ancestors.length === depth + 1);
       const deeperReqs = reqs.filter(r => r.ancestors.length > depth + 1);
-      const children = groupByAncestor(deeperReqs, depth + 1);
-
-      const allInNode = [...directRequirements, ...flattenNodeReqs(children)];
       return {
         code: ancestor.code,
         name: ancestor.name,
-        children,
+        children: groupByAncestor(deeperReqs, depth + 1),
         directRequirements,
-        missingPolicyCount: allInNode.filter(r => !r.hasPolicyDocs).length,
-        missingEvidenceCount: allInNode.filter(r => !r.hasEvidenceDocs).length,
       };
     });
 }
 
-function buildGroups(mappings: PolicyMapping[], threshold: number): FrameworkData[] {
+function buildGroups(mappings: PolicyMapping[]): FrameworkData[] {
   type ReqEntry = {
     name: string | null;
     description: string | null;
@@ -115,10 +110,8 @@ function buildGroups(mappings: PolicyMapping[], threshold: number): FrameworkDat
   for (const m of mappings) {
     const fw = m.requirement_framework_name ?? 'Unknown Framework';
     const code = m.requirement_code ?? 'Unknown';
-
     if (!fwMap.has(fw)) fwMap.set(fw, new Map());
     const reqMap = fwMap.get(fw)!;
-
     if (!reqMap.has(code)) {
       reqMap.set(code, {
         name: m.requirement_name ?? null,
@@ -134,7 +127,6 @@ function buildGroups(mappings: PolicyMapping[], threshold: number): FrameworkDat
   }
 
   const result: FrameworkData[] = [];
-
   for (const [fw, reqMap] of [...fwMap.entries()].sort(([a], [b]) => a.localeCompare(b))) {
     const requirements: ReqGroupData[] = [...reqMap.entries()]
       .sort(([codeA, a], [codeB, b]) => a.displayOrder - b.displayOrder || codeA.localeCompare(codeB))
@@ -145,61 +137,24 @@ function buildGroups(mappings: PolicyMapping[], threshold: number): FrameworkDat
         requirementGuidance: entry.guidance,
         requirementParentCode: entry.parentCode,
         mappings: entry.mappings,
-        hasPolicyDocs: checkHasDocsByType(entry.mappings, threshold, 'policy'),
-        hasEvidenceDocs: checkHasDocsByType(entry.mappings, threshold, 'evidence'),
         ancestors: entry.ancestors,
       }));
 
-    const directRequirements = requirements.filter(r => r.ancestors.length === 0);
-    const children = groupByAncestor(requirements.filter(r => r.ancestors.length > 0), 0);
-    const allReqs = [...directRequirements, ...flattenNodeReqs(children)];
-
     result.push({
       frameworkName: fw,
-      children,
-      directRequirements,
-      missingPolicyCount: allReqs.filter(r => !r.hasPolicyDocs).length,
-      missingEvidenceCount: allReqs.filter(r => !r.hasEvidenceDocs).length,
+      directRequirements: requirements.filter(r => r.ancestors.length === 0),
+      children: groupByAncestor(requirements.filter(r => r.ancestors.length > 0), 0),
     });
   }
-
   return result;
-}
-
-// ─── DocBadges ────────────────────────────────────────────────────────────────
-
-function DocBadges({
-  missingPolicyCount,
-  missingEvidenceCount,
-}: {
-  missingPolicyCount: number;
-  missingEvidenceCount: number;
-}) {
-  return (
-    <div className="flex items-center gap-1.5 flex-shrink-0">
-      {missingPolicyCount > 0 && (
-        <span className="flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 ring-1 ring-red-300 px-2 py-0.5 rounded-full">
-          <AlertTriangle className="h-3 w-3" />
-          {missingPolicyCount} missing policy
-        </span>
-      )}
-      {missingEvidenceCount > 0 && (
-        <span className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 ring-1 ring-amber-200 px-2 py-0.5 rounded-full">
-          <AlertTriangle className="h-3 w-3" />
-          {missingEvidenceCount} missing evidence
-        </span>
-      )}
-    </div>
-  );
 }
 
 // ─── NodeSection (recursive) ──────────────────────────────────────────────────
 
 interface NodeSectionProps {
   node: HierarchyNode;
-  depth: number; // 0 = direct child of framework
+  depth: number;
   collapseKey: string;
-  filterMode: FilterMode;
   collapsedNodes: Set<string>;
   onToggleNode: (key: string) => void;
   defaultThreshold: number;
@@ -209,87 +164,44 @@ interface NodeSectionProps {
 }
 
 function NodeSection({
-  node,
-  depth,
-  collapseKey,
-  filterMode,
-  collapsedNodes,
-  onToggleNode,
-  defaultThreshold,
-  onThresholdChange,
-  onReject,
-  onUnreject,
+  node, depth, collapseKey, collapsedNodes, onToggleNode,
+  defaultThreshold, onThresholdChange, onReject, onUnreject,
 }: NodeSectionProps) {
   const isCollapsed = collapsedNodes.has(collapseKey);
-
-  const visibleDirectReqs =
-    filterMode === 'missing-policy'   ? node.directRequirements.filter(r => !r.hasPolicyDocs)
-    : filterMode === 'missing-evidence' ? node.directRequirements.filter(r => !r.hasEvidenceDocs)
-    : node.directRequirements;
-
-  const visibleChildren =
-    filterMode === 'missing-policy'   ? node.children.filter(c => c.missingPolicyCount > 0)
-    : filterMode === 'missing-evidence' ? node.children.filter(c => c.missingEvidenceCount > 0)
-    : node.children;
-
-  if (filterMode !== 'all' && visibleDirectReqs.length === 0 && visibleChildren.length === 0) return null;
-
-  // Indentation: 24px base + 20px per depth level
   const indentLeft = 24 + depth * 20;
   const contentIndentLeft = indentLeft + 20;
 
-  const nodeHasGap =
-    filterMode === 'missing-policy'   ? node.missingPolicyCount > 0
-    : filterMode === 'missing-evidence' ? node.missingEvidenceCount > 0
-    : node.missingPolicyCount > 0 || node.missingEvidenceCount > 0;
-
-  // Style varies by depth
-  const codeStyle = cn(
-    'font-mono font-semibold px-2 py-0.5 rounded border flex-shrink-0',
-    depth === 0 ? 'text-sm' : 'text-xs',
-    nodeHasGap
-      ? 'text-red-700 bg-red-50 border-red-200'
-      : 'text-neutral-600 bg-neutral-100 border-neutral-200'
-  );
-
   return (
     <div>
-      {/* Node header */}
       <button
         onClick={() => onToggleNode(collapseKey)}
         style={{ paddingLeft: `${indentLeft}px` }}
-        className={cn(
-          'w-full flex items-center gap-2.5 py-2 pr-4 text-left transition-colors',
-          nodeHasGap ? 'hover:bg-red-50/40' : 'hover:bg-neutral-50'
-        )}
+        className="w-full flex items-center gap-2.5 py-2 pr-4 text-left hover:bg-neutral-50 transition-colors"
       >
         {isCollapsed
           ? <ChevronRight className="h-3.5 w-3.5 text-neutral-400 flex-shrink-0" />
           : <ChevronDown className="h-3.5 w-3.5 text-neutral-400 flex-shrink-0" />}
-        <span className={codeStyle}>{node.code}</span>
+        <span className={cn(
+          'font-mono font-semibold px-2 py-0.5 rounded border flex-shrink-0 text-neutral-600 bg-neutral-100 border-neutral-200',
+          depth === 0 ? 'text-sm' : 'text-xs'
+        )}>
+          {node.code}
+        </span>
         {node.name && (
-          <span className={cn(
-            'truncate text-neutral-600',
-            depth === 0 ? 'text-sm' : 'text-xs'
-          )}>
+          <span className={cn('truncate text-neutral-600', depth === 0 ? 'text-sm' : 'text-xs')}>
             {node.name}
           </span>
         )}
-        <div className="flex-1" />
-        <DocBadges missingPolicyCount={node.missingPolicyCount} missingEvidenceCount={node.missingEvidenceCount} />
       </button>
 
-      {/* Node body */}
       {!isCollapsed && (
         <div>
-          {/* Child nodes */}
-          {visibleChildren.map(child => (
+          {node.children.map(child => (
             <NodeSection
               key={child.code}
               node={child}
               depth={depth + 1}
               collapseKey={`${collapseKey}||${child.code}`}
-              filterMode={filterMode}
               collapsedNodes={collapsedNodes}
               onToggleNode={onToggleNode}
               defaultThreshold={defaultThreshold}
@@ -298,14 +210,9 @@ function NodeSection({
               onUnreject={onUnreject}
             />
           ))}
-
-          {/* Direct requirements at this node */}
-          {visibleDirectReqs.length > 0 && (
-            <div
-              style={{ paddingLeft: `${contentIndentLeft}px`, paddingRight: '16px' }}
-              className="pb-3 pt-1 space-y-2"
-            >
-              {visibleDirectReqs.map(req => (
+          {node.directRequirements.length > 0 && (
+            <div style={{ paddingLeft: `${contentIndentLeft}px`, paddingRight: '16px' }} className="pb-3 pt-1 space-y-2">
+              {node.directRequirements.map(req => (
                 <RequirementMappingGroup
                   key={req.requirementCode}
                   requirementCode={req.requirementCode}
@@ -347,7 +254,7 @@ export function MappingsList({
   onRejectPolicy,
   onUnrejectPolicy,
 }: MappingsListProps) {
-  const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [activeSection, setActiveSection] = useState<EvidenceSection>('policy');
   const [collapsedFw, setCollapsedFw] = useState<Set<string>>(new Set());
   const [collapsedNodes, setCollapsedNodes] = useState<Set<string>>(new Set());
   const [globalThreshold, setGlobalThreshold] = useState(initialThreshold ?? DEFAULT_GLOBAL_THRESHOLD);
@@ -357,27 +264,21 @@ export function MappingsList({
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reqDebounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  // Build code -> requirement_id lookup from policyMappings
   const codeToRequirementId = useMemo(() => {
     const m = new Map<string, string>();
     for (const pm of policyMappings) {
-      if (pm.requirement_code && pm.requirement_id) {
-        m.set(pm.requirement_code, pm.requirement_id);
-      }
+      if (pm.requirement_code && pm.requirement_id) m.set(pm.requirement_code, pm.requirement_id);
     }
     return m;
   }, [policyMappings]);
 
-  // On mount: fetch persisted per-requirement thresholds and convert to code-keyed map
   useEffect(() => {
     if (!assessmentId) return;
     apiRequest<Record<string, number>>(`/assessments/${assessmentId}/requirement-thresholds`)
       .then(data => {
         const idToCode = new Map<string, string>();
         for (const pm of policyMappings) {
-          if (pm.requirement_id && pm.requirement_code) {
-            idToCode.set(pm.requirement_id, pm.requirement_code);
-          }
+          if (pm.requirement_id && pm.requirement_code) idToCode.set(pm.requirement_id, pm.requirement_code);
         }
         const codeKeyed = new Map<string, number>();
         for (const [reqId, threshold] of Object.entries(data)) {
@@ -386,29 +287,30 @@ export function MappingsList({
         }
         if (codeKeyed.size > 0) setReqThresholds(codeKeyed);
       })
-      .catch(() => {/* ignore — thresholds not persisted yet */});
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assessmentId]);
 
-  // Sync if the saved threshold loads after initial render
   useEffect(() => {
-    if (initialThreshold != null) {
-      setGlobalThreshold(initialThreshold);
-    }
+    if (initialThreshold != null) setGlobalThreshold(initialThreshold);
   }, [initialThreshold]);
 
-  const frameworks = useMemo(
-    () => buildGroups(policyMappings, globalThreshold),
-    [policyMappings, globalThreshold]
+  // Count mappings per section for the tab badges
+  const sectionCounts = useMemo(() =>
+    Object.fromEntries(SECTION_TABS.map(t => [t.id, policyMappings.filter(m => matchesSection(m, t.id)).length])),
+    [policyMappings]
   );
 
-  const missingPolicyTotal = frameworks.reduce((s, fw) => s + fw.missingPolicyCount, 0);
-  const missingEvidenceTotal = frameworks.reduce((s, fw) => s + fw.missingEvidenceCount, 0);
+  // Filter to active section, then build hierarchy
+  const sectionMappings = useMemo(
+    () => policyMappings.filter(m => matchesSection(m, activeSection)),
+    [policyMappings, activeSection]
+  );
+
+  const frameworks = useMemo(() => buildGroups(sectionMappings), [sectionMappings]);
 
   const handleReqThresholdChange = (code: string, t: number) => {
     setReqThresholds(prev => new Map(prev).set(code, t));
-
-    // Debounce-save to backend (300ms)
     const existing = reqDebounceRef.current.get(code);
     if (existing) clearTimeout(existing);
     const timer = setTimeout(() => {
@@ -417,24 +319,24 @@ export function MappingsList({
       apiRequest(`/assessments/${assessmentId}/requirement-thresholds/${requirementId}`, {
         method: 'PUT',
         body: { threshold: t },
-      }).catch(() => {/* ignore save errors silently */});
+      }).catch(() => {});
       reqDebounceRef.current.delete(code);
     }, 300);
     reqDebounceRef.current.set(code, timer);
   };
 
   const traversalStats = useMemo(() => {
-    const uniqueReqs = new Set(policyMappings.map(m => m.requirement_code).filter(Boolean)).size;
-    const uniqueDocs = new Set(policyMappings.map(m => m.policy_id)).size;
+    const uniqueReqs = new Set(sectionMappings.map(m => m.requirement_code).filter(Boolean)).size;
+    const uniqueDocs = new Set(sectionMappings.map(m => m.policy_id)).size;
     const baseline = uniqueReqs * uniqueDocs;
-    const relevant = policyMappings.filter(m => {
+    const relevant = sectionMappings.filter(m => {
       if (m.is_rejected) return false;
       const t = reqThresholds.get(m.requirement_code ?? '') ?? globalThreshold;
       return computeScore(m) >= t;
     }).length;
     const reduction = baseline > 0 ? Math.round((1 - relevant / baseline) * 100) : 0;
     return { uniqueReqs, uniqueDocs, baseline, relevant, reduction };
-  }, [policyMappings, globalThreshold, reqThresholds]);
+  }, [sectionMappings, globalThreshold, reqThresholds]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -448,14 +350,6 @@ export function MappingsList({
       setSaving(false);
     }
   };
-
-  if (policyMappings.length === 0) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        No mappings generated yet. Click &quot;Suggest Mappings&quot; to score your policies against requirements.
-      </div>
-    );
-  }
 
   const toggleFw = (name: string) =>
     setCollapsedFw(prev => { const s = new Set(prev); s.has(name) ? s.delete(name) : s.add(name); return s; });
@@ -471,9 +365,7 @@ export function MappingsList({
 
   const handleCollapseAll = () => {
     setCollapsedFw(new Set(frameworks.map(fw => fw.frameworkName)));
-    setCollapsedNodes(new Set(
-      frameworks.flatMap(fw => collectNodeKeys(fw.children, fw.frameworkName))
-    ));
+    setCollapsedNodes(new Set(frameworks.flatMap(fw => collectNodeKeys(fw.children, fw.frameworkName))));
   };
 
   const handleExpandAll = () => {
@@ -481,9 +373,43 @@ export function MappingsList({
     setCollapsedNodes(new Set());
   };
 
+  if (policyMappings.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        No mappings generated yet. Click &quot;Suggest Mappings&quot; to score your documents against requirements.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {/* Controls: row 1 — legend + filter */}
+      {/* Section tabs */}
+      <div className="flex gap-1 p-1 bg-neutral-100 rounded-xl w-fit flex-wrap">
+        {SECTION_TABS.map(tab => {
+          const count = sectionCounts[tab.id] ?? 0;
+          const isActive = activeSection === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveSection(tab.id); setCollapsedFw(new Set()); setCollapsedNodes(new Set()); }}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                isActive ? 'bg-white text-neutral-900 shadow-sm' : 'text-neutral-500 hover:text-neutral-700'
+              )}
+            >
+              {tab.label}
+              <span className={cn(
+                'px-1.5 py-0.5 rounded text-[10px] font-semibold',
+                isActive ? 'bg-primary-100 text-primary-700' : 'bg-neutral-200 text-neutral-500'
+              )}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Legend + threshold row */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3 text-xs text-neutral-500 flex-wrap">
           <span className="font-medium text-neutral-600">Relevance score:</span>
@@ -494,60 +420,18 @@ export function MappingsList({
             <Info className="h-3.5 w-3.5 text-neutral-400 cursor-help" />
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20 w-72 px-3 py-2 bg-neutral-800 text-white text-xs rounded-lg shadow-xl leading-relaxed pointer-events-none">
               <p className="font-medium mb-1">How the relevance score is calculated</p>
-              <p>Each policy document is split into ~300-token chunks. The score is the highest cosine similarity between any chunk and the requirement text, normalized from 0–100%.</p>
-              <p className="mt-1 text-neutral-300">A high score means at least one section of the policy closely matches the language and intent of the requirement. It does not guarantee coverage, only suggests how relevant the document might be to an assessment.</p>
+              <p>Each document is split into ~300-token chunks. The score is the highest cosine similarity between any chunk and the requirement text, normalized to 0–100%.</p>
               <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-neutral-800" />
             </div>
           </div>
         </div>
-
-        {/* 3-button segmented filter control */}
-        <div className="flex items-center gap-1 rounded-lg border border-neutral-200 p-0.5 bg-neutral-50">
-          {([
-            ['all',               'All',              null                ],
-            ['missing-policy',    'Missing Policy',   missingPolicyTotal  ],
-            ['missing-evidence',  'Missing Evidence', missingEvidenceTotal],
-          ] as const).map(([mode, label, count]) => (
-            <button
-              key={mode}
-              onClick={() => setFilterMode(mode)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all',
-                filterMode === mode
-                  ? mode === 'missing-policy'
-                    ? 'bg-red-50 text-red-700 shadow-sm'
-                    : mode === 'missing-evidence'
-                      ? 'bg-amber-50 text-amber-700 shadow-sm'
-                      : 'bg-white text-neutral-800 shadow-sm'
-                  : 'text-neutral-500 hover:text-neutral-700'
-              )}
-            >
-              {mode !== 'all' && <AlertTriangle className="h-3.5 w-3.5" />}
-              {label}
-              {count !== null && count > 0 && (
-                <span className={cn(
-                  'px-1.5 py-0.5 text-xs font-semibold rounded-full',
-                  filterMode === mode
-                    ? mode === 'missing-policy' ? 'bg-red-200 text-red-800' : 'bg-amber-200 text-amber-800'
-                    : 'bg-neutral-100 text-neutral-600'
-                )}>
-                  {count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Controls: row 2 — default threshold (own row so the slider never shifts) */}
+      {/* Threshold row */}
       <div className="flex items-center gap-2 text-xs text-neutral-600">
         <span className="whitespace-nowrap font-medium">Default threshold</span>
         <input
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={globalThreshold}
+          type="range" min={0} max={100} step={1} value={globalThreshold}
           onChange={e => { setGlobalThreshold(Number(e.target.value)); setSaved(false); setReqThresholds(new Map()); }}
           className="w-32 accent-primary-500 cursor-pointer"
         />
@@ -557,17 +441,11 @@ export function MappingsList({
           disabled={saving || saved}
           className={cn(
             'flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium transition-all',
-            saved
-              ? 'border-green-300 bg-green-50 text-green-700'
-              : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300',
+            saved ? 'border-green-300 bg-green-50 text-green-700' : 'border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:border-neutral-300',
             (saving || saved) && 'cursor-default'
           )}
         >
-          {saved ? (
-            <><CheckCircle2 className="h-3 w-3" />Saved</>
-          ) : (
-            <><Save className="h-3 w-3" />{saving ? 'Saving…' : 'Save default threshold'}</>
-          )}
+          {saved ? <><CheckCircle2 className="h-3 w-3" />Saved</> : <><Save className="h-3 w-3" />{saving ? 'Saving…' : 'Save default threshold'}</>}
         </button>
         {globalThreshold !== (initialThreshold ?? DEFAULT_GLOBAL_THRESHOLD) && (
           <button
@@ -580,65 +458,50 @@ export function MappingsList({
       </div>
 
       {/* Traversal reduction stats */}
-      <div className="flex items-center gap-6 px-4 py-3 rounded-lg bg-primary-50/60 border border-primary-100">
-        <div className="flex items-baseline gap-1.5">
-          <span className="text-3xl font-bold text-primary-700 tabular-nums">{traversalStats.reduction}%</span>
-          <span className="text-sm font-medium text-primary-600">reduction in document review</span>
+      {sectionMappings.length > 0 && (
+        <div className="flex items-center gap-6 px-4 py-3 rounded-lg bg-primary-50/60 border border-primary-100">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-3xl font-bold text-primary-700 tabular-nums">{traversalStats.reduction}%</span>
+            <span className="text-sm font-medium text-primary-600">reduction in document review</span>
+          </div>
+          <div className="h-8 w-px bg-primary-200" />
+          <div className="text-xs text-neutral-600 space-y-0.5">
+            <p>
+              <span className="font-semibold text-neutral-800">{traversalStats.relevant}</span> relevant pairs at current thresholds
+              {' '}vs <span className="font-semibold text-neutral-800">{traversalStats.baseline}</span> baseline
+            </p>
+            <p className="text-neutral-400">
+              {traversalStats.uniqueReqs} requirements × {traversalStats.uniqueDocs} documents
+            </p>
+          </div>
         </div>
-        <div className="h-8 w-px bg-primary-200" />
-        <div className="text-xs text-neutral-600 space-y-0.5">
-          <p>
-            <span className="font-semibold text-neutral-800">{traversalStats.relevant}</span> relevant pairs at current thresholds
-            {' '}vs <span className="font-semibold text-neutral-800">{traversalStats.baseline}</span> baseline
-          </p>
-          <p className="text-neutral-400">
-            {traversalStats.uniqueReqs} requirements × {traversalStats.uniqueDocs} documents
-          </p>
+      )}
+
+      {/* Empty state for this section */}
+      {sectionMappings.length === 0 && (
+        <div className="text-center py-8 text-neutral-400 text-sm">
+          No mappings for this section yet.
         </div>
-      </div>
+      )}
 
       {/* Collapse / expand all */}
-      <div className="flex justify-end gap-3 text-xs text-neutral-400">
-        <button onClick={handleExpandAll} className="hover:text-neutral-600 transition-colors">Expand all</button>
-        <span>·</span>
-        <button onClick={handleCollapseAll} className="hover:text-neutral-600 transition-colors">Collapse all</button>
-      </div>
+      {frameworks.length > 0 && (
+        <div className="flex justify-end gap-3 text-xs text-neutral-400">
+          <button onClick={handleExpandAll} className="hover:text-neutral-600 transition-colors">Expand all</button>
+          <span>·</span>
+          <button onClick={handleCollapseAll} className="hover:text-neutral-600 transition-colors">Collapse all</button>
+        </div>
+      )}
 
       {/* Framework sections */}
       <div className="space-y-3">
         {frameworks.map(fw => {
           const isFwCollapsed = collapsedFw.has(fw.frameworkName);
-
-          // For filter: determine visible content
-          const visibleDirectReqs =
-            filterMode === 'missing-policy'   ? fw.directRequirements.filter(r => !r.hasPolicyDocs)
-            : filterMode === 'missing-evidence' ? fw.directRequirements.filter(r => !r.hasEvidenceDocs)
-            : fw.directRequirements;
-
-          const visibleChildren =
-            filterMode === 'missing-policy'   ? fw.children.filter(c => c.missingPolicyCount > 0)
-            : filterMode === 'missing-evidence' ? fw.children.filter(c => c.missingEvidenceCount > 0)
-            : fw.children;
-
-          if (filterMode !== 'all' && visibleDirectReqs.length === 0 && visibleChildren.length === 0) return null;
-
           return (
-            <div
-              key={fw.frameworkName}
-              className={cn(
-                'rounded-xl border overflow-hidden shadow-sm',
-                fw.missingPolicyCount > 0 ? 'border-red-200' : 'border-neutral-200'
-              )}
-            >
-              {/* Framework header */}
+            <div key={fw.frameworkName} className="rounded-xl border border-neutral-200 overflow-hidden shadow-sm">
               <button
                 onClick={() => toggleFw(fw.frameworkName)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors',
-                  fw.missingPolicyCount > 0
-                    ? 'bg-red-50/60 hover:bg-red-50'
-                    : 'bg-neutral-50 hover:bg-neutral-100'
-                )}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left bg-neutral-50 hover:bg-neutral-100 transition-colors"
               >
                 {isFwCollapsed
                   ? <ChevronRight className="h-4 w-4 text-neutral-400 flex-shrink-0" />
@@ -646,20 +509,16 @@ export function MappingsList({
                 <span className="text-sm font-semibold text-neutral-800 flex-1 text-left">
                   {fw.frameworkName}
                 </span>
-                <DocBadges missingPolicyCount={fw.missingPolicyCount} missingEvidenceCount={fw.missingEvidenceCount} />
               </button>
 
-              {/* Framework body */}
               {!isFwCollapsed && (
                 <div className="bg-white divide-y divide-neutral-100">
-                  {/* Hierarchy nodes */}
-                  {visibleChildren.map(child => (
+                  {fw.children.map(child => (
                     <NodeSection
                       key={child.code}
                       node={child}
                       depth={0}
                       collapseKey={`${fw.frameworkName}||${child.code}`}
-                      filterMode={filterMode}
                       collapsedNodes={collapsedNodes}
                       onToggleNode={toggleNode}
                       defaultThreshold={globalThreshold}
@@ -668,11 +527,9 @@ export function MappingsList({
                       onUnreject={onUnrejectPolicy}
                     />
                   ))}
-
-                  {/* Requirements with no ancestors (flat structure) */}
-                  {visibleDirectReqs.length > 0 && (
+                  {fw.directRequirements.length > 0 && (
                     <div className="px-4 pb-4 pt-2 space-y-2">
-                      {visibleDirectReqs.map(req => (
+                      {fw.directRequirements.map(req => (
                         <RequirementMappingGroup
                           key={req.requirementCode}
                           requirementCode={req.requirementCode}

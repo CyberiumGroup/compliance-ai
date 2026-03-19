@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, FileText, BookOpen, XCircle, AlertTriangle, Shield } from 'lucide-react';
+import { ChevronDown, ChevronUp, FileText, BookOpen, XCircle } from 'lucide-react';
 import { PolicyMapping } from '@/lib/types';
 import { PolicyRelevanceRow } from './PolicyRelevanceRow';
 import { cn } from '@/lib/utils';
@@ -50,11 +50,7 @@ export function RequirementMappingGroup({
   // Sort active mappings by relevance descending
   const sorted = [...activeMappings].sort((a, b) => getScore(b) - getScore(a));
 
-  // Filter by threshold — these are the "pending" mappings
   const displayed = sorted.filter((m) => getScore(m) >= threshold);
-
-  const policyDisplayed   = displayed.filter(m => m.policy_document_type === 'policy');
-  const evidenceDisplayed = displayed.filter(m => m.policy_document_type === 'evidence');
 
   return (
     <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden shadow-sm">
@@ -91,34 +87,10 @@ export function RequirementMappingGroup({
 
         {/* Stats */}
         <div className="flex-shrink-0 flex items-center gap-2">
-          {policyDisplayed.length > 0 ? (
-            <span className="flex items-center gap-1 text-xs font-medium text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
-              <FileText className="h-3 w-3" />
-              {policyDisplayed.length} {policyDisplayed.length === 1 ? 'policy' : 'policies'}
-            </span>
-          ) : (
-            <span
-              className="flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 ring-1 ring-red-200 px-2 py-0.5 rounded-full"
-              title="No policy documents meet the threshold — Documentation scoring (Phase 2) will be skipped."
-            >
-              <AlertTriangle className="h-3 w-3" />
-              No policy mapped
-            </span>
-          )}
-          {evidenceDisplayed.length > 0 ? (
-            <span className="flex items-center gap-1 text-xs font-medium text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
-              <Shield className="h-3 w-3" />
-              {evidenceDisplayed.length} {evidenceDisplayed.length === 1 ? 'evidence doc' : 'evidence docs'}
-            </span>
-          ) : (
-            <span
-              className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 ring-1 ring-amber-200 px-2 py-0.5 rounded-full"
-              title="No evidence documents meet the threshold — implementation depth evidence evaluation will be skipped."
-            >
-              <AlertTriangle className="h-3 w-3" />
-              No evidence
-            </span>
-          )}
+          <span className="flex items-center gap-1 text-xs font-medium text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded-full">
+            <FileText className="h-3 w-3" />
+            {displayed.length} {displayed.length === 1 ? 'doc' : 'docs'}
+          </span>
           {rejectedMappings.length > 0 && (
             <span className="flex items-center gap-1 text-xs font-medium text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-full">
               <XCircle className="h-3 w-3" />

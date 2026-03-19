@@ -85,6 +85,7 @@ class PolicyMappingResponse(PolicyMappingBase):
     policy_description: str | None = None
     policy_summary: str | None = None
     policy_document_type: str | None = None
+    policy_section: str | None = None
 
     model_config = {"from_attributes": True}
 

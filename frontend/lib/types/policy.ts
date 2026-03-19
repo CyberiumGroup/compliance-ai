@@ -56,4 +56,5 @@ export interface PolicyMapping {
   policy_description: string | null;
   policy_summary: string | null;
   policy_document_type: 'policy' | 'evidence' | null;
+  policy_section: EvidenceSection | null;
 }

@@ -177,6 +177,10 @@ class PolicyMapping(Base):
     def policy_document_type(self) -> str | None:
         return self.policy.document_type if self.policy else None
 
+    @property
+    def policy_section(self) -> str | None:
+        return self.policy.section if self.policy else None
+
 
 from app.models.assessment import Assessment
 from app.models.framework import CSFSubcategory

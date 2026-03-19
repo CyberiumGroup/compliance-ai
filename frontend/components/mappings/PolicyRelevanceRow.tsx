@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, ChevronDown, ChevronUp, Lightbulb, RotateCcw, FileText, Shield } from 'lucide-react';
+import { X, ChevronDown, ChevronUp, Lightbulb, RotateCcw } from 'lucide-react';
 import { PolicyMapping } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -73,15 +73,9 @@ export function PolicyRelevanceRow({ mapping, onReject, onUnreject }: PolicyRele
             <p className={cn('text-sm font-medium truncate', isRejected ? 'text-neutral-500' : 'text-neutral-900')}>
               {mapping.policy_name ?? 'Unnamed document'}
             </p>
-            {mapping.policy_document_type === 'evidence' ? (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700 flex-shrink-0">
-                <Shield className="h-3 w-3" />
-                Evidence
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 flex-shrink-0">
-                <FileText className="h-3 w-3" />
-                Policy
+            {mapping.policy_section && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-neutral-100 text-neutral-600 flex-shrink-0 capitalize">
+                {mapping.policy_section}
               </span>
             )}
           </div>
