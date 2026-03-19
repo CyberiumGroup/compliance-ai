@@ -88,7 +88,7 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
             label: 'Evidence',
             description: 'Upload policies',
             icon: Upload,
-            href: `/assessments/${assessmentId}/documentation`,
+            href: `/assessments/${assessmentId}/evidence`,
             status: getStatus(policies.length > 0, hasEvidence),
           },
           {

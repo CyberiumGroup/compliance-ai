@@ -21,7 +21,7 @@ const tabs = [
   { name: 'Overview', path: '', icon: Home },
   { name: 'Context', path: '/context', icon: Building2 },
   { name: 'Scope', path: '/scope', icon: Layers },
-  { name: 'Documentation', path: '/documentation', icon: FileText },
+  { name: 'Evidence', path: '/evidence', icon: FileText },
   { name: 'Mappings', path: '/mappings', icon: Link2 },
   { name: 'Scores', path: '/scores', icon: BarChart3 },
   { name: 'Reports', path: '/reports', icon: FileDown },
