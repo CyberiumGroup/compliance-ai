@@ -20,12 +20,11 @@ interface AssessmentTabsProps {
 }
 
 const tabs = [
-  { name: 'Context',      path: '/context',      icon: Building2 },
-  { name: 'Scope',        path: '/scope',         icon: Layers    },
-  { name: 'Evidence',     path: '/evidence',      icon: FileText  },
-  { name: 'Verification', path: '/verification',  icon: Link2     },
-  { name: 'Evaluation',   path: '/evaluation',    icon: BarChart3 },
-  { name: 'Reports',      path: '/reports',       icon: FileDown  },
+  { name: 'Context',    path: '/context',    icon: Building2 },
+  { name: 'Scope',      path: '/scope',       icon: Layers    },
+  { name: 'Evidence',   path: '/evidence',    icon: FileText  },
+  { name: 'Evaluation', path: '/evaluation',  icon: BarChart3 },
+  { name: 'Reports',    path: '/reports',     icon: FileDown  },
 ];
 
 export function AssessmentTabs({ assessmentId, className }: AssessmentTabsProps) {

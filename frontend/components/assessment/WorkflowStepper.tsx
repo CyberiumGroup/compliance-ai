@@ -6,7 +6,6 @@ import {
   Building2,
   Layers,
   Upload,
-  Link2,
   BarChart3,
   FileText,
   ChevronRight,
@@ -17,7 +16,6 @@ import {
   getAssessment,
   getAssessmentScope,
   listPolicies,
-  listPolicyMappings,
   getScoreSummary,
   listReports,
 } from '@/lib/api';
@@ -103,11 +101,10 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
   useEffect(() => {
     const checkProgress = async () => {
       try {
-        const [assessment, scope, policies, policyMappings, reports] = await Promise.all([
+        const [assessment, scope, policies, reports] = await Promise.all([
           getAssessment(assessmentId, userId).catch(() => null),
           getAssessmentScope(assessmentId).catch(() => []),
           listPolicies(assessmentId, userId).catch(() => []),
-          listPolicyMappings(assessmentId, userId).catch(() => []),
           listReports(assessmentId, userId).catch(() => ({ items: [] })),
         ]);
 
@@ -120,8 +117,6 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
 
         const hasContext = !!(assessment?.business_description || assessment?.industry);
         const hasScope = scope.length > 0;
-        const hasMappings = policyMappings.length > 0;
-        const hasApprovedMappings = policyMappings.filter((m) => m.is_approved).length > 0;
         const hasScores = scoreSummary !== null;
         const hasReports = reports.items.length > 0;
 
@@ -158,17 +153,6 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
             href: `/assessments/${assessmentId}/evidence`,
             status: s(policies.length > 0, false),
             metric: policies.length > 0 ? { value: policies.length, label: policies.length === 1 ? 'document' : 'documents' } : null,
-          },
-          {
-            id: 'verification',
-            label: 'Verification',
-            description: 'Review and tune AI-generated mappings between your documents and requirements.',
-            cta: hasMappings ? 'Review mappings' : 'Generate mappings',
-            icon: Link2,
-            href: `/assessments/${assessmentId}/verification`,
-            status: s(hasApprovedMappings, hasMappings),
-            optional: true,
-            metric: hasMappings ? { value: policyMappings.length, label: 'mappings' } : null,
           },
           {
             id: 'evaluation',

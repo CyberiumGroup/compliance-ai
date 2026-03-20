@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, use, useCallback } from 'react';
-import { AlertTriangle, BarChart3, FileDown, Play, RefreshCw, Trash2, X } from 'lucide-react';
+import { AlertTriangle, BarChart3, FileDown, Link2, Play, RefreshCw, Trash2, X } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui';
 import { LoadingSpinner, ErrorMessage } from '@/components/ui';
 import { ScoringProgress } from '@/components/scores/ScoringProgress';
@@ -386,6 +386,28 @@ export default function ScoresPage({ params }: ScoresPageProps) {
           ))}
         </div>
       )}
+
+      {/* Verification callout */}
+      <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-5 py-4 flex items-start justify-between gap-6">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="mt-0.5 w-7 h-7 rounded-md bg-white border border-neutral-200 flex items-center justify-center flex-shrink-0">
+            <Link2 className="h-3.5 w-3.5 text-neutral-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-neutral-800">Want to review document mappings first?</p>
+            <p className="text-xs text-neutral-500 mt-0.5 leading-relaxed">
+              Before running evaluation, you can inspect and tune how your evidence documents are mapped to each requirement. Correcting low-confidence mappings can meaningfully improve scoring accuracy.
+            </p>
+          </div>
+        </div>
+        <a
+          href={`/assessments/${id}/verification`}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:border-neutral-300 hover:bg-neutral-50 transition-all flex-shrink-0 whitespace-nowrap"
+        >
+          <Link2 className="h-3 w-3" />
+          Review mappings
+        </a>
+      </div>
 
       {/* Split-panel requirement viewer */}
       {scores.length > 0 && (

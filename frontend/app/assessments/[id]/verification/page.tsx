@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { Link2, Sparkles, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { BarChart3, Link2, Sparkles, Trash2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui';
 import { LoadingSpinner, ErrorMessage } from '@/components/ui';
 import { MappingsList } from '@/components/mappings';
@@ -174,6 +175,30 @@ export default function MappingsPage({ params }: MappingsPageProps) {
           />
         </CardContent>
       </Card>
+
+      {/* Back to evaluation callout — fixed to bottom of viewport */}
+      <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-neutral-200 bg-white/95 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-6">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-7 h-7 rounded-md bg-neutral-100 border border-neutral-200 flex items-center justify-center flex-shrink-0">
+              <BarChart3 className="h-3.5 w-3.5 text-neutral-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-neutral-800">Ready to evaluate?</p>
+              <p className="text-xs text-neutral-500 hidden sm:block">
+                Once you're happy with your mappings, head back to Evaluation to run AI scoring.
+              </p>
+            </div>
+          </div>
+          <Link
+            href={`/assessments/${id}/evaluation`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-primary-200 bg-primary-50/60 text-xs font-semibold text-primary-700 hover:border-primary-300 hover:bg-primary-50 transition-all flex-shrink-0 whitespace-nowrap"
+          >
+            <BarChart3 className="h-3 w-3" />
+            Go to Evaluation
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

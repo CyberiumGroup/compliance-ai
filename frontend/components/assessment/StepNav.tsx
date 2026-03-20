@@ -32,18 +32,12 @@ const STEPS: StepDef[] = [
     path: '/evidence',
     label: 'Evidence',
     prevPrompt: 'Need to add more evidence?',
-    nextPrompt: 'Ready to generate your mappings?',
-  },
-  {
-    path: '/verification',
-    label: 'Verification',
-    prevPrompt: 'Need to review your mappings?',
     nextPrompt: 'Ready to run your evaluation?',
   },
   {
     path: '/evaluation',
     label: 'Evaluation',
-    prevPrompt: 'Need to adjust your evaluation?',
+    prevPrompt: 'Need to regenerate scores?',
     nextPrompt: 'Ready to generate your report?',
   },
   {
