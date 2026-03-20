@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Layers, Clock, FileText } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui';
 import {
+  getAssessment,
   getAssessmentScope,
   listFrameworks,
   listPolicies,
@@ -12,7 +13,7 @@ import {
 import { useUserId } from '@/lib/hooks/useUserId';
 import { WorkflowStepper } from '@/components/assessment/WorkflowStepper';
 import { cn } from '@/lib/utils';
-import { Policy, EvidenceSection } from '@/lib/types';
+import { Policy, EvidenceSection, AssessmentDepth } from '@/lib/types';
 
 interface OverviewPageProps {
   params: Promise<{ id: string }>;
@@ -37,6 +38,12 @@ const SECTION_LABELS: Record<EvidenceSection, string> = {
   control:   'Control',
   interview: 'Interview',
   proof:     'Proof',
+};
+
+const DEPTH_LABELS: Record<AssessmentDepth, string> = {
+  design:                 'Design',
+  implementation:         'Implementation',
+  operating_effectiveness: 'Operating Effectiveness',
 };
 
 const SECTION_COLORS: Record<EvidenceSection, string> = {
@@ -67,13 +74,15 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
   const userId = useUserId();
   const [frameworksInScope, setFrameworksInScope] = useState<FrameworkInfo[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]);
+  const [depthLevel, setDepthLevel] = useState<AssessmentDepth | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!userId) return;
     const fetchData = async () => {
       try {
-        const [scope, allFrameworks, docs] = await Promise.all([
+        const [assessment, scope, allFrameworks, docs] = await Promise.all([
+          getAssessment(id, userId).catch(() => null),
           getAssessmentScope(id).catch(() => []),
           listFrameworks().catch(() => []),
           listPolicies(id, userId).catch(() => []),
@@ -85,6 +94,7 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
             .map((f) => ({ id: f.id, name: f.name, framework_type: f.framework_type }))
         );
         setPolicies(docs);
+        if (assessment) setDepthLevel(assessment.depth_level);
       } finally {
         setLoading(false);
       }
@@ -167,6 +177,14 @@ export default function AssessmentOverviewPage({ params }: OverviewPageProps) {
 
         {/* Right column */}
         <div className="col-span-1 flex flex-col gap-4">
+
+          {/* Assessment Depth */}
+          {depthLevel && (
+            <div className="rounded-lg border border-neutral-200 bg-white px-4 py-3.5 flex items-center justify-between">
+              <span className="text-xs font-medium text-neutral-500">Assessment depth</span>
+              <span className="text-xs font-semibold text-neutral-800">{DEPTH_LABELS[depthLevel]}</span>
+            </div>
+          )}
 
           {/* Frameworks in Scope */}
           {frameworksInScope.length > 0 && (

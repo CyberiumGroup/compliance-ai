@@ -4,12 +4,12 @@ import { useState, useEffect, use } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { AssessmentTabs } from '@/components/layout';
+import { StepNav } from '@/components/assessment/StepNav';
 import { LoadingPage, ErrorMessage } from '@/components/ui';
 import { getAssessment } from '@/lib/api';
 import { useUserId } from '@/lib/hooks/useUserId';
 import { Assessment } from '@/lib/types';
 import { ChevronLeft, Pencil } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface AssessmentLayoutProps {
   children: React.ReactNode;
@@ -68,7 +68,9 @@ export default function AssessmentLayout({ children, params }: AssessmentLayoutP
           </Link>
         )}
 
-        <div className="flex items-start justify-between gap-6">
+        {/* Title row + inline tabs on non-overview pages */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+          {/* Title block */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-neutral-900 leading-tight truncate">
@@ -91,15 +93,28 @@ export default function AssessmentLayout({ children, params }: AssessmentLayoutP
               </p>
             )}
           </div>
+
+          {/* Tabs — inline on large screens, wraps below on small */}
+          {!isOverview && (
+            <AssessmentTabs
+              assessmentId={id}
+              className="border-b border-neutral-200 self-end"
+            />
+          )}
         </div>
 
-        <div className="mt-5 border-b border-neutral-200" />
+        {/* Divider — only on overview (step pages use the tabs' own border-b) */}
+        {isOverview && <div className="mt-5 border-b border-neutral-200" />}
       </div>
 
-      {/* ── Nav tabs (hidden on overview) ────────────────────────── */}
-      {!isOverview && <AssessmentTabs assessmentId={id} />}
-
-      <div className={cn(isOverview ? 'mt-0' : 'mt-6')}>{children}</div>
+      {isOverview ? (
+        <div className="mt-0">{children}</div>
+      ) : (
+        <div className="mt-6 pb-28">
+          {children}
+          <StepNav assessmentId={id} />
+        </div>
+      )}
     </div>
   );
 }

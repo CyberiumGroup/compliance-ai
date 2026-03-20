@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils';
 
 interface AssessmentTabsProps {
   assessmentId: string;
+  className?: string;
 }
 
 const tabs = [
@@ -25,13 +26,13 @@ const tabs = [
   { name: 'Reports',      path: '/reports',       icon: FileDown  },
 ];
 
-export function AssessmentTabs({ assessmentId }: AssessmentTabsProps) {
+export function AssessmentTabs({ assessmentId, className }: AssessmentTabsProps) {
   const pathname = usePathname();
   const basePath = `/assessments/${assessmentId}`;
 
   return (
     <nav
-      className="flex gap-0 overflow-x-auto border-b border-neutral-200"
+      className={cn('flex gap-0 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]', className)}
       aria-label="Assessment sections"
     >
       {tabs.map((tab) => {
