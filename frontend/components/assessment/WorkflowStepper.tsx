@@ -1,19 +1,20 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
+  Building2,
   Layers,
   Upload,
   Link2,
   BarChart3,
   FileText,
-  CheckCircle,
-  Circle,
-  Loader2,
   ChevronRight,
+  ArrowRight,
+  Loader2,
 } from 'lucide-react';
 import {
+  getAssessment,
   getAssessmentScope,
   listPolicies,
   listPolicyMappings,
@@ -29,14 +30,92 @@ interface WorkflowStepperProps {
 
 type StepStatus = 'not_started' | 'in_progress' | 'complete';
 
+interface StepMetric {
+  value: string | number;
+  label: string;
+}
+
 interface WorkflowStep {
   id: string;
   label: string;
   description: string;
-  icon: typeof Layers;
+  cta: string;
+  icon: React.ElementType;
   href: string;
   status: StepStatus;
+  metric?: StepMetric | null;
 }
+
+// ─── Pipeline step card ────────────────────────────────────────────────────────
+
+function StepCard({ step, stepNumber }: { step: WorkflowStep; stepNumber: number }) {
+  const Icon = step.icon;
+
+  return (
+    <Link
+      href={step.href}
+      className="flex-1 min-w-0 flex flex-col rounded-lg border border-neutral-200 bg-white p-4 transition-all duration-200 group hover:shadow-md hover:-translate-y-0.5 hover:border-primary-300"
+    >
+      {/* Step number */}
+      <span className="text-[11px] font-mono text-neutral-400 mb-3">
+        {String(stepNumber).padStart(2, '0')}
+      </span>
+
+      {/* Icon */}
+      <div className="w-8 h-8 rounded-md border bg-primary-50 border-primary-200 flex items-center justify-center mb-3 flex-shrink-0">
+        <Icon className="h-4 w-4 text-primary-600" />
+      </div>
+
+      {/* Label + description */}
+      <p className="text-sm font-semibold text-neutral-900 mb-1">{step.label}</p>
+      <p className="text-xs text-neutral-500 leading-relaxed flex-1">{step.description}</p>
+
+      {/* Metric */}
+      {step.metric != null && (
+        <div className="mt-3">
+          <span className="text-xl font-bold tabular-nums text-neutral-900">{step.metric.value}</span>
+          <span className="text-xs text-neutral-400 ml-1.5">{step.metric.label}</span>
+        </div>
+      )}
+
+      {/* CTA */}
+      <div className="mt-3 flex items-center gap-1 text-xs font-semibold text-primary-600 group-hover:text-primary-700 transition-colors">
+        {step.cta}
+        <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+      </div>
+    </Link>
+  );
+}
+
+// ─── Active-stage quick-jump card ─────────────────────────────────────────────
+
+function ActiveStageCard({ step }: { step: WorkflowStep }) {
+  const Icon = step.icon;
+
+  return (
+    <Link
+      href={step.href}
+      className="flex items-center gap-3 px-4 py-3 rounded-lg border border-neutral-200 bg-white transition-all duration-200 group hover:shadow-sm hover:border-primary-300 hover:bg-primary-50/20"
+    >
+      <div className="w-7 h-7 rounded-md border bg-primary-50 border-primary-200 flex items-center justify-center flex-shrink-0">
+        <Icon className="h-3.5 w-3.5 text-primary-600" />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-neutral-900 truncate">{step.label}</p>
+        {step.metric != null ? (
+          <p className="text-xs text-neutral-500">{step.metric.value} {step.metric.label}</p>
+        ) : (
+          <p className="text-xs text-neutral-400">Not started</p>
+        )}
+      </div>
+
+      <ChevronRight className="h-3.5 w-3.5 text-neutral-300 group-hover:text-primary-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+    </Link>
+  );
+}
+
+// ─── WorkflowStepper ──────────────────────────────────────────────────────────
 
 export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) {
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
@@ -45,79 +124,95 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
   useEffect(() => {
     const checkProgress = async () => {
       try {
-        const [scope, policies, policyMappings, reports] =
-          await Promise.all([
-            getAssessmentScope(assessmentId).catch(() => []),
-            listPolicies(assessmentId, userId).catch(() => []),
-            listPolicyMappings(assessmentId, userId).catch(() => []),
-            listReports(assessmentId, userId).catch(() => ({ items: [] })),
-          ]);
+        const [assessment, scope, policies, policyMappings, reports] = await Promise.all([
+          getAssessment(assessmentId, userId).catch(() => null),
+          getAssessmentScope(assessmentId).catch(() => []),
+          listPolicies(assessmentId, userId).catch(() => []),
+          listPolicyMappings(assessmentId, userId).catch(() => []),
+          listReports(assessmentId, userId).catch(() => ({ items: [] })),
+        ]);
 
-        let scoreSummary = null;
+        let scoreSummary: { overall_maturity: number } | null = null;
         try {
           scoreSummary = await getScoreSummary(assessmentId, userId);
         } catch {
-          // Scores not calculated yet
+          // not yet scored
         }
 
+        const hasContext = !!(assessment?.business_description || assessment?.industry);
         const hasScope = scope.length > 0;
-        const hasEvidence = policies.length > 0;
         const hasMappings = policyMappings.length > 0;
-        const approvedMappings = policyMappings.filter((m) => m.is_approved);
-        const hasApprovedMappings = approvedMappings.length > 0;
+        const hasApprovedMappings = policyMappings.filter((m) => m.is_approved).length > 0;
         const hasScores = scoreSummary !== null;
         const hasReports = reports.items.length > 0;
 
-        const getStatus = (done: boolean, partial: boolean): StepStatus => {
-          if (done) return 'complete';
-          if (partial) return 'in_progress';
-          return 'not_started';
-        };
+        const s = (done: boolean, partial: boolean): StepStatus =>
+          done ? 'complete' : partial ? 'in_progress' : 'not_started';
 
         setSteps([
           {
+            id: 'context',
+            label: 'Context',
+            description: 'Describe your organisation, industry, and what systems are in scope.',
+            cta: hasContext ? 'Edit context' : 'Add context',
+            icon: Building2,
+            href: `/assessments/${assessmentId}/context`,
+            status: s(hasContext, false),
+            metric: null,
+          },
+          {
             id: 'scope',
             label: 'Scope',
-            description: 'Select compliance frameworks',
+            description: 'Select the compliance frameworks applicable to this assessment.',
+            cta: hasScope ? 'Edit scope' : 'Set scope',
             icon: Layers,
             href: `/assessments/${assessmentId}/scope`,
-            status: getStatus(hasScope, false),
+            status: s(hasScope, false),
+            metric: hasScope ? { value: scope.length, label: scope.length === 1 ? 'framework' : 'frameworks' } : null,
           },
           {
             id: 'evidence',
             label: 'Evidence',
-            description: 'Upload policies',
+            description: 'Upload policies, processes, controls, interviews, and proof documents.',
+            cta: policies.length > 0 ? 'Manage evidence' : 'Upload evidence',
             icon: Upload,
             href: `/assessments/${assessmentId}/evidence`,
-            status: getStatus(policies.length > 0, hasEvidence),
+            status: s(policies.length > 0, false),
+            metric: policies.length > 0 ? { value: policies.length, label: policies.length === 1 ? 'document' : 'documents' } : null,
           },
           {
-            id: 'mappings',
+            id: 'verification',
             label: 'Verification',
-            description: 'Map evidence to requirements',
+            description: 'Review AI-suggested mappings between your documents and requirements.',
+            cta: hasMappings ? 'Review mappings' : 'Generate mappings',
             icon: Link2,
             href: `/assessments/${assessmentId}/verification`,
-            status: getStatus(hasApprovedMappings, hasMappings),
+            status: s(hasApprovedMappings, hasMappings),
+            metric: hasMappings ? { value: policyMappings.length, label: 'mappings' } : null,
           },
           {
-            id: 'scoring',
+            id: 'evaluation',
             label: 'Evaluation',
-            description: 'Calculate maturity scores',
+            description: 'Run AI scoring to calculate maturity scores across all requirements.',
+            cta: hasScores ? 'View scores' : 'Run evaluation',
             icon: BarChart3,
             href: `/assessments/${assessmentId}/evaluation`,
-            status: getStatus(hasScores, false),
+            status: s(hasScores, false),
+            metric: hasScores ? { value: 'Scored', label: 'view results →' } : null,
           },
           {
             id: 'report',
             label: 'Report',
-            description: 'Generate assessment report',
+            description: 'Generate the final compliance report for stakeholders.',
+            cta: hasReports ? 'View report' : 'Generate report',
             icon: FileText,
             href: `/assessments/${assessmentId}/reports`,
-            status: getStatus(hasReports, false),
+            status: s(hasReports, false),
+            metric: hasReports ? { value: reports.items.length, label: reports.items.length === 1 ? 'report' : 'reports' } : null,
           },
         ]);
-      } catch {
-        // If progress check fails, show empty steps
+      } catch (err) {
+        console.error('[WorkflowStepper] Failed to load progress:', err);
       } finally {
         setLoading(false);
       }
@@ -128,80 +223,55 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="w-6 h-6 text-primary-500 animate-spin" />
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-5 h-5 text-primary-500 animate-spin" />
       </div>
     );
   }
 
-  // Find next incomplete step
-  const nextStep = steps.find((s) => s.status !== 'complete');
+  const numberedSteps = steps.map((step, i) => ({ step, stepNumber: i + 1 }));
+  const activeStages = steps.filter((s) => ['evidence', 'verification', 'evaluation'].includes(s.id));
 
   return (
-    <div className="space-y-4">
-      {/* Step indicators */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-2">
-        {steps.map((step, index) => {
-          const Icon = step.icon;
-          const isNext = nextStep?.id === step.id;
-          const StatusIcon =
-            step.status === 'complete'
-              ? CheckCircle
-              : step.status === 'in_progress'
-                ? Loader2
-                : Circle;
+    <div className="space-y-8">
 
-          return (
-            <div key={step.id} className="flex items-center">
-              <Link
-                href={step.href}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm whitespace-nowrap',
-                  isNext
-                    ? 'bg-primary-50 border border-primary-200 text-primary-700'
-                    : step.status === 'complete'
-                      ? 'bg-accent-50 text-accent-700'
-                      : 'text-neutral-500 hover:bg-neutral-50'
-                )}
-              >
-                <StatusIcon
-                  className={cn(
-                    'w-4 h-4 flex-shrink-0',
-                    step.status === 'complete' && 'text-accent-500',
-                    step.status === 'in_progress' && 'text-primary-500 animate-spin',
-                    step.status === 'not_started' && 'text-neutral-300'
-                  )}
-                />
-                <span className="font-medium">{step.label}</span>
-              </Link>
+      {/* ── Pipeline ─────────────────────────────────────────────── */}
+      <div>
+        <div className="mb-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Workflow</p>
+          <h2 className="text-lg font-semibold text-neutral-900 mt-0.5">Assessment Pipeline</h2>
+        </div>
+
+        {/* Cards — Fragment avoids extra DOM nodes that can break flex layout */}
+        <div className="flex items-stretch gap-2">
+          {numberedSteps.map(({ step, stepNumber }, index) => (
+            <Fragment key={step.id}>
+              <StepCard step={step} stepNumber={stepNumber} />
               {index < steps.length - 1 && (
-                <ChevronRight className="w-4 h-4 text-neutral-300 mx-1 flex-shrink-0" />
+                <div className="flex items-center flex-shrink-0 text-neutral-300">
+                  <ChevronRight className="h-4 w-4" />
+                </div>
               )}
-            </div>
-          );
-        })}
+            </Fragment>
+          ))}
+        </div>
       </div>
 
-      {/* Next step call to action */}
-      {nextStep && (
-        <Link
-          href={nextStep.href}
-          className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-primary-50 to-accent-50 border border-primary-100 hover:border-primary-200 transition-all group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white rounded-lg shadow-sm">
-              <nextStep.icon className="w-5 h-5 text-primary-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-primary-700">
-                Next: {nextStep.label}
-              </p>
-              <p className="text-xs text-primary-500">{nextStep.description}</p>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-primary-400 group-hover:translate-x-1 transition-transform" />
-        </Link>
-      )}
+      {/* ── Active stages quick-jump ──────────────────────────────── */}
+      <div className="rounded-lg border border-neutral-200 bg-neutral-50/60 p-5">
+        <div className="mb-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Active Stages</p>
+          <p className="text-sm text-neutral-500 mt-0.5">
+            Iterate freely — update evidence, re-run evaluation, review mappings at any time.
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {activeStages.map((step) => (
+            <ActiveStageCard key={step.id} step={step} />
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 }

@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import Link from 'next/link';
 import { AssessmentTabs } from '@/components/layout';
 import { LoadingPage, ErrorMessage } from '@/components/ui';
-import { StatusBadge } from '@/components/assessments';
 import { getAssessment } from '@/lib/api';
 import { useUserId } from '@/lib/hooks/useUserId';
 import { Assessment } from '@/lib/types';
+import { ChevronLeft, Pencil } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface AssessmentLayoutProps {
   children: React.ReactNode;
@@ -18,38 +20,27 @@ export default function AssessmentLayout({ children, params }: AssessmentLayoutP
   const { id } = use(params);
   const userId = useUserId();
   const router = useRouter();
+  const pathname = usePathname();
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const isOverview = pathname === `/assessments/${id}`;
+
   useEffect(() => {
     if (!userId) return;
-
-    const fetchAssessment = async () => {
-      try {
-        const data = await getAssessment(id, userId);
-        setAssessment(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load assessment');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAssessment();
+    getAssessment(id, userId)
+      .then(setAssessment)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load assessment'))
+      .finally(() => setLoading(false));
   }, [id, userId]);
 
-  if (!userId || loading) {
-    return <LoadingPage message="Loading assessment..." />;
-  }
+  if (!userId || loading) return <LoadingPage message="Loading assessment…" />;
 
   if (error) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <ErrorMessage
-          message={error}
-          onRetry={() => router.refresh()}
-        />
+        <ErrorMessage message={error} onRetry={() => router.refresh()} />
       </div>
     );
   }
@@ -64,21 +55,51 @@ export default function AssessmentLayout({ children, params }: AssessmentLayoutP
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header with gradient accent */}
-      <div className="mb-6 pb-6 border-b border-neutral-200 relative">
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary-500 via-accent-500 to-transparent" />
-        <div className="flex items-center justify-between animate-fadeIn">
-          <div>
-            <h1 className="text-2xl font-bold gradient-text">{assessment.name}</h1>
-            <p className="mt-1 text-sm text-neutral-500">{assessment.organization_name}</p>
+
+      {/* ── Header ───────────────────────────────────────────────── */}
+      <div className="mb-6">
+        {!isOverview && (
+          <Link
+            href={`/assessments/${id}`}
+            className="inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-neutral-600 transition-colors mb-3"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Overview
+          </Link>
+        )}
+
+        <div className="flex items-start justify-between gap-6">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-neutral-900 leading-tight truncate">
+                {assessment.name}
+              </h1>
+              {isOverview && (
+                <Link
+                  href={`/assessments/${id}/edit`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-neutral-200 text-xs font-medium text-neutral-500 hover:border-neutral-300 hover:bg-neutral-50 transition-all flex-shrink-0"
+                >
+                  <Pencil className="h-3 w-3" />
+                  Edit
+                </Link>
+              )}
+            </div>
+            <p className="mt-1 text-sm text-neutral-400">{assessment.organization_name}</p>
+            {assessment.description && (
+              <p className="mt-1.5 text-sm text-neutral-500 leading-relaxed max-w-2xl">
+                {assessment.description}
+              </p>
+            )}
           </div>
-          <StatusBadge status={assessment.status} />
         </div>
+
+        <div className="mt-5 border-b border-neutral-200" />
       </div>
 
-      <AssessmentTabs assessmentId={id} />
+      {/* ── Nav tabs (hidden on overview) ────────────────────────── */}
+      {!isOverview && <AssessmentTabs assessmentId={id} />}
 
-      <div className="mt-6">{children}</div>
+      <div className={cn(isOverview ? 'mt-0' : 'mt-6')}>{children}</div>
     </div>
   );
 }
