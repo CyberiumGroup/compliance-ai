@@ -21,7 +21,6 @@ import {
   getScoreSummary,
   listReports,
 } from '@/lib/api';
-import { cn } from '@/lib/utils';
 
 interface WorkflowStepperProps {
   assessmentId: string;
@@ -43,6 +42,7 @@ interface WorkflowStep {
   icon: React.ElementType;
   href: string;
   status: StepStatus;
+  optional?: boolean;
   metric?: StepMetric | null;
 }
 
@@ -56,10 +56,17 @@ function StepCard({ step, stepNumber }: { step: WorkflowStep; stepNumber: number
       href={step.href}
       className="flex-1 min-w-0 flex flex-col rounded-lg border border-neutral-200 bg-white p-4 transition-all duration-200 group hover:shadow-md hover:-translate-y-0.5 hover:border-primary-300"
     >
-      {/* Step number */}
-      <span className="text-[11px] font-mono text-neutral-400 mb-3">
-        {String(stepNumber).padStart(2, '0')}
-      </span>
+      {/* Step number / optional badge */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[11px] font-mono text-neutral-400">
+          {String(stepNumber).padStart(2, '0')}
+        </span>
+        {step.optional && (
+          <span className="text-[10px] font-medium text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded">
+            optional
+          </span>
+        )}
+      </div>
 
       {/* Icon */}
       <div className="w-8 h-8 rounded-md border bg-primary-50 border-primary-200 flex items-center justify-center mb-3 flex-shrink-0">
@@ -83,34 +90,6 @@ function StepCard({ step, stepNumber }: { step: WorkflowStep; stepNumber: number
         {step.cta}
         <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
       </div>
-    </Link>
-  );
-}
-
-// ─── Active-stage quick-jump card ─────────────────────────────────────────────
-
-function ActiveStageCard({ step }: { step: WorkflowStep }) {
-  const Icon = step.icon;
-
-  return (
-    <Link
-      href={step.href}
-      className="flex items-center gap-3 px-4 py-3 rounded-lg border border-neutral-200 bg-white transition-all duration-200 group hover:shadow-sm hover:border-primary-300 hover:bg-primary-50/20"
-    >
-      <div className="w-7 h-7 rounded-md border bg-primary-50 border-primary-200 flex items-center justify-center flex-shrink-0">
-        <Icon className="h-3.5 w-3.5 text-primary-600" />
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-neutral-900 truncate">{step.label}</p>
-        {step.metric != null ? (
-          <p className="text-xs text-neutral-500">{step.metric.value} {step.metric.label}</p>
-        ) : (
-          <p className="text-xs text-neutral-400">Not started</p>
-        )}
-      </div>
-
-      <ChevronRight className="h-3.5 w-3.5 text-neutral-300 group-hover:text-primary-500 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
     </Link>
   );
 }
@@ -153,7 +132,7 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
           {
             id: 'context',
             label: 'Context',
-            description: 'Describe your organisation, industry, and what systems are in scope.',
+            description: 'Describe your organisation, industry, and relevant risk factors.',
             cta: hasContext ? 'Edit context' : 'Add context',
             icon: Building2,
             href: `/assessments/${assessmentId}/context`,
@@ -163,7 +142,7 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
           {
             id: 'scope',
             label: 'Scope',
-            description: 'Select the compliance frameworks applicable to this assessment.',
+            description: 'Select the compliance frameworks and level of depth applicable to this assessment.',
             cta: hasScope ? 'Edit scope' : 'Set scope',
             icon: Layers,
             href: `/assessments/${assessmentId}/scope`,
@@ -183,17 +162,18 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
           {
             id: 'verification',
             label: 'Verification',
-            description: 'Review AI-suggested mappings between your documents and requirements.',
+            description: 'Review and tune AI-generated mappings between your documents and requirements.',
             cta: hasMappings ? 'Review mappings' : 'Generate mappings',
             icon: Link2,
             href: `/assessments/${assessmentId}/verification`,
             status: s(hasApprovedMappings, hasMappings),
+            optional: true,
             metric: hasMappings ? { value: policyMappings.length, label: 'mappings' } : null,
           },
           {
             id: 'evaluation',
             label: 'Evaluation',
-            description: 'Run AI scoring to calculate maturity scores across all requirements.',
+            description: 'Run AI scoring to calculate coverage and adequacy scores across all requirements.',
             cta: hasScores ? 'View scores' : 'Run evaluation',
             icon: BarChart3,
             href: `/assessments/${assessmentId}/evaluation`,
@@ -202,8 +182,8 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
           },
           {
             id: 'report',
-            label: 'Report',
-            description: 'Generate the final compliance report for stakeholders.',
+            label: 'Reports',
+            description: 'Generate formatted compliance reports for stakeholders.',
             cta: hasReports ? 'View report' : 'Generate report',
             icon: FileText,
             href: `/assessments/${assessmentId}/reports`,
@@ -230,7 +210,6 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
   }
 
   const numberedSteps = steps.map((step, i) => ({ step, stepNumber: i + 1 }));
-  const activeStages = steps.filter((s) => ['evidence', 'verification', 'evaluation'].includes(s.id));
 
   return (
     <div className="space-y-8">
@@ -253,21 +232,6 @@ export function WorkflowStepper({ assessmentId, userId }: WorkflowStepperProps) 
                 </div>
               )}
             </Fragment>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Active stages quick-jump ──────────────────────────────── */}
-      <div className="rounded-lg border border-neutral-200 bg-neutral-50/60 p-5">
-        <div className="mb-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-neutral-400">Active Stages</p>
-          <p className="text-sm text-neutral-500 mt-0.5">
-            Iterate freely — update evidence, re-run evaluation, review mappings at any time.
-          </p>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          {activeStages.map((step) => (
-            <ActiveStageCard key={step.id} step={step} />
           ))}
         </div>
       </div>
