@@ -96,15 +96,11 @@ export default function AssessmentLayout({ children, params }: AssessmentLayoutP
 
           {/* Tabs — inline on large screens, wraps below on small */}
           {!isOverview && (
-            <AssessmentTabs
-              assessmentId={id}
-              className="border-b border-neutral-200 self-end"
-            />
+            <AssessmentTabs assessmentId={id} className="self-end pb-1" />
           )}
         </div>
 
-        {/* Divider — only on overview (step pages use the tabs' own border-b) */}
-        {isOverview && <div className="mt-5 border-b border-neutral-200" />}
+        <div className="mt-4 border-b border-neutral-200" />
       </div>
 
       {isOverview ? (

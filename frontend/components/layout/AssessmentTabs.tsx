@@ -1,5 +1,6 @@
 'use client';
 
+import { Fragment } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -9,6 +10,7 @@ import {
   BarChart3,
   FileDown,
   Layers,
+  ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,29 +34,35 @@ export function AssessmentTabs({ assessmentId, className }: AssessmentTabsProps)
 
   return (
     <nav
-      className={cn('flex gap-0 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]', className)}
+      className={cn(
+        'flex items-center gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]',
+        className
+      )}
       aria-label="Assessment sections"
     >
-      {tabs.map((tab) => {
+      {tabs.map((tab, index) => {
         const href = `${basePath}${tab.path}`;
         const isActive = pathname.startsWith(href);
         const Icon = tab.icon;
 
         return (
-          <Link
-            key={tab.name}
-            href={href}
-            className={cn(
-              'inline-flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap',
-              'border-b-2 -mb-px transition-colors duration-150',
-              isActive
-                ? 'border-primary-600 text-primary-700'
-                : 'border-transparent text-neutral-500 hover:text-neutral-800 hover:border-neutral-300'
+          <Fragment key={tab.name}>
+            <Link
+              href={href}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium whitespace-nowrap transition-all duration-150 flex-shrink-0',
+                isActive
+                  ? 'bg-primary-50 border-primary-300 text-primary-700'
+                  : 'bg-white border-neutral-200 text-neutral-500 hover:border-neutral-300 hover:text-neutral-700 hover:bg-neutral-50'
+              )}
+            >
+              <Icon className="h-3 w-3 flex-shrink-0" />
+              {tab.name}
+            </Link>
+            {index < tabs.length - 1 && (
+              <ChevronRight className="h-3 w-3 text-neutral-300 flex-shrink-0" />
             )}
-          >
-            <Icon className="h-3.5 w-3.5 flex-shrink-0" />
-            {tab.name}
-          </Link>
+          </Fragment>
         );
       })}
     </nav>
