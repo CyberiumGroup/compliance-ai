@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
 
     # Database
-    database_url: str = "postgresql://compliance:compliance@localhost:5432/compliance_ai"
+    database_url: str = "postgresql://compliance:compliance@localhost:5433/compliance_ai"
 
     # OpenAI (for chat completions and embeddings)
     openai_api_key: str | None = None
